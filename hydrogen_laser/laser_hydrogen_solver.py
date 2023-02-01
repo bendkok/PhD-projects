@@ -103,7 +103,6 @@ class laser_hydrogen_solver:
         self.cep          = cep 
         self.save_dir     = save_dir
         
-        os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
             
         #initialise other things
         self.h  = r_max/n                        # physical step length
@@ -130,17 +129,17 @@ class laser_hydrogen_solver:
         self.T2 = np.diag(T2_diag, k=1) - np.diag(T2_diag, k=-1)
         
         # real time vector
-        self.dt  = T/nt  
+        self.dt  = T/(nt-1)
         self.dt2 = .5*self.dt  # 
         self.dt6 = self.dt / 6
-        # self.time_vector = np.linspace(0,self.T,self.nt+1) # np.linspace(self.dt,self.T,self.nt)
+        self.time_vector = np.linspace(0,self.T,self.nt) # np.linspace(self.dt,self.T,self.nt)
         # print(self.dt, self.time_vector[1]-self.time_vector[0], self.time_vector[2]-self.time_vector[1])
         
         # imaginary time vector
-        self.dt_imag  = T_imag/nt_imag  
+        self.dt_imag  = T_imag/(nt_imag-1)
         self.dt2_imag = .5*self.dt_imag 
         self.dt6_imag = self.dt_imag / 6
-        self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag+1)
+        self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
         # print(self.dt_imag, self.time_vector_imag[1]-self.time_vector_imag[0], self.time_vector_imag[2]-self.time_vector_imag[1])
         
         #for the electric field
@@ -164,12 +163,12 @@ class laser_hydrogen_solver:
         self.time_propagator = name   # method for propagating time
         
         if name == self.Lanczos:
-            self.time_vector = np.linspace(0,self.T,self.nt+1) 
+            self.time_vector = np.linspace(0,self.T,self.nt) 
             self.time_vector += self.dt2
             self.energy_func = self.Hamiltonian
             self.k = k
         elif name == self.RK4:
-            self.time_vector = np.linspace(0,self.T,self.nt+1) 
+            self.time_vector = np.linspace(0,self.T,self.nt) 
             self.energy_func = self.iHamiltonian
             self.k = None
         else:
@@ -258,113 +257,6 @@ class laser_hydrogen_solver:
         else:
             print("Invalid finite difference method (fd_method)!")
             
-        
-    
-    def case_0(self, do_save_plots=False):
-        """
-        A case with RK4, 3 point finite difference derivatives, real time and E0 = 0.1.
-
-        Parameters
-        ----------
-        do_save_plots : boolean, optional
-            DESCRIPTION. Whether to save the plots. The default is False.
-        """
-                
-        self.calculate_ground_state_analytical()
-        # self.plot_gs_res(do_save=do_save_plots)
-        
-        self.A = self.single_laser_pulse
-        self.calculate_time_evolution()
-        self.plot_res(do_save=do_save_plots)
-    
-    
-    def case_1(self, do_save_plots=False):
-        """
-        A case with RK4, 3 point finite difference derivatives, real time and E0 = 0.1.
-        
-        Parameters
-        ----------
-        do_save_plots : boolean, optional
-            DESCRIPTION. Whether to save the plots. The default is False.
-        """
-        
-        self.__init__(fd_method="3-point", E0=.1, nt=200_000, T=315, r_max=100, Ncycle=10)
-        # self.__init__(fd_method="3-point", E0=.1, nt=2_000, T=315, r_max=100, Ncycle=10)
-        # self.set_time_propagator(self.Lanczos, k=50)
-        
-        self.calculate_ground_state_imag_time()
-        self.plot_gs_res(do_save=do_save_plots)
-        
-        self.A = self.single_laser_pulse
-        self.calculate_time_evolution()
-        self.plot_res(do_save=do_save_plots)
-        
-    
-    def case_2(self, do_save_plots=False):
-        """
-        A case with RK4, 5 point finite difference derivatives, real time and E0 = 0.1.
-        
-        Parameters
-        ----------
-        do_save_plots : boolean, optional
-            DESCRIPTION. Whether to save the plots. The default is False.
-        """
-        
-        self.__init__(fd_method="5-point_asymmetric", nt=50_000, T_imag=21) #, n=2000, nt=100_000, T=50, r_max=100)
-        # self.n_fd_points = 5
-        # self.make_derivative_matrices()
-        
-        self.calculate_ground_state_imag_time()
-        self.plot_gs_res(do_save=do_save_plots)
-        
-        self.A = self.single_laser_pulse
-        self.calculate_time_evolution()
-        self.plot_res(do_save=do_save_plots)
-        
-        
-    def case_3(self, do_save_plots=False):
-        """
-        A case with RK4, 5/6 point finite difference derivatives, real time and E0 = 0.1.
-        
-        Parameters
-        ----------
-        do_save_plots : boolean, optional
-            DESCRIPTION. Whether to save the plots. The default is False.
-        """
-        
-        self.__init__(fd_method="5_6-point_asymmetric", nt=100_000, T_imag=17) #T_imag=20, T=6, nt=30_000) #n=3000, nt=100_000, T=50, r_max=500, 
-        # self.n_fd_points = 5
-        # self.make_derivative_matrices()
-        
-        self.calculate_ground_state_imag_time()
-        self.plot_gs_res(do_save=do_save_plots)
-        
-        self.A = self.single_laser_pulse
-        self.calculate_time_evolution()
-        self.plot_res(do_save=do_save_plots)
-        
-        
-    def case_4(self, do_save_plots=False):
-        """
-        A case with RK4, 5 mid-point finite difference derivatives, real time and E0 = 0.1.
-        
-        Parameters
-        ----------
-        do_save_plots : boolean, optional
-            DESCRIPTION. Whether to save the plots. The default is False.
-        """
-        
-        self.__init__(fd_method="5-point_symmetric", nt=200_000) #, n=3500, nt=200_000, T=100, r_max=100, nt_imag=50_000, T_imag=16)
-        # self.n_fd_points = 5
-        # self.make_derivative_matrices()
-        
-        self.calculate_ground_state_imag_time()
-        self.plot_gs_res(do_save=do_save_plots)
-        
-        self.A = self.single_laser_pulse
-        self.calculate_time_evolution()
-        self.plot_res(do_save=do_save_plots)
-        
     
     
     def b_l(self, l):
@@ -538,8 +430,9 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
-        
-        return -1j * self.Hamiltonian(t, P)
+        TI = self.TI_Hamiltonian(t, P)
+        TD = self.TD_Hamiltonian(t, P)
+        return -1j * (TI + TD) # self.Hamiltonian(t, P)
     
     def Hamiltonian_imag_time(self, t, P):
         """
@@ -566,7 +459,8 @@ class laser_hydrogen_solver:
     
     def RK4_0(self, tn, func): #, dt, dt2, dt6):
         """
-        One step of Runge Kutta 4 for a matrix ODE.
+        DEPRECATED! 
+        One step of Runge Kutta 4 for a matrix ODE. 
 
         Parameters
         ----------
@@ -757,7 +651,7 @@ class laser_hydrogen_solver:
         self.save_idx_imag = np.round(np.linspace(0, len(self.time_vector_imag) - 1, self.n_saves_imag)).astype(int)
         
         # we find the numerical ground state by using imaginary time
-        for tn in tqdm(range(self.nt_imag+1)):
+        for tn in tqdm(range(self.nt_imag)):
             
             self.P0 = self.RK4_imag(self.time_vector_imag[tn], self.TI_Hamiltonian_imag_time)
             # self.P0 = self.RK4(self.time_vector_imag[tn], self.TI_Hamiltonian_imag_time, self.dt_imag, self.dt2_imag, self.dt6_imag)
@@ -792,6 +686,7 @@ class laser_hydrogen_solver:
         """
 
         if self.ground_state_found:
+            os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}", self.P0s)
         else:
             print("Warning: Ground state needs to be found before running save_ground_states().")
@@ -803,7 +698,7 @@ class laser_hydrogen_solver:
 
         Parameters
         ----------
-        savename : TYPE, optional
+        savename : string, optional
             Name of save file. The default is "ground_states".
 
         Returns
@@ -811,7 +706,7 @@ class laser_hydrogen_solver:
         None.
 
         """
-
+        
         self.P0s = np.load(f"{self.save_dir}/{savename}")
         self.ground_state_found = True
         
@@ -846,6 +741,7 @@ class laser_hydrogen_solver:
             plt.grid()
             # plt.yscale("log")
             if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/gs_found.pdf")
             plt.show()    
             
@@ -904,7 +800,7 @@ class laser_hydrogen_solver:
             #         self.Ps.append(self.P)
             #         # self.times.append(())
             
-            for tn in tqdm(range(self.nt+1)):
+            for tn in tqdm(range(self.nt)):
                 
                 self.P = self.time_propagator(self.P, self.energy_func, self.time_vector[tn], self.dt, self.dt2, self.dt6, self.k)
                 # (, self.Hamiltonian, self.time_vector[tn]+self.dt2, self.dt, k=50)
@@ -950,12 +846,13 @@ class laser_hydrogen_solver:
                     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector[self.save_idx[i]]))
                 plt.legend()
                 # plt.xlim(left=-.1, right=20)
-                plt.title(f"l = {ln}")
+                plt.title(f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}. FD-method: {self.fd_method.replace('_', ' ')}"+"\n"+f"l = {ln}.")
                 plt.xlabel("r (a.u.)")
                 plt.ylabel("Wave function")
                 plt.grid()
                 plt.xscale("log")
                 if do_save:
+                    os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
                     plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
                 plt.show()
         else:
@@ -977,6 +874,7 @@ class laser_hydrogen_solver:
         
         """
         if self.time_evolved:
+            os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}", self.Ps)
         else:
             print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
@@ -988,7 +886,7 @@ class laser_hydrogen_solver:
         
         Parameters
         ----------
-        savename : TYPE, optional
+        savename : string, optional
             Name of save file. The default is "found_states".
 
         Returns
@@ -1003,40 +901,18 @@ class laser_hydrogen_solver:
     
 if __name__ == "__main__":
     
-    # print("Case 0:")
-    # c = laser_hydrogen_solver(save_dir="case0") 
-    # c.case_0(do_save_plots=True)
-    # print(c.l_max)
-    
-    print("\nCase 1:")
-    a = laser_hydrogen_solver(save_dir="case1") 
-    a.case_1(do_save_plots=True)
-    print(a.l_max)
-    
-    # print("\nCase 2:")
-    # # here we need to increase nt
-    # # this seems far less stable. And worse
-    # # might be an error
-    # b = laser_hydrogen_solver(save_dir="case2") 
-    # b.case_2(do_save_plots=True)    
-    
-    
-    # print("\nCase 3:")
-    # # here we need to increase nt
-    # # this seems far less stable. And worse
-    # # might be an error
-    # d = laser_hydrogen_solver(save_dir="case3") 
-    # d.case_3(do_save_plots=True)    
-    
-    # print("\nCase 4:")
-    # # here we need to increase nt
-    # # this seems far less stable. And worse
-    # # might be an error
-    # e = laser_hydrogen_solver(save_dir="case4") 
-    # e.case_4(do_save_plots=True)    
         
-        
-        
+    a = laser_hydrogen_solver(save_dir="example_res", fd_method="3-point", E0=.3, nt=2_000, T=315, n=4000, r_max=400, Ncycle=10, nt_imag=5_000, T_imag=16)
+    a.set_time_propagator(a.Lanczos, k=50)
+    
+    a.calculate_ground_state_imag_time()
+    a.plot_gs_res(do_save=False)
+    
+    a.A = a.single_laser_pulse
+    a.calculate_time_evolution()
+    a.plot_res(do_save=False)
+    # print(a.l_max)
+    
         
         
         
