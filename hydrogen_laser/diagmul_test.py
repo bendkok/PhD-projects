@@ -151,6 +151,8 @@ print(x1 * x2)
 print(getT.__name__)
 
 
+nt_vector = np.linspace(6e4, 1e6, 100, dtype=int)
+print(nt_vector)
 
 
 

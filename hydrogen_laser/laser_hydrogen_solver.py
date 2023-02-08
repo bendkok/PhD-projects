@@ -128,20 +128,6 @@ class laser_hydrogen_solver:
         self.T1 = np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
         self.T2 = np.diag(T2_diag, k=1) - np.diag(T2_diag, k=-1)
         
-        # real time vector
-        self.dt  = T/(nt-1)
-        self.dt2 = .5*self.dt  # 
-        self.dt6 = self.dt / 6
-        self.time_vector = np.linspace(0,self.T,self.nt) # np.linspace(self.dt,self.T,self.nt)
-        # print(self.dt, self.time_vector[1]-self.time_vector[0], self.time_vector[2]-self.time_vector[1])
-        
-        # imaginary time vector
-        self.dt_imag  = T_imag/(nt_imag-1)
-        self.dt2_imag = .5*self.dt_imag 
-        self.dt6_imag = self.dt_imag / 6
-        self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
-        # print(self.dt_imag, self.time_vector_imag[1]-self.time_vector_imag[0], self.time_vector_imag[2]-self.time_vector_imag[1])
-        
         #for the electric field
         self.Tpulse = self.Ncycle*2*np.pi/self.w
         self.E0_w = self.E0/self.w
@@ -155,8 +141,32 @@ class laser_hydrogen_solver:
         self.ground_state_found = False
         self.time_evolved       = True
         
+        self.make_time_vector_imag()
+        self.make_time_vector()
+        
         self.set_time_propagator(self.RK4)
+        
     
+    def make_time_vector(self):
+        
+        # real time vector
+        self.dt  = self.T/(self.nt-1)
+        self.dt2 = .5*self.dt  # 
+        self.dt6 = self.dt / 6
+        self.time_vector = np.linspace(0,self.T,self.nt) # np.linspace(self.dt,self.T,self.nt)
+        # print(self.dt, self.time_vector[1]-self.time_vector[0], self.time_vector[2]-self.time_vector[1])
+        
+        
+    def make_time_vector_imag(self):
+        
+        # imaginary time vector
+        self.dt_imag  = self.T_imag/(self.nt_imag-1)
+        self.dt2_imag = .5*self.dt_imag 
+        self.dt6_imag = self.dt_imag / 6
+        self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
+        # print(self.dt_imag, self.time_vector_imag[1]-self.time_vector_imag[0], self.time_vector_imag[2]-self.time_vector_imag[1])
+        self.enrgy_constant = -.5 / self.dt_imag # constant to save some flops during re-normalisation
+        
     
     def set_time_propagator(self, name, k=50):
         
@@ -646,8 +656,6 @@ class laser_hydrogen_solver:
         
         # save_every = int(self.nt_imag / self.n_saves_imag)
         
-        enrgy_constant = -.5 / self.dt_imag # constant to save some flops
-        
         self.save_idx_imag = np.round(np.linspace(0, len(self.time_vector_imag) - 1, self.n_saves_imag)).astype(int)
         
         # we find the numerical ground state by using imaginary time
@@ -661,12 +669,12 @@ class laser_hydrogen_solver:
             # N = si.simpson( np.insert( np.abs(P0.flatten())**2,0,0), dx=h) 
             self.P0 = self.P0 / np.sqrt(N)
             
-            self.eps0.append( enrgy_constant * np.log(N) ) #we keep track of the estimated ground state energy
+            self.eps0.append( self.enrgy_constant * np.log(N) ) #we keep track of the estimated ground state energy
             if tn in self.save_idx_imag:
                 self.P0s.append(self.P0)
                 
         self.P[:,0] = self.P0[:,0]
-        print( f"\nFinal ground state energy: {self.eps0[-1]} au.")
+        print( f"\nFinal ground state energy: {self.eps0[-1]} au.\n")
         self.ground_state_found = True
         
         
@@ -814,6 +822,7 @@ class laser_hydrogen_solver:
             # eps = -.5 * np.log(N) / self.dt_imag
             # print( f"\nFinal state energy: {eps} au.")
             
+            # self.Ps = np.array(self.Ps)
             self.time_evolved = True
         
         
@@ -851,6 +860,7 @@ class laser_hydrogen_solver:
                 plt.ylabel("Wave function")
                 plt.grid()
                 plt.xscale("log")
+                # plt.yscale("log")
                 if do_save:
                     os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
                     plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
@@ -880,7 +890,7 @@ class laser_hydrogen_solver:
             print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
     
     
-    def load_found_states(self, savename="found_states"):
+    def load_found_states(self, savename="found_states.npy"):
         """
         Loads the found wave functions from a file.
         
