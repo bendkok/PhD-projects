@@ -59,33 +59,33 @@ class Case_Examples:
         
         a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=2**17, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # a.__init__(nt=2**13, n_saves=2)
-        a.nt = 2**13; a.n_saves=10
+        a.nt = 92; a.n_saves=10
         a.make_time_vector()
         a.set_time_propagator(a.Lanczos, k=10)
         
         a.calculate_ground_state_imag_time()
-        # a.plot_gs_res(do_save=do_save_plots)
+        a.plot_gs_res(do_save=do_save_plots)
         
         a.A = a.single_laser_pulse
         a.calculate_time_evolution()
-        # a.plot_res(do_save=do_save_plots)
+        a.plot_res(do_save=do_save_plots)
         
         # print(type(a.Ps), len(a.Ps), a.Ps[0].shape)
         # a.save_found_states()
         # a.load_found_states()
         # print(type(a.Ps), a.Ps.shape)
         
-        for ln in range(3):
-            plt.plot(a.r, np.abs(a.Ps[-1][:,ln]), label="t = {:3.0f}".format(a.time_vector[a.save_idx[-1]]))
-            plt.legend()
-            # plt.xlim(left=-.1, right=20)
-            plt.title(f"Time propagator: {a.time_propagator.__name__.replace('a.', '')}. FD-method: {a.fd_method.replace('_', ' ')}"+"\n"+f"l = {ln}.")
-            plt.xlabel("r (a.u.)")
-            plt.ylabel("Wave function")
-            plt.grid()
-            plt.xscale("log")
-            # plt.yscale("log")
-            plt.show()
+        # for ln in range(3):
+        #     plt.plot(a.r, np.abs(a.Ps[-1][:,ln]), label="t = {:3.0f}".format(a.time_vector[a.save_idx[-1]]))
+        #     plt.legend()
+        #     # plt.xlim(left=-.1, right=20)
+        #     plt.title(f"Time propagator: {a.time_propagator.__name__.replace('a.', '')}. FD-method: {a.fd_method.replace('_', ' ')}"+"\n"+f"l = {ln}.")
+        #     plt.xlabel("r (a.u.)")
+        #     plt.ylabel("Wave function")
+        #     plt.grid()
+        #     plt.xscale("log")
+        #     # plt.yscale("log")
+        #     plt.show()
         
         # print(np.array(a.Ps).shape)
         # print(a.inner_product(a.Ps[-1], a.Ps[-1]))
@@ -180,7 +180,7 @@ class Case_Examples:
     
     def test_convergence(self, save_dir="convergence_test_results", method="RK4"):
         """
-        A fiunction which tests the convergence as nt increases for RK4 and Lanczos. La
+        A function which tests the convergence as nt increases for RK4 or Lanczos. 
         """
         
         os.makedirs(save_dir, exist_ok=True) #make sure the save directory exists
@@ -241,6 +241,9 @@ class Case_Examples:
             lhs.make_time_vector()
             
             lhs.n_saves = min(nt, 10)
+            
+            lhs.P      = np.zeros_like(lhs.P)   # we reset the wave function, which is important to remember
+            lhs.P[:,0] = lhs.P0[:,0]            
             
             lhs.calculate_time_evolution()
             psi_new = lhs.P
@@ -335,62 +338,73 @@ class Case_Examples:
             runtime_ = False
             
         
-        # plt.plot(time_steps, Ns, label=method)
-        # plt.xscale("log")
-        # # plt.yscale("log")
-        # plt.grid()
-        # plt.legend()
-        # plt.xlabel("N time steps")
-        # plt.ylabel("Norm")
-        # plt.title(f"Norm {method}")
-        # plt.show()
+        plt.plot(time_steps[1:], Ns[1:], '--o', label=method)
+        plt.xscale("log")
+        # if method == 'RK4':
+        #     plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        plt.ylabel("Norm")
+        plt.title(f"Norm {method}")
+        plt.show()
         
-        # plt.plot(time_steps[:-1], np.abs(norm_diff), label=method)
-        # plt.xscale("log")
-        # plt.yscale("log")
-        # plt.grid()
-        # plt.legend()
-        # plt.xlabel("N time steps")
-        # plt.ylabel(r"MSD $\left( \psi_{old}, \psi_{new} \right)$")
-        # plt.title(f"Mean squared difference {method}")
-        # plt.show()
+        plt.plot(time_steps[1:-1], np.abs(norm_diff[1:]), label=method)
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        plt.ylabel(r"MSD $\left( \psi_{old}, \psi_{new} \right)$")
+        plt.title(f"Mean squared difference {method}")
+        plt.show()
         
-        # plt.plot(time_steps[:-1], np.abs(norm_diff0), label=method)
-        # plt.xscale("log")
-        # plt.yscale("log")
-        # plt.grid()
-        # plt.legend()
-        # plt.xlabel("N time steps")
-        # plt.ylabel(r"$\left< \psi_{old}, \psi_{new} \right>$")
-        # plt.title(f"Norm difference {method}")
-        # plt.show()
+        plt.plot(time_steps[1:-1], np.abs(norm_diff0[1:]), label=method)
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        plt.ylabel(r"$\left< \psi_{old}, \psi_{new} \right>$")
+        plt.title(f"Norm difference {method}")
+        plt.show()
         
-        loc = np.where(Ns == np.max(Ns))[0][0]
+        loc = np.where(Ns == np.min(Ns))[0][0]
         print(loc)
                 
         # lhs.load_found_states(f"{method}/{files[loc]}")
-        lhs.load_found_states(f"{method}/{files[-1]}")
+        # lhs.load_found_states(f"{method}/{files[-1]}")
         # lhs.save_idx = np.round(np.linspace(0, len(lhs.time_vector) - 1, lhs.n_saves)).astype(int)
         # lhs.plot_res(False)
         
-        print(lhs.Ps.shape)     # why aren't theese the same as case1 for Lanchos?
-        for ln in range(lhs.l_max+1):
-            plt.plot(lhs.r, np.abs(lhs.Ps[-1][:,ln]), "-", label="Ground state" )
-            plt.xscale("log")
-            # plt.yscale("log")
-            plt.grid()
-            plt.show()
-        
-        # if runtime_:
-        #     plt.plot(time_steps, runtime, label=method)
+        # print(lhs.Ps.shape)     # why aren't theese the same as case1 for Lanchos?
+        # for ln in range(lhs.l_max+1):
+        #     # print(np.linspace(0, len(files)-1, 4, dtype=int))
+        #     for i in np.linspace(0, len(files)-1, 4, dtype=int):
+        #     # for i in range(len(files))[::int(len(files)/4)]:
+        #         lhs.load_found_states(f"{method}/{files[i]}")
+        #         plt.plot(lhs.r, np.abs(lhs.Ps[-1][:,ln]), "--", label="{:5.0f}".format(time_steps[i]) )
+        #         # print(i, lhs.Ps.shape)
+        #         # plt.plot(lhs.r, np.abs(lhs.Ps[:,ln]), "-", label=f"{Ns[i]} s" )
         #     plt.xscale("log")
-        #     plt.yscale("log")
+        #     # plt.yscale("log")
         #     plt.grid()
+        #     plt.title(f"Time propagator: {method}. FD-method: {lhs.fd_method.replace('_', ' ')}"+"\n"+f"l = {ln}.")
+        #     plt.xlabel("r (a.u.)")
+        #     plt.ylabel("Wave function")
         #     plt.legend()
-        #     plt.xlabel("N time steps")
-        #     plt.ylabel("Runtime (s)")
-        #     plt.title(f"Runtime {method}")
         #     plt.show()
+        
+        if runtime_:
+            plt.plot(time_steps, runtime, label=method)
+            plt.xscale("log")
+            plt.yscale("log")
+            plt.grid()
+            plt.legend()
+            plt.xlabel("N time steps")
+            plt.ylabel("Runtime (s)")
+            plt.title(f"Runtime {method}")
+            plt.show()
             
             
         
@@ -402,9 +416,9 @@ if __name__ == "__main__":
     # c.case_0(do_save_plots=True)
     # print(c.l_max)
     
-    print("\nCase 1:")
-    a = Case_Examples() 
-    a.case_1(do_save_plots=False)
+    # print("\nCase 1:")
+    # a = Case_Examples() 
+    # a.case_1(do_save_plots=False)
 
     
     # print("\nCase 2:")
@@ -441,7 +455,7 @@ if __name__ == "__main__":
     # conv = Case_Examples().test_convergence(method="Lanczos")
     
     print("Plotting convergence.")
-    # Case_Examples().plot_convergence()
+    Case_Examples().plot_convergence()
     Case_Examples().plot_convergence(method="Lanczos")
     
     

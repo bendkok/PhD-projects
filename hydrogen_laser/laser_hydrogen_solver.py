@@ -516,16 +516,17 @@ class laser_hydrogen_solver:
         
         """
 
-        k1 = func(tn, self.P)
-        k2 = func(tn + self.dt2, self.P + k1*self.dt2) 
-        k3 = func(tn + self.dt2, self.P + k2*self.dt2) 
-        k4 = func(tn + self.dt,  self.P + k3*self.dt ) 
+        k1 = func(tn, P)
+        k2 = func(tn + dt2, P + k1*dt2) 
+        k3 = func(tn + dt2, P + k2*dt2) 
+        k4 = func(tn + dt,  P + k3*dt ) 
         
-        return self.P + (k1 + 2*k2 + 2*k3 + k4) * self.dt6
+        return P + (k1 + 2*k2 + 2*k3 + k4) * dt6
     
     
     def RK4_imag(self, tn, func):
         """
+        DEPRECATED! 
         One step of Runge Kutta 4 for a matrix ODE. We have a separate one for imaginary time
         to save some flops.
 
@@ -651,8 +652,8 @@ class laser_hydrogen_solver:
         
         """
         
-        self.P0s = [self.P0] # a list to store some of the P0 results. We only keep n_saves values
-        self.eps0 = []       # a list to the estimated local energy
+        self.P0s  = [self.P0] # a list to store some of the P0 results. We only keep n_saves values
+        self.eps0 = []        # a list to the estimated local energy
         
         # save_every = int(self.nt_imag / self.n_saves_imag)
         
@@ -661,8 +662,9 @@ class laser_hydrogen_solver:
         # we find the numerical ground state by using imaginary time
         for tn in tqdm(range(self.nt_imag)):
             
-            self.P0 = self.RK4_imag(self.time_vector_imag[tn], self.TI_Hamiltonian_imag_time)
-            # self.P0 = self.RK4(self.time_vector_imag[tn], self.TI_Hamiltonian_imag_time, self.dt_imag, self.dt2_imag, self.dt6_imag)
+            # self.P0 = self.RK4_imag(self.time_vector_imag[tn], self.TI_Hamiltonian_imag_time)
+            self.P0 = self.RK4(self.P0, self.TI_Hamiltonian_imag_time, self.time_vector_imag[tn], self.dt_imag, self.dt2_imag, self.dt6_imag)
+            #P, func, tn, dt, dt2, dt6,
             
             # when using imaginary time the Hamiltonian is no longer hermitian, so we have to re-normalise P0
             N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0)) 
@@ -716,6 +718,15 @@ class laser_hydrogen_solver:
         """
         
         self.P0s = np.load(f"{self.save_dir}/{savename}")
+        self.P[:,0] = self.P0[:,0] = self.P0s
+        #2*r*np.exp(-r)
+        
+        N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0)) 
+        eps0 = np.log(N) * -.5 / self.dt_imag
+        
+        print( f"\nAnalytical ground state energy: {eps0} au.")
+        
+        # self.P0s = np.load(f"{self.save_dir}/{savename}")
         self.ground_state_found = True
         
     
@@ -739,8 +750,9 @@ class laser_hydrogen_solver:
         
         if self.ground_state_found:
             
-            plt.plot(self.r, np.abs(self.P0s[0][:,0])**2, "--")         # initial value
-            plt.plot(self.r, np.abs(self.P  [:,0])**2)                  # final estimate
+            plt.plot(self.r, np.abs(self.P0s[0] [:,0])**2, "--")         # initial value
+            # plt.plot(self.r, np.abs(self.P  [:,0])**2)                  # final estimate
+            plt.plot(self.r, np.abs(self.P0s[-1][:,0])**2)               # final estimate
             plt.plot(self.r, np.abs(2*self.r*np.exp(-self.r))**2, "--") # analytical 
             plt.legend(["P0 initial", "P0 estimate", "P0 analytical"])
             plt.xlim(left=-.1, right=12)
@@ -781,7 +793,7 @@ class laser_hydrogen_solver:
         elif not self.ground_state_found:
             print("Warning: Ground state needs to be found before running calculate_time_evolution().")
         else: # self.ground_state_found and self.A != None:
-        
+
             self.Ps     = [self.P]
             # self.times  = [0]
             # save_every = int(self.nt / self.n_saves)
