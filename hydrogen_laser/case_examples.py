@@ -57,16 +57,18 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=2**17, T=50, r_max=400, Ncycle=10, n=2000, nt_imag=10_000, T_imag=18)
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=7_100, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # a.__init__(nt=2**13, n_saves=2)
-        a.nt = 30; a.n_saves=10
+        a.nt = 144; a.n_saves=10
         # 115 144
         a.make_time_vector()
         a.set_time_propagator(a.Lanczos, k=10)
         # a.energy_func = a.y_
         
+        # a.n_plots = 2
+        
         a.calculate_ground_state_imag_time()
-        a.plot_gs_res(do_save=do_save_plots)
+        # a.plot_gs_res(do_save=do_save_plots)
         
         a.A = a.single_laser_pulse
         a.calculate_time_evolution()
@@ -190,9 +192,10 @@ class Case_Examples:
         # os.makedirs(save_dir+"/Lanczos", exist_ok=True) #make sure the save directory exists
         
         #first we get a good ground state we can use for all the tests
-        nt = 2 if method == "Lanczos" else int(7_100)
+        nt = 25 if method == "Lanczos" else int(7_100)
         #fd_method="3-point", E0=1., nt=8_000, T=50, r_max=100, Ncycle=10, n=1000
-        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
+        # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
+        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.1, T=10, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.3, T=50, n=2000, r_max=200, nt_imag=10_000, T_imag=18)
         
@@ -209,8 +212,8 @@ class Case_Examples:
             nt_vector = ((2**np.linspace(13, 17, 5))).astype(int)
         elif method == "Lanczos":
             # nt_vector = ((2**np.linspace(2, 13, 25))).astype(int)
-            nt_vector = ((2**np.linspace(2, 13, 35))).astype(int) #nt_vector = ((2**np.linspace(2, 10, 100))).astype(int)
-            # nt_vector = ((2**np.linspace(2, 13, 12))).astype(int)
+            # nt_vector = ((2**np.linspace(2, 13, 35))).astype(int) #nt_vector = ((2**np.linspace(2, 10, 100))).astype(int)
+            nt_vector = np.array([25*2**i for i in range(1,7)]).astype(int)
             # print(nt_vector) 
         else:
             print("Invalid method!")
@@ -284,7 +287,7 @@ class Case_Examples:
         sns.set_theme(style="dark") # nice plots
         
         #fd_method="3-point", E0=1., nt=8_000, T=50, r_max=100, Ncycle=10, n=1000
-        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=8_000, T=50, r_max=400, Ncycle=10, n=2000, nt_imag=10_000, T_imag=18)
+        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=8_000, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=1000, E0=.3, T=315, n=2000, r_max=200, nt_imag=10_000, T_imag=18)
         
         files = [cur for cur in os.listdir(f"{save_dir}/{method}") if 'psi_' in cur]
@@ -344,18 +347,18 @@ class Case_Examples:
             
         print(method + ":")
         print(np.max(Ns[1:]), np.min(Ns[1:]), np.min(Ns))
-        k = np.where(np.abs(Ns-1) > 1e-2)[0]
+        k = np.where(np.abs(Ns[1:]-1) > 1e-5)[0]
         print("k: ", k) 
         print("Ns: ", np.array(Ns)[k]) if len(k)>0 else ""
         print("time_steps: ", np.array(time_steps)[k]) if len(k)>0 else ""
         print()
         # time_steps = ((2**np.linspace(2, 13, 26))).astype(int)
         
-        plt.plot(time_steps[:], Ns[:], '--o', label=method)
-        [plt.axvline(np.array(time_steps)[i], color='black', linestyle='dashed') for i in k]
+        plt.plot(time_steps[1:], Ns[1:], '--o', label=method)
+        # [plt.axvline(np.array(time_steps)[i], color='black', linestyle='dashed') for i in k]
         plt.xscale("log")
         # if method == 'RK4':
-        # plt.yscale("log")
+        plt.yscale("log")
         plt.grid()
         plt.legend()
         plt.xlabel("N time steps")
@@ -363,8 +366,11 @@ class Case_Examples:
         plt.title(f"Norm {method}")
         plt.show()
         
-        plt.plot(time_steps[:-1], np.sqrt(np.abs(norm_diff[:])), label=method)
-        plt.plot(time_steps[:], 1*np.array(time_steps[:], dtype=float)**-2, '--', label="O(n^-2)")
+        
+        scale = 2 if method == "Lanczos" else 4
+        plt.plot(time_steps[:-1], np.sqrt(np.abs(norm_diff[:])), '-o', label=method)
+        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
         # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
         plt.xscale("log")
         plt.yscale("log")
@@ -385,7 +391,8 @@ class Case_Examples:
         plt.title(f"Norm difference {method}")
         plt.show()
         
-        loc = np.where(Ns == np.min(Ns))[0][0]
+        # loc = np.where(Ns == np.min(Ns))[0][0]
+        loc = -1 #np.where(Ns == np.max(Ns))[0][0]
         # print(loc, time_steps[loc])
         # print(Ns)
                 
@@ -394,7 +401,7 @@ class Case_Examples:
         # lhs.save_idx = np.round(np.linspace(0, len(lhs.time_vector) - 1, lhs.n_saves)).astype(int)
         # lhs.plot_res(False)
         
-        # print(lhs.Ps.shape)     # why aren't theese the same as case1 for Lanchos?
+        # print(lhs.Ps.shape)     
         # for ln in range(lhs.l_max+1):
         #     plt.plot(lhs.r, np.abs(lhs.Ps[-1][:,ln]), "-", label="{:5.0f}".format(time_steps[loc]) )
         #     # for i in np.linspace(0, len(files)-1, 4, dtype=int):
@@ -466,10 +473,10 @@ if __name__ == "__main__":
     # print(f.l_max)
     
     # print("Testing convergence RK4:")
-    # conv = Case_Examples().test_convergence()
+    # Case_Examples().test_convergence()
     
     print("Testing convergence Lanczos:")
-    conv = Case_Examples().test_convergence(method="Lanczos")
+    Case_Examples().test_convergence(method="Lanczos")
     
     print("Plotting convergence.")
     # Case_Examples().plot_convergence()

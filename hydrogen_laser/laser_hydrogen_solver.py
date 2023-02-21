@@ -152,12 +152,15 @@ class laser_hydrogen_solver:
     def make_time_vector(self):
         
         # real time vector
-        self.dt  = self.T/(self.nt-1)
+        self.dt  = self.T/(self.nt)
         self.dt2 = .5*self.dt  # 
         self.dt6 = self.dt / 6
-        self.time_vector = np.linspace(0,self.T,self.nt) # np.linspace(self.dt,self.T,self.nt)
+        # self.time_vector = np.linspace(0,self.T,self.nt)
+        self.time_vector = np.linspace(self.dt,self.T,self.nt) # np.linspace(self.dt,self.T,self.nt)
+        # self.time_vector = np.linspace(self.dt,self.T+self.dt,self.nt)
         # print(self.dt, self.time_vector[1]-self.time_vector[0], self.time_vector[2]-self.time_vector[1])
-        
+        # print((self.time_vector[1]-self.time_vector[0])/ self.dt, (self.time_vector[2]-self.time_vector[1])/ self.dt)
+        # exit()
         
     def make_time_vector_imag(self):
         
@@ -175,12 +178,14 @@ class laser_hydrogen_solver:
         self.time_propagator = name   # method for propagating time
         
         if name == self.Lanczos:
-            self.time_vector = np.linspace(0,self.T,self.nt) 
+            # self.time_vector = np.linspace(0,self.T,self.nt) 
+            self.make_time_vector()
             self.time_vector += self.dt2
             self.energy_func = self.Hamiltonian
             self.k = k
         elif name == self.RK4:
-            self.time_vector = np.linspace(0,self.T,self.nt) 
+            # self.time_vector = np.linspace(0,self.T,self.nt) 
+            self.make_time_vector()
             self.energy_func = self.iHamiltonian
             self.k = None
         # elif name == self.call_a_i:
@@ -644,12 +649,15 @@ class laser_hydrogen_solver:
     
     def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-4):
         
+        # print(tn, dt)
+        
         #TODO: add some comments
         alpha  = np.zeros(k) * 1j #+ 1j*np.zeros(k)
         beta   = np.zeros(k-1) * 1j #+ 1j*np.zeros(k-1)
         V      = np.zeros((self.n, self.l_max+1, k)) * 1j #+ 1j*np.zeros((self.n, self.l_max+1, k))
         
         V[:,:,0] = P #/ [np.sqrt(self.inner_product(P,P)) if tn<dt else 1]
+        # V[:,:,0] = P / np.sqrt(self.inner_product(P,P))
         
         #tried not using w or w'
         # V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?        
