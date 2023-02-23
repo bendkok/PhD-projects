@@ -182,7 +182,7 @@ class Case_Examples:
         a.plot_res(do_save=do_save_plots)
         # print(a.l_max)
     
-    def test_convergence(self, save_dir="convergence_test_results", method="RK4"):
+    def test_convergence(self, save_dir="convergence_test_results", method="RK4", k=10):
         """
         A function which tests the convergence as nt increases for RK4 or Lanczos. 
         """
@@ -195,12 +195,12 @@ class Case_Examples:
         nt = 25 if method == "Lanczos" else int(7_100)
         #fd_method="3-point", E0=1., nt=8_000, T=50, r_max=100, Ncycle=10, n=1000
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
-        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.1, T=10, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
+        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=20)
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.3, T=50, n=2000, r_max=200, nt_imag=10_000, T_imag=18)
         
         if method == "Lanczos":
-            lhs.set_time_propagator(lhs.Lanczos, k=10)
+            lhs.set_time_propagator(lhs.Lanczos, k=k)
                 
         lhs.calculate_ground_state_imag_time()
         lhs.plot_gs_res(do_save=False)
@@ -213,7 +213,7 @@ class Case_Examples:
         elif method == "Lanczos":
             # nt_vector = ((2**np.linspace(2, 13, 25))).astype(int)
             # nt_vector = ((2**np.linspace(2, 13, 35))).astype(int) #nt_vector = ((2**np.linspace(2, 10, 100))).astype(int)
-            nt_vector = np.array([25*2**i for i in range(1,7)]).astype(int)
+            nt_vector = np.array([100*2**i for i in range(1,10)]).astype(int)
             # print(nt_vector) 
         else:
             print("Invalid method!")
@@ -241,16 +241,29 @@ class Case_Examples:
             
         norm_diff  = 1j*np.zeros_like(nt_vector)
         norm_diff0 = 1j*np.zeros_like(nt_vector)
+        norm_diff1 = 1j*np.zeros_like(nt_vector)
+        norm_diff2 = 1j*np.zeros_like(nt_vector)
         
         for nt in range(len(nt_vector)):
             start = time.time()
+            
             print(f"nt = {nt_vector[nt]}, {nt+1} of {len(nt_vector)}: ")
+            
+            # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt_vector[nt], E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=5_000, T_imag=20, n_saves=10)
             lhs.nt = nt_vector[nt]
+            # if method == "Lanczos":
+            #     lhs.set_time_propagator(lhs.Lanczos, k=k)
+                
+            # lhs.calculate_ground_state_imag_time()
+            # lhs.plot_gs_res(do_save=False)
+            # lhs.A = lhs.single_laser_pulse
+            
             lhs.make_time_vector()
             
-            lhs.n_saves = min(nt, 10)
+            # lhs.n_saves = min(nt, 10)
             
             lhs.P      = np.zeros_like(lhs.P)   # we reset the wave function, which is important to remember
+            # lhs.Ps     = []
             lhs.P[:,0] = lhs.P0[:,0]            
             
             lhs.calculate_time_evolution()
@@ -261,10 +274,13 @@ class Case_Examples:
             Ns[nt+1] = np.abs(lhs.inner_product(psi_new,psi_new))
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new)**2,0,0), np.insert(np.array([lhs.r,lhs.r,lhs.r]).T,0,0)) 
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-            norm_diff [nt] = np.mean((psi_old - psi_new)**2)
+            norm_diff [nt] = np.mean((psi_old - psi_new)**2) #* lhs.h
             # if np.any( np.abs(norm_diff [nt].imag)>1e-10):
             #     print("Imag part!")
-            norm_diff0[nt] = lhs.inner_product(psi_old, psi_new)**2
+            psi_diff = psi_new-psi_old
+            norm_diff0[nt] = lhs.inner_product(psi_diff, psi_diff) #lhs.inner_product(psi_old, psi_new)
+            norm_diff1[nt] = np.sqrt(lhs.inner_product(psi_diff, psi_diff)) 
+            norm_diff2[nt] = np.mean(np.abs(psi_old - psi_new))
             
             psi_old = psi_new
             
@@ -273,11 +289,13 @@ class Case_Examples:
             if np.isnan(psi_old).any():
                 print("Got nan values!")
             print(f"Found N: {Ns[nt+1]}.")
-            print("Current norm diff: {:.4E}, {:.4E}, {:1.4f}.".format(norm_diff[nt], np.abs(norm_diff[nt]), norm_diff0[nt]))
+            print("Current norm diff: {:.4E}, {:.4E}, {:1.4f}, {:1.4f}.".format(norm_diff[nt], np.abs(norm_diff[nt]), norm_diff0[nt], norm_diff1[nt]))
             print(f"Total time: {runtime[nt+1]} s."+'\n')
         
         np.save(f"{save_dir}/{method}/norm_diff" , np.array(norm_diff))
         np.save(f"{save_dir}/{method}/norm_diff0", np.array(norm_diff0))
+        np.save(f"{save_dir}/{method}/norm_diff1", np.array(norm_diff1))
+        np.save(f"{save_dir}/{method}/norm_diff2", np.array(norm_diff2))
         np.save(f"{save_dir}/{method}/Ns", np.array(Ns))
         np.save(f"{save_dir}/{method}/runtime", np.array(runtime))
         
@@ -307,43 +325,47 @@ class Case_Examples:
         # print(time_steps)
         # print(nt_vector)
         
-        try:
-            norm_diff   = np.load(f"{save_dir}/{method}/norm_diff.npy")
-            norm_diff0  = np.load(f"{save_dir}/{method}/norm_diff0.npy")
-            Ns          = np.load(f"{save_dir}/{method}/Ns.npy")
-            runtime     = np.load(f"{save_dir}/{method}/runtime.npy")
-            
-            runtime_ = True
+        # try:
+        norm_diff   = np.load(f"{save_dir}/{method}/norm_diff.npy")
+        norm_diff0  = np.load(f"{save_dir}/{method}/norm_diff0.npy")
+        norm_diff1  = np.load(f"{save_dir}/{method}/norm_diff1.npy")
+        norm_diff2  = np.load(f"{save_dir}/{method}/norm_diff2.npy")
+        Ns          = np.load(f"{save_dir}/{method}/Ns.npy")
+        runtime     = np.load(f"{save_dir}/{method}/runtime.npy")
+        
+        runtime_ = True
             
             # print(norm_diff)
-        except:
+        # except:
             
-            files = [cur for cur in os.listdir(f"{save_dir}/{method}") if 'psi_' in cur]
-            files = sorted(files, key=key_sort_files)
-            # print(files)
+        #     files = [cur for cur in os.listdir(f"{save_dir}/{method}") if 'psi_' in cur]
+        #     files = sorted(files, key=key_sort_files)
+        #     # print(files)
             
-            # print(np.load(f"{save_dir}/{method}/{files[0]}"))
+        #     # print(np.load(f"{save_dir}/{method}/{files[0]}"))
             
-            psi_old = np.load(f"{save_dir}/{method}/{files[0]}")
+        #     psi_old = np.load(f"{save_dir}/{method}/{files[0]}")
             
-            # nt_vector = np.zeros(len(psi_old))
-            Ns = 1j*np.zeros(len(files))
-            norm_diff  = 1j*np.zeros(len(files)-1)
-            norm_diff0 = 1j*np.zeros_like(norm_diff)
+        #     # nt_vector = np.zeros(len(psi_old))
+        #     Ns = 1j*np.zeros(len(files))
+        #     norm_diff  = 1j*np.zeros(len(files)-1)
+        #     norm_diff0 = 1j*np.zeros_like(norm_diff)
+        #     norm_diff1 = 1j*np.zeros_like(norm_diff)
             
-            # Ns[0] = si.simpson( np.insert( np.abs(psi_old.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-            Ns[0] = lhs.inner_product(psi_old,psi_old)
+        #     # Ns[0] = si.simpson( np.insert( np.abs(psi_old.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
+        #     Ns[0] = lhs.inner_product(psi_old,psi_old)
             
-            for nt, file in enumerate(files[1:]):
+        #     for nt, file in enumerate(files[1:]):
                 
-                psi_new = np.load(f"{save_dir}/{method}/{files[nt]}")
+        #         psi_new = np.load(f"{save_dir}/{method}/{files[nt]}")
                 
-                # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-                Ns[nt+1] = np.abs(lhs.inner_product(psi_new,psi_new))
-                norm_diff [nt] = np.mean((psi_old - psi_new)**2)
-                norm_diff0[nt] = lhs.inner_product(psi_old, psi_new)#**2
+        #         # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
+        #         Ns[nt+1] = np.abs(lhs.inner_product(psi_new,psi_new))
+        #         norm_diff [nt] = np.mean((psi_old - psi_new)**2)
+        #         norm_diff0[nt] = lhs.inner_product(psi_old, psi_new)#**2
+        #         norm_diff1[nt] = lhs.inner_product(psi_new-psi_old, psi_new-psi_old)
     
-            runtime_ = False
+        #     runtime_ = False
             
         print(method + ":")
         print(np.max(Ns[1:]), np.min(Ns[1:]), np.min(Ns))
@@ -354,7 +376,7 @@ class Case_Examples:
         print()
         # time_steps = ((2**np.linspace(2, 13, 26))).astype(int)
         
-        plt.plot(time_steps[1:], Ns[1:], '--o', label=method)
+        plt.plot(time_steps[1:], np.abs(Ns[1:]-1), '--o', label=method)
         # [plt.axvline(np.array(time_steps)[i], color='black', linestyle='dashed') for i in k]
         plt.xscale("log")
         # if method == 'RK4':
@@ -362,15 +384,15 @@ class Case_Examples:
         plt.grid()
         plt.legend()
         plt.xlabel("N time steps")
-        plt.ylabel("Norm")
-        plt.title(f"Norm {method}")
+        plt.ylabel("|Norm-1|")
+        plt.title(f"|Norm - 1| with {method}")
         plt.show()
         
         
         scale = 2 if method == "Lanczos" else 4
-        plt.plot(time_steps[:-1], np.sqrt(np.abs(norm_diff[:])), '-o', label=method)
-        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
-        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        plt.plot(time_steps[:-1], np.abs(norm_diff[:]), '-o', label=method)
+        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
         # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
         plt.xscale("log")
         plt.yscale("log")
@@ -380,6 +402,66 @@ class Case_Examples:
         plt.ylabel(r"MSD $\left( \psi_{old}, \psi_{new} \right)$")
         plt.title(f"Mean squared difference {method}")
         plt.show()
+        
+        
+        plt.plot(time_steps[:-1], np.sqrt(np.abs(norm_diff[:])), '-o', label=method)
+        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        plt.ylabel(r"$\sqrt{ MSD\left( \psi_{old}, \psi_{new} \right) }$")
+        plt.title(f"Root mean squared difference {method}")
+        plt.show()
+        
+        
+        plt.plot(time_steps[:-1], np.abs(norm_diff0[:]), '-o', label=method)
+        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff0[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff0[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        plt.ylabel(r"$| \Psi_N(T)-\Psi_{2N}(T)|^2$")
+        plt.title(f"Norm difference {method}")
+        plt.show()
+        
+        
+        plt.plot(time_steps[:-1], np.abs(norm_diff1[:]), '-o', label=method)
+        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff1[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff1[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        # plt.ylabel(r"$\sqrt{| \Psi_N(T)-\Psi_{2N}(T)|}$")
+        plt.ylabel(r"$| \Psi_N(T)-\Psi_{2N}(T)|$")
+        # plt.ylabel(r"MSD $\left( \psi_{old}, \psi_{new} \right)$")
+        plt.title(f"Norm difference {method}")
+        plt.show()
+        
+        
+        plt.plot(time_steps[:-1], np.abs(norm_diff2[:]), '-o', label=method)
+        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff2[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff2[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
+        plt.xscale("log")
+        plt.yscale("log")
+        plt.grid()
+        plt.legend()
+        plt.xlabel("N time steps")
+        plt.ylabel(r"MAD $\left( \psi_{old}, \psi_{new} \right)$")
+        plt.title(f"Mean absolute difference {method}")
+        plt.show()
+        
+        
         
         plt.plot(time_steps[1:-1], np.abs(norm_diff0[1:]), label=method)
         plt.xscale("log")
@@ -475,8 +557,8 @@ if __name__ == "__main__":
     # print("Testing convergence RK4:")
     # Case_Examples().test_convergence()
     
-    print("Testing convergence Lanczos:")
-    Case_Examples().test_convergence(method="Lanczos")
+    # print("Testing convergence Lanczos:")
+    # Case_Examples().test_convergence(method="Lanczos")
     
     print("Plotting convergence.")
     # Case_Examples().plot_convergence()

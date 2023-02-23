@@ -156,8 +156,10 @@ class laser_hydrogen_solver:
         self.dt2 = .5*self.dt  # 
         self.dt6 = self.dt / 6
         # self.time_vector = np.linspace(0,self.T,self.nt)
-        self.time_vector = np.linspace(self.dt,self.T,self.nt) # np.linspace(self.dt,self.T,self.nt)
+        self.time_vector = np.linspace(0,self.T-self.dt,self.nt) # np.linspace(self.dt,self.T,self.nt)
         # self.time_vector = np.linspace(self.dt,self.T+self.dt,self.nt)
+        
+        # print(self.T, self.nt, len(self.time_vector))
         # print(self.dt, self.time_vector[1]-self.time_vector[0], self.time_vector[2]-self.time_vector[1])
         # print((self.time_vector[1]-self.time_vector[0])/ self.dt, (self.time_vector[2]-self.time_vector[1])/ self.dt)
         # exit()
@@ -180,7 +182,7 @@ class laser_hydrogen_solver:
         if name == self.Lanczos:
             # self.time_vector = np.linspace(0,self.T,self.nt) 
             self.make_time_vector()
-            self.time_vector += self.dt2
+            # self.time_vector += self.dt2
             self.energy_func = self.Hamiltonian
             self.k = k
         elif name == self.RK4:
@@ -656,7 +658,9 @@ class laser_hydrogen_solver:
         beta   = np.zeros(k-1) * 1j #+ 1j*np.zeros(k-1)
         V      = np.zeros((self.n, self.l_max+1, k)) * 1j #+ 1j*np.zeros((self.n, self.l_max+1, k))
         
-        V[:,:,0] = P #/ [np.sqrt(self.inner_product(P,P)) if tn<dt else 1]
+        InitialNorm = np.sqrt(self.inner_product(P,P))
+        V[:,:,0] = P / InitialNorm
+        #/ [np.sqrt(self.inner_product(P,P)) if tn<dt else 1]
         # V[:,:,0] = P / np.sqrt(self.inner_product(P,P))
         
         #tried not using w or w'
@@ -754,7 +758,7 @@ class laser_hydrogen_solver:
             P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k-1,1) # .dot(V.dot(P)) #Not sure if this is the fastest
             P_new = V[:,:,1:].dot(P_k)[:,:,0]
         
-        return P_new #, T, V
+        return P_new * InitialNorm #, T, V
     
     # def call_a_i(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, eps = 1e-12):
         
@@ -815,7 +819,11 @@ class laser_hydrogen_solver:
         (n,m) numpy array
             The inner product.
         """
-        return self.h * np.sum( np.conj(psi1) * psi2 )
+        # s = 0
+        # for i in range(len(psi1)):
+        #     for j in range(len(psi1[0])):
+        #         s += np.conj(psi1[i,j]) * psi2[i,j]
+        return self.h * np.sum( np.conj(psi1) * psi2 ) # * s
         
     
     def calculate_ground_state_analytical(self):
@@ -993,7 +1001,8 @@ class laser_hydrogen_solver:
             self.Ps     = [self.P]
             # self.times  = [0]
             # save_every = int(self.nt / self.n_saves)
-            self.save_idx = np.round(np.linspace(0, len(self.time_vector) - 1, self.n_saves)).astype(int) #+ self.dt2
+            # self.save_idx = np.round(np.linspace(0, len(self.time_vector) - 1, self.n_saves)).astype(int) #+ self.dt2
+            self.save_idx = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) #+ self.dt2
             
             # self.P = si.RK45(self.Hamiltonian, self.dt, self.P[:,0], t_bound=self.T, vectorized=True)
             
@@ -1016,16 +1025,26 @@ class laser_hydrogen_solver:
             #         self.Ps.append(self.P)
             #         # self.times.append(())
             
+            # print(self.time_vector)
+            # print(self.dt)
+            # t = 0
+            # l = 1
             for tn in tqdm(range(self.nt)):
                 
-                self.P = self.time_propagator(self.P, self.energy_func, self.time_vector[tn], self.dt, self.dt2, self.dt6, self.k)
+                # print(self.time_vector[tn])
+                # print(l, t)
+                self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn]+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                # self.P = self.time_propagator(self.P, self.energy_func, tn=t+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
                 # (, self.Hamiltonian, self.time_vector[tn]+self.dt2, self.dt, k=50)
+                # t += self.dt
+                # l += 1
                 
                 if tn in self.save_idx:
                 # if tn % save_every == 0:
                     self.Ps.append(self.P)
                     # self.times.append(())
-            
+            # print(f"t: {t}")
+            # exit()
             # N = si.simpson( np.insert( np.abs(self.P.flatten())**2,0,0), np.insert(self.r,0,0)) 
             # eps = -.5 * np.log(N) / self.dt_imag
             # print( f"\nFinal state energy: {eps} au.")
