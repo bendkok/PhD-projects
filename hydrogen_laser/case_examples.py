@@ -24,9 +24,6 @@ def key_sort_files(value):
 
 class Case_Examples:
     
-    # def __init__(self, fname, lname):
-    #     super().__init__(fname, lname) 
-        
     
     def case_0(self, do_save_plots=True, save_dir="case0"):
         """
@@ -189,32 +186,23 @@ class Case_Examples:
         
         os.makedirs(save_dir, exist_ok=True) #make sure the save directory exists
         os.makedirs(f"{save_dir}/{method}", exist_ok=True) #make sure the save directory exists
-        # os.makedirs(save_dir+"/Lanczos", exist_ok=True) #make sure the save directory exists
         
-        #first we get a good ground state we can use for all the tests
         nt = 25 if method == "Lanczos" else int(7_100)
-        #fd_method="3-point", E0=1., nt=8_000, T=50, r_max=100, Ncycle=10, n=1000
-        # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=20)
-        # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=1., T=50, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
-        # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.3, T=50, n=2000, r_max=200, nt_imag=10_000, T_imag=18)
         
         if method == "Lanczos":
             lhs.set_time_propagator(lhs.Lanczos, k=k)
-                
+        
+        #first we get a good ground state we can use for all the tests
         lhs.calculate_ground_state_imag_time()
         lhs.plot_gs_res(do_save=False)
         lhs.A = lhs.single_laser_pulse
         
+        # the specific numbers of time points we test are differ for each method
         if method == "RK4":
-        #first RK4
-            # nt_vector = ((2**np.linspace(13, 16, 50))).astype(int) #np.linspace(8_000, 10_000, 100, dtype=int)
             nt_vector = ((2**np.linspace(13, 17, 5))).astype(int)
         elif method == "Lanczos":
-            # nt_vector = ((2**np.linspace(2, 13, 25))).astype(int)
-            # nt_vector = ((2**np.linspace(2, 13, 35))).astype(int) #nt_vector = ((2**np.linspace(2, 10, 100))).astype(int)
             nt_vector = np.array([100*2**i for i in range(1,10)]).astype(int)
-            # print(nt_vector) 
         else:
             print("Invalid method!")
         
@@ -228,7 +216,6 @@ class Case_Examples:
         lhs.calculate_time_evolution()
         psi_old = lhs.P
         np.save(f"{save_dir}/{method}/psi_{int(lhs.nt)}", lhs.Ps)
-        # print(nt_vector)
         
         # Ns[0] = si.simpson( np.insert( np.abs(psi_old.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
         Ns[0] =  np.abs(lhs.inner_product(psi_old,psi_old))
@@ -249,21 +236,10 @@ class Case_Examples:
             
             print(f"nt = {nt_vector[nt]}, {nt+1} of {len(nt_vector)}: ")
             
-            # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt_vector[nt], E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=5_000, T_imag=20, n_saves=10)
             lhs.nt = nt_vector[nt]
-            # if method == "Lanczos":
-            #     lhs.set_time_propagator(lhs.Lanczos, k=k)
-                
-            # lhs.calculate_ground_state_imag_time()
-            # lhs.plot_gs_res(do_save=False)
-            # lhs.A = lhs.single_laser_pulse
-            
             lhs.make_time_vector()
             
-            # lhs.n_saves = min(nt, 10)
-            
             lhs.P      = np.zeros_like(lhs.P)   # we reset the wave function, which is important to remember
-            # lhs.Ps     = []
             lhs.P[:,0] = lhs.P0[:,0]            
             
             lhs.calculate_time_evolution()
@@ -275,8 +251,6 @@ class Case_Examples:
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new)**2,0,0), np.insert(np.array([lhs.r,lhs.r,lhs.r]).T,0,0)) 
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
             norm_diff [nt] = np.mean((psi_old - psi_new)**2) #* lhs.h
-            # if np.any( np.abs(norm_diff [nt].imag)>1e-10):
-            #     print("Imag part!")
             psi_diff = psi_new-psi_old
             norm_diff0[nt] = lhs.inner_product(psi_diff, psi_diff) #lhs.inner_product(psi_old, psi_new)
             norm_diff1[nt] = np.sqrt(lhs.inner_product(psi_diff, psi_diff)) 
@@ -304,26 +278,12 @@ class Case_Examples:
         
         sns.set_theme(style="dark") # nice plots
         
-        #fd_method="3-point", E0=1., nt=8_000, T=50, r_max=100, Ncycle=10, n=1000
         lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=8_000, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=1000, E0=.3, T=315, n=2000, r_max=200, nt_imag=10_000, T_imag=18)
         
         files = [cur for cur in os.listdir(f"{save_dir}/{method}") if 'psi_' in cur]
         files = sorted(files, key=key_sort_files)
         time_steps = [int(cur.replace("psi_", "").replace(".npy", "")) for cur in files]
-        # print(time_steps)
-        
-        # if method == "RK4":
-        # #first RK4
-        #     nt_vector = ((2**np.linspace(13, 17, 100))).astype(int) #np.linspace(8_000, 10_000, 100, dtype=int)
-        # elif method == "Lanczos":
-        #     nt_vector = ((2**np.linspace(2, 13, 35))).astype(int)
-        #     # print(nt_vector) 
-        # else:
-        #     print("Invalid method!")
-            
-        # print(time_steps)
-        # print(nt_vector)
         
         # try:
         norm_diff   = np.load(f"{save_dir}/{method}/norm_diff.npy")
@@ -335,38 +295,6 @@ class Case_Examples:
         
         runtime_ = True
             
-            # print(norm_diff)
-        # except:
-            
-        #     files = [cur for cur in os.listdir(f"{save_dir}/{method}") if 'psi_' in cur]
-        #     files = sorted(files, key=key_sort_files)
-        #     # print(files)
-            
-        #     # print(np.load(f"{save_dir}/{method}/{files[0]}"))
-            
-        #     psi_old = np.load(f"{save_dir}/{method}/{files[0]}")
-            
-        #     # nt_vector = np.zeros(len(psi_old))
-        #     Ns = 1j*np.zeros(len(files))
-        #     norm_diff  = 1j*np.zeros(len(files)-1)
-        #     norm_diff0 = 1j*np.zeros_like(norm_diff)
-        #     norm_diff1 = 1j*np.zeros_like(norm_diff)
-            
-        #     # Ns[0] = si.simpson( np.insert( np.abs(psi_old.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-        #     Ns[0] = lhs.inner_product(psi_old,psi_old)
-            
-        #     for nt, file in enumerate(files[1:]):
-                
-        #         psi_new = np.load(f"{save_dir}/{method}/{files[nt]}")
-                
-        #         # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-        #         Ns[nt+1] = np.abs(lhs.inner_product(psi_new,psi_new))
-        #         norm_diff [nt] = np.mean((psi_old - psi_new)**2)
-        #         norm_diff0[nt] = lhs.inner_product(psi_old, psi_new)#**2
-        #         norm_diff1[nt] = lhs.inner_product(psi_new-psi_old, psi_new-psi_old)
-    
-        #     runtime_ = False
-            
         print(method + ":")
         print(np.max(Ns[1:]), np.min(Ns[1:]), np.min(Ns))
         k = np.where(np.abs(Ns[1:]-1) > 1e-5)[0]
@@ -374,7 +302,7 @@ class Case_Examples:
         print("Ns: ", np.array(Ns)[k]) if len(k)>0 else ""
         print("time_steps: ", np.array(time_steps)[k]) if len(k)>0 else ""
         print()
-        # time_steps = ((2**np.linspace(2, 13, 26))).astype(int)
+
         
         plt.plot(time_steps[1:], np.abs(Ns[1:]-1), '--o', label=method)
         # [plt.axvline(np.array(time_steps)[i], color='black', linestyle='dashed') for i in k]

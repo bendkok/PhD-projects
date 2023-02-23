@@ -103,8 +103,6 @@ class laser_hydrogen_solver:
         self.w            = w 
         self.cep          = cep 
         self.save_dir     = save_dir
-        # self.k            = k
-        
             
         #initialise other things
         self.h  = r_max/n                        # physical step length
@@ -155,9 +153,7 @@ class laser_hydrogen_solver:
         self.dt  = self.T/(self.nt)
         self.dt2 = .5*self.dt  # 
         self.dt6 = self.dt / 6
-        # self.time_vector = np.linspace(0,self.T,self.nt)
         self.time_vector = np.linspace(0,self.T-self.dt,self.nt) # np.linspace(self.dt,self.T,self.nt)
-        # self.time_vector = np.linspace(self.dt,self.T+self.dt,self.nt)
         
         # print(self.T, self.nt, len(self.time_vector))
         # print(self.dt, self.time_vector[1]-self.time_vector[0], self.time_vector[2]-self.time_vector[1])
@@ -180,13 +176,10 @@ class laser_hydrogen_solver:
         self.time_propagator = name   # method for propagating time
         
         if name == self.Lanczos:
-            # self.time_vector = np.linspace(0,self.T,self.nt) 
             self.make_time_vector()
-            # self.time_vector += self.dt2
             self.energy_func = self.Hamiltonian
             self.k = k
         elif name == self.RK4:
-            # self.time_vector = np.linspace(0,self.T,self.nt) 
             self.make_time_vector()
             self.energy_func = self.iHamiltonian
             self.k = None
@@ -303,6 +296,7 @@ class laser_hydrogen_solver:
     def single_laser_pulse(self, t):
         """
         A function which generates a single laser pulse. 
+        E0_w, Tpulse and pi_Tpulse are constants calculated in __innit__. 
 
         Parameters
         ----------
@@ -314,17 +308,13 @@ class laser_hydrogen_solver:
         float
             The vector field contribution to the SE.
         """
-        # Single pulse
-        # Tpulse = self.Ncycle*2*np.pi/self.w
-        # A = self.E0/self.w * (t>0) * (t<self.Tpulse) * (np.sin(np.pi*t/self.Tpulse))**2 *np.cos(self.w*t+self.cep)
-        # A = self.E0_w * (t>0) * (t<self.Tpulse) * (np.sin(t*self.pi_Tpulse))**2 *np.cos(self.w*t+self.cep)
-        
         return self.E0_w * (t>0) * (t<self.Tpulse) * (np.sin(t*self.pi_Tpulse))**2 *np.cos(self.w*t+self.cep)
     
     
     def TI_Hamiltonian(self, t, P):
         """
         The time independent part of the Hamiltonian. 
+        D2_2, Vs_2 and V_ are constant matrices calculated in __innit__.
 
         Parameters
         ----------
@@ -338,12 +328,8 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
-        # P_new = -.5*self.D2.dot(P) + .5 * np.multiply( np.multiply(self.Vs[:,None], P), self.S) - np.multiply(self.V[:,None], P) 
         P_new = self.D2_2.dot(P) + np.multiply( np.multiply(self.Vs_2, P), self.S) - np.multiply(self.V_, P) 
-        # P_new = self.D2_2.matmul(P) + np.matmul( np.matmul(self.Vs_2, P), self.S) - np.matmul(self.V_, P) 
-        # P_new = self.D2_2.dot(P) + np.multiply(self.Vs_2, P) @ self.S - np.multiply(self.V_, P) 
-        
-        return P_new #* (-1j)
+        return P_new 
     
     
     def TI_Hamiltonian_imag_time(self, t, P):
@@ -351,6 +337,7 @@ class laser_hydrogen_solver:
         The time independent part of the Hamiltonian when using imaginary time. 
         This will approach the ground state as τ increases (t->-iτ).
         We assume P is a 1D vector, as f_l should be 0 for l>0.
+        D2_2, Vs_2 and V_ are constant matrices calculated in __innit__.
         
         Parameters
         ----------
@@ -377,6 +364,7 @@ class laser_hydrogen_solver:
     def TD_Hamiltonian(self, t, P):
         """
         The time dependent part of the Hamiltonian. 
+        V_ is a constant matrix calculated in __innit__.
         
         Parameters
         ----------
@@ -398,6 +386,7 @@ class laser_hydrogen_solver:
     def TD_Hamiltonian_imag_time(self, t, P):
         """
         The time dependent part of the Hamiltonian when using imaginary time. 
+        V_ is a constant matrix calculated in __innit__.
         Not currently in use.
         
         Parameters
@@ -481,7 +470,9 @@ class laser_hydrogen_solver:
         return TI + TD
     
     def y_(self,t,P):
-        
+        """
+        DEPRECATED! 
+        """
         return P*self.dt
     
     
@@ -517,6 +508,7 @@ class laser_hydrogen_solver:
     def RK4(self, P, func, tn, dt, dt2, dt6, k=None):
         """
         One step of Runge Kutta 4 for a matrix ODE.
+        dt2 = dt/2. dt6 = dt/6.
 
         Parameters
         ----------
@@ -547,6 +539,7 @@ class laser_hydrogen_solver:
         DEPRECATED! 
         One step of Runge Kutta 4 for a matrix ODE. We have a separate one for imaginary time
         to save some flops.
+        dt2_imag = dt_imag/2. dt6_imag = dt_imag/6.
 
         Parameters
         ----------
@@ -574,36 +567,37 @@ class laser_hydrogen_solver:
     def Lanczos_(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=50):
         
         #TODO: add some comments
-        alpha  = np.zeros(k) * 1j #+ 1j*np.zeros(k)
-        beta   = np.zeros(k-1) * 1j #+ 1j*np.zeros(k-1)
-        V      = np.zeros((self.n, self.l_max+1, k)) * 1j #+ 1j*np.zeros((self.n, self.l_max+1, k))
+        alpha  = np.zeros(k) * 1j 
+        beta   = np.zeros(k-1) * 1j 
+        V      = np.zeros((self.n, self.l_max+1, k)) * 1j 
         
         V[:,:,0] = P
         
+        """
         #tried not using w or w'
-        # V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?        
+        V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?        
         
-        # alpha[0] = self.inner_product(V[:,:,1], V[:,:,0]) 
-        # V[:,:,1] = V[:,:,1] - alpha[0] * P  #not sure if correct
+        alpha[0] = self.inner_product(V[:,:,1], V[:,:,0]) 
+        V[:,:,1] = V[:,:,1] - alpha[0] * P  #not sure if correct
         
-        # for j in range(1,k):
-        #     beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm 
-        #     V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
+        for j in range(1,k):
+            beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm 
+            V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
             
-        #     V[:,:,j+1] = Hamiltonian(tn, V[:,:,j]) 
-        #     alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
-        #     V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+            V[:,:,j+1] = Hamiltonian(tn, V[:,:,j]) 
+            alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
+            V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
         
-        # T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
+        T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
 
-        # P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-        # P_new = V.dot(P_k)[:,:,0]
+        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
+        P_new = V.dot(P_k)[:,:,0]
+        """
         
-        
-        w = Hamiltonian(tn, P) # or tn + dt/2 ?        
+        w = Hamiltonian(tn, P) 
         
         alpha[0] = self.inner_product(w, V[:,:,0]) 
-        w = w - alpha[0] * P  #not sure if correct
+        w = w - alpha[0] * P  
         
         for j in range(1,k):
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm 
@@ -620,24 +614,11 @@ class laser_hydrogen_solver:
         P_new = V.dot(P_k)[:,:,0]
         
         return P_new #, T, V
-    
-    
-    # def orthonormal_array(self, a, j):
-    #     x = 1j*np.random.randn(a.shape[0]*a.shape[1]) #np.random.randn((a.shape))
-    #     x -= x.dot(a.ravel()) * a.ravel()
-    #     # x = x.reshape(a.shape[0],a.shape[1])        
-    #     # x = a[::-1, :]
-    #     # np.negative(x[0,:], out=x[10, :])
-    #     print(j)
-    #     # return (x/np.linalg.norm(x)).reshape(a.shape[0],a.shape[1])
-    #     return (x/np.sqrt(self.inner_product(x,x))).reshape(a.shape[0],a.shape[1])
-    
+        
     
     def find_orth(self, O, j):
         #TODO: add comments
         #https://stackoverflow.com/a/50661011/15147410
-        
-        # print(j)
         
         M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] )
         rand_vec = np.random.rand(M.shape[0], 1)
@@ -650,54 +631,85 @@ class laser_hydrogen_solver:
     
     
     def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-4):
-        
-        # print(tn, dt)
+        """
+        The Lanczos propagator for one timestep. 
+        This a fast method which we use to propagate a matrix ODE one timestep.
+        The idea is ot create a Krylow sub-space of the P state, and then calculate the 
+        Hamiltonian on that instead of the full state. The result is then transformed 
+        back into the regular space, giving a estimate of P_new. 
+        #TODO: Double check that the description is correct. 
+
+        Parameters
+        ----------
+        P : (self.n, l_max) numpy array
+            Wave function.
+        Hamiltonian : function
+            Function representing the Hamiltonian.
+        tn : float
+            Current time.
+        dt : float
+            The differnce between each timestep.
+        dt2 : float, optional
+            dt/2. The default is None.
+        dt6 : float, optional
+            dt/6. The default is None.
+        k : int, optional
+            The total number of Lanczos iterations. The default is 20.
+        tol : float, optional
+            How small we allow beta to be. The default is 1e-4.
+
+        Returns
+        -------
+        (self.n, l_max) numpy array
+            The estimate of the wave function for the next timestep.
+        """
         
         #TODO: add some comments
-        alpha  = np.zeros(k) * 1j #+ 1j*np.zeros(k)
-        beta   = np.zeros(k-1) * 1j #+ 1j*np.zeros(k-1)
-        V      = np.zeros((self.n, self.l_max+1, k)) * 1j #+ 1j*np.zeros((self.n, self.l_max+1, k))
+        #TODO: explain tn + dt2
+        alpha  = np.zeros(k) * 1j 
+        beta   = np.zeros(k-1) * 1j 
+        V      = np.zeros((self.n, self.l_max+1, k)) * 1j 
         
+        # we keep the norm of the input P
         InitialNorm = np.sqrt(self.inner_product(P,P))
-        V[:,:,0] = P / InitialNorm
-        #/ [np.sqrt(self.inner_product(P,P)) if tn<dt else 1]
-        # V[:,:,0] = P / np.sqrt(self.inner_product(P,P))
+        V[:,:,0] = P / InitialNorm # P is normalised
         
+        """
         #tried not using w or w'
-        # V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?        
+        V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?        
         
-        # alpha[0] = self.inner_product(V[:,:,1], V[:,:,0]) 
-        # V[:,:,1] = V[:,:,1] - alpha[0] * P  #not sure if correct
+        alpha[0] = self.inner_product(V[:,:,1], V[:,:,0]) 
+        V[:,:,1] = V[:,:,1] - alpha[0] * P  #not sure if correct
         
-        # for j in range(1,k):
-        #     beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm 
-        #     V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
+        for j in range(1,k):
+            beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm 
+            V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
             
-        #     V[:,:,j+1] = Hamiltonian(tn, V[:,:,j]) 
-        #     alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
-        #     V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+            V[:,:,j+1] = Hamiltonian(tn, V[:,:,j]) 
+            alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
+            V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
         
-        # T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
+        T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
 
-        # P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-        # P_new = V.dot(P_k)[:,:,0]
+        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
+        P_new = V.dot(P_k)[:,:,0]
         
         
-        # w_ = Hamiltonian(tn, P) # or tn + dt/2 ?        
+        w_ = Hamiltonian(tn, P) # or tn + dt/2 ?        
         
-        # alpha[0] = self.inner_product(w_, V[:,:,0]) 
-        # w = w_ - alpha[0] * P  
+        alpha[0] = self.inner_product(w_, V[:,:,0]) 
+        w = w_ - alpha[0] * P  
         
-        # for j in range(1,k):
-        #     beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm 
-        #     V[:,:,j]  = w / beta[j-1]  if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1], j)
+        for j in range(1,k):
+            beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm 
+            V[:,:,j]  = w / beta[j-1]  if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1], j)
                 
-        #     w_ = Hamiltonian(tn, V[:,:,j]) 
-        #     alpha[j] = self.inner_product(w_, V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
-        #     w  = w_ - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+            w_ = Hamiltonian(tn, V[:,:,j]) 
+            alpha[j] = self.inner_product(w_, V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
+            w  = w_ - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+        """
         
-        
-        w = Hamiltonian(tn, V[:,:,0]) # or tn + dt/2 ?        
+        w = Hamiltonian(tn + dt2, V[:,:,0])        
         
         alpha[0] = self.inner_product(w, V[:,:,0]) 
         w = w - alpha[0] * P  
@@ -707,100 +719,21 @@ class laser_hydrogen_solver:
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm 
             V[:,:,j]  = w / beta[j-1]  if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1], j)
                 
-            w = Hamiltonian(tn, V[:,:,j]) 
+            w = Hamiltonian(tn + dt2, V[:,:,j]) 
             alpha[j] = self.inner_product(w, V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
             w  = w - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
         
-        # beta[0] = 0
-        # u = Hamiltonian(tn, V[:,:,0]) # - 0 * v_0
-        # alpha[0] = self.inner_product(u, V[:,:,0])
-        # u = u - alpha[0] * V[:,:,0]
-        # beta[0] = np.sqrt(self.inner_product(u, u))
-        # V[:,:,1] = u / beta[0]
         
-        # for j in range(1,k+1):
-            
-        #     u = Hamiltonian(tn, V[:,:,j]) - beta[j-1] * V[:,:,j-1]
-        #     alpha[j-1] = self.inner_product(V[:,:,j], u)
-        #     u = u - alpha[j-1] * V[:,:,j]
-        #     beta[j] = np.sqrt(self.inner_product(u, u))
-        #     V[:,:,j+1] = u / beta[j]
-            
-            
-            
+        T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
+        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) #Not sure if this is the fastest
+        P_new = V[:,:,:].dot(P_k)[:,:,0]
+        # else:
+        #     T     = sp.diags([beta[1:], alpha[1:], beta[1:]], [-1,0,1], format='csc')
+        #     P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k-1,1) # .dot(V.dot(P)) #Not sure if this is the fastest
+        #     P_new = V[:,:,1:].dot(P_k)[:,:,0]
         
-        # if (np.abs(alpha.imag) > 1e-8).any():
-        #     print("IMAG α!")
-        # if (np.abs(beta.imag) > 1e-8).any():
-        #     print("IMAG β!")
-        
-        # print()
-        # print([np.abs(self.inner_product(V[:,:,i], V[:,:,i])) for i in range(k)])
-        # print()
-        # print([np.abs(self.inner_product(V[:,:,i], V[:,:,0])) for i in range(k)])
-        # print()
-        # print([np.abs(self.inner_product(V[:,:,i], V[:,:,1])) for i in range(k)])
-        # print()
-        # print([np.abs(self.inner_product(V[:,:,i], V[:,:,2])) for i in range(k)])
-        # print()
-        # print(np.abs(beta))
-        # print(np.abs(alpha))
-        
-        if tn > -dt2:
-            # beta = beta[1:]; alpha = alpha[:-2]
-            # print(alpha)
-            # print(beta)
-            T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-            P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-            P_new = V[:,:,:].dot(P_k)[:,:,0]
-        else:
-            T     = sp.diags([beta[1:], alpha[1:], beta[1:]], [-1,0,1], format='csc')
-            P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k-1,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-            P_new = V[:,:,1:].dot(P_k)[:,:,0]
-        
-        return P_new * InitialNorm #, T, V
+        return P_new * InitialNorm # the output P is scaled to the norm of the input P
     
-    # def call_a_i(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, eps = 1e-12):
-        
-    #     V, T = self.arnoldi_iteration(P, Hamiltonian, tn, dt, dt2, dt6, k, eps)
-        
-    #     print(V.shape, T.shape)
-    #     P_k = sl.expm(-1j*T*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-    #     P_new = V.dot(P_k)[:,:,0]
-        
-    #     return P_new #, T, V
-    
-    # def arnoldi_iteration(self, b, Hamiltonian, tn, dt, dt2=None, dt6=None, n=20, eps = 1e-12):
-    #     """
-    #     Coppied from Wikipedia.
-    #     Computes a basis of the (n + 1)-Krylov subspace of A: the space
-    #     spanned by {b, Ab, ..., A^n b}.
-    
-    #     Arguments
-    #       A: m × m array
-    #       b: initial vector (length m)
-    #       n: dimension of Krylov subspace, must be >= 1
-        
-    #     Returns
-    #       Q: m x (n + 1) array, the columns are an orthonormal basis of the
-    #         Krylov subspace.
-    #       h: (n + 1) x n array, A on basis Q. It is upper Hessenberg.  
-    #     """
-    #     h = np.zeros((n+1,n))
-    #     Q = np.zeros((self.n, self.l_max+1, n+1))
-    #      # Normalize the input vector
-    #     Q[:,:,0] = b  / np.sqrt(self.inner_product(b, b) ) #/ np.linalg.norm(b,2)   # Use it as the first Krylov vector
-    #     for k in range(1,n+1):
-    #         v = Hamiltonian(tn, Q[:,:,k-1]) # np.dot(A, Q[:,k-1])  # Generate a new candidate vector
-    #         for j in range(k):  # Subtract the projections on previous vectors
-    #             h[j,k-1] = np.sqrt(self.inner_product(Q[:,:,j], v)) # np.dot(Q[:,:,j].T, v)
-    #             v = v - h[j,k-1] * Q[:,:,j]
-    #         h[k,k-1] = np.sqrt(self.inner_product(v, v)) # np.linalg.norm(v,2)
-    #         if h[k,k-1] > eps:  # Add the produced vector to the list, unless
-    #             Q[:,:,k] = v/h[k,k-1]
-    #         else:  # If that happens, stop iterating.
-    #             return Q, h
-    #     return Q, h
     
     
     def inner_product(self, psi1, psi2):
@@ -819,11 +752,7 @@ class laser_hydrogen_solver:
         (n,m) numpy array
             The inner product.
         """
-        # s = 0
-        # for i in range(len(psi1)):
-        #     for j in range(len(psi1[0])):
-        #         s += np.conj(psi1[i,j]) * psi2[i,j]
-        return self.h * np.sum( np.conj(psi1) * psi2 ) # * s
+        return self.h * np.sum( np.conj(psi1) * psi2 ) 
         
     
     def calculate_ground_state_analytical(self):
@@ -837,7 +766,6 @@ class laser_hydrogen_solver:
         """
         
         self.P[:,0] = self.P0[:,0] = self.r*np.exp(-self.r) / np.sqrt(np.pi)     
-        #2*r*np.exp(-r)
         
         N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0)) 
         eps0 = np.log(N) * -.5 / self.dt_imag
@@ -859,8 +787,6 @@ class laser_hydrogen_solver:
         self.P0s  = [self.P0] # a list to store some of the P0 results. We only keep n_saves values
         self.eps0 = []        # a list to the estimated local energy
         
-        # save_every = int(self.nt_imag / self.n_saves_imag)
-        
         self.save_idx_imag = np.round(np.linspace(0, len(self.time_vector_imag) - 1, self.n_saves_imag)).astype(int)
         
         # we find the numerical ground state by using imaginary time
@@ -868,7 +794,6 @@ class laser_hydrogen_solver:
             
             # self.P0 = self.RK4_imag(self.time_vector_imag[tn], self.TI_Hamiltonian_imag_time)
             self.P0 = self.RK4(self.P0, self.TI_Hamiltonian_imag_time, self.time_vector_imag[tn], self.dt_imag, self.dt2_imag, self.dt6_imag)
-            #P, func, tn, dt, dt2, dt6,
             
             # when using imaginary time the Hamiltonian is no longer hermitian, so we have to re-normalise P0
             N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0)) 
@@ -923,7 +848,6 @@ class laser_hydrogen_solver:
         
         self.P0s = np.load(f"{self.save_dir}/{savename}")
         self.P[:,0] = self.P0[:,0] = self.P0s
-        #2*r*np.exp(-r)
         
         N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0)) 
         eps0 = np.log(N) * -.5 / self.dt_imag
@@ -934,7 +858,6 @@ class laser_hydrogen_solver:
         self.ground_state_found = True
         
     
-    #, r, P, Ps, eps0, T, dt, nt, l=0):
     def plot_gs_res(self, do_save=True): 
         """
         Creates nice plots of the ground sate.
@@ -998,58 +921,19 @@ class laser_hydrogen_solver:
             print("Warning: Ground state needs to be found before running calculate_time_evolution().")
         else: # self.ground_state_found and self.A != None:
 
-            self.Ps     = [self.P]
-            # self.times  = [0]
-            # save_every = int(self.nt / self.n_saves)
-            # self.save_idx = np.round(np.linspace(0, len(self.time_vector) - 1, self.n_saves)).astype(int) #+ self.dt2
-            self.save_idx = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) #+ self.dt2
+            self.Ps     = [self.P] #list of the calculated wave functions
+            self.save_idx = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) #which WFs to save
             
-            # self.P = si.RK45(self.Hamiltonian, self.dt, self.P[:,0], t_bound=self.T, vectorized=True)
-            
-            # for tn in tqdm(range(self.nt)):
-                
-            #     self.P = self.RK4(self.time_vector[tn], self.Hamiltonian) #, self.dt, self.dt2, self.dt6)
-                
-            #     if tn in self.save_idx:
-            #     # if tn % save_every == 0:
-            #         self.Ps.append(self.P)
-            #         # self.times.append(())
-            
-            # for tn in tqdm(self.time_vector):
-            # for tn in tqdm(range(self.nt)):
-                
-            #     self.P = self.Lanczos(self.P, self.Hamiltonian, self.time_vector[tn]+self.dt2, self.dt, k=50)
-                
-            #     if tn in self.save_idx:
-            #     # if tn % save_every == 0:
-            #         self.Ps.append(self.P)
-            #         # self.times.append(())
-            
-            # print(self.time_vector)
-            # print(self.dt)
-            # t = 0
-            # l = 1
+            #goes through all the timesteps
             for tn in tqdm(range(self.nt)):
-                
-                # print(self.time_vector[tn])
-                # print(l, t)
+                # we call whatever time propagator is to be used
                 self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn]+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
-                # self.P = self.time_propagator(self.P, self.energy_func, tn=t+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
-                # (, self.Hamiltonian, self.time_vector[tn]+self.dt2, self.dt, k=50)
-                # t += self.dt
-                # l += 1
-                
                 if tn in self.save_idx:
-                # if tn % save_every == 0:
                     self.Ps.append(self.P)
-                    # self.times.append(())
-            # print(f"t: {t}")
-            # exit()
+
             # N = si.simpson( np.insert( np.abs(self.P.flatten())**2,0,0), np.insert(self.r,0,0)) 
             # eps = -.5 * np.log(N) / self.dt_imag
             # print( f"\nFinal state energy: {eps} au.")
-            
-            # self.Ps = np.array(self.Ps)
             self.time_evolved = True
         
         
@@ -1072,16 +956,12 @@ class laser_hydrogen_solver:
         if self.time_evolved:
             
             self.plot_idx = np.round(np.linspace(1, len(self.save_idx) - 1, self.n_plots)).astype(int)
-            # print(self.time_vector)
             
             for ln in range(self.l_max+1):
-                # ts = np.linspace(0, self.T, len(self.Ps)) #TODO: change, not accurate
-                # plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="t = {:3.0f}".format(0) )
                 plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
                 for i in self.plot_idx: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
                     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector[self.save_idx[i]]))
                 plt.legend()
-                # plt.xlim(left=-.1, right=20)
                 plt.title(f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}. FD-method: {self.fd_method.replace('_', ' ')}"+"\n"+f"l = {ln}.")
                 plt.xlabel("r (a.u.)")
                 plt.ylabel("Wave function")
