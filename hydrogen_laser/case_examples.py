@@ -187,8 +187,8 @@ class Case_Examples:
         os.makedirs(save_dir, exist_ok=True) #make sure the save directory exists
         os.makedirs(f"{save_dir}/{method}", exist_ok=True) #make sure the save directory exists
         
-        nt = 25 if method == "Lanczos" else int(7_100)
-        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=nt, E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=20)
+        n = 25 if method == "Lanczos" else int(7_100)
+        lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=n, E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=20)
         
         if method == "Lanczos":
             lhs.set_time_propagator(lhs.Lanczos, k=k)
@@ -266,12 +266,13 @@ class Case_Examples:
             print("Current norm diff: {:.4E}, {:.4E}, {:1.4f}, {:1.4f}.".format(norm_diff[nt], np.abs(norm_diff[nt]), norm_diff0[nt], norm_diff1[nt]))
             print(f"Total time: {runtime[nt+1]} s."+'\n')
         
+        np.save(f"{save_dir}/{method}/nt_vector" , np.insert(nt_vector, 0, n))
         np.save(f"{save_dir}/{method}/norm_diff" , np.array(norm_diff))
         np.save(f"{save_dir}/{method}/norm_diff0", np.array(norm_diff0))
         np.save(f"{save_dir}/{method}/norm_diff1", np.array(norm_diff1))
         np.save(f"{save_dir}/{method}/norm_diff2", np.array(norm_diff2))
-        np.save(f"{save_dir}/{method}/Ns", np.array(Ns))
-        np.save(f"{save_dir}/{method}/runtime", np.array(runtime))
+        np.save(f"{save_dir}/{method}/Ns"        , np.array(Ns))
+        np.save(f"{save_dir}/{method}/runtime"   , np.array(runtime))
         
     
     def plot_convergence(self, save_dir="convergence_test_results", method="RK4"):
@@ -286,6 +287,7 @@ class Case_Examples:
         time_steps = [int(cur.replace("psi_", "").replace(".npy", "")) for cur in files]
         
         # try:
+        # time_steps  = np.load(f"{save_dir}/{method}/nt_vector.npy").tolist()
         norm_diff   = np.load(f"{save_dir}/{method}/norm_diff.npy")
         norm_diff0  = np.load(f"{save_dir}/{method}/norm_diff0.npy")
         norm_diff1  = np.load(f"{save_dir}/{method}/norm_diff1.npy")
@@ -318,20 +320,21 @@ class Case_Examples:
         
         
         scale = 2 if method == "Lanczos" else 4
-        plt.plot(time_steps[:-1], np.abs(norm_diff[:]), '-o', label=method)
-        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
-        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
-        # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.grid()
-        plt.legend()
-        plt.xlabel("N time steps")
-        plt.ylabel(r"MSD $\left( \psi_{old}, \psi_{new} \right)$")
-        plt.title(f"Mean squared difference {method}")
-        plt.show()
+        # plt.plot(time_steps[:-1], np.abs(norm_diff[:]), '-o', label=method)
+        # plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        # plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        # # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
+        # plt.xscale("log")
+        # plt.yscale("log")
+        # plt.grid()
+        # plt.legend()
+        # plt.xlabel("N time steps")
+        # plt.ylabel(r"MSD $\left( \psi_{old}, \psi_{new} \right)$")
+        # plt.title(f"Mean squared difference {method}")
+        # plt.show()
         
         
+        # print(time_steps)
         plt.plot(time_steps[:-1], np.sqrt(np.abs(norm_diff[:])), '-o', label=method)
         plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
         plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.sqrt(np.abs(norm_diff[0])) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
@@ -346,18 +349,18 @@ class Case_Examples:
         plt.show()
         
         
-        plt.plot(time_steps[:-1], np.abs(norm_diff0[:]), '-o', label=method)
-        plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff0[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
-        plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff0[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
-        # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
-        plt.xscale("log")
-        plt.yscale("log")
-        plt.grid()
-        plt.legend()
-        plt.xlabel("N time steps")
-        plt.ylabel(r"$| \Psi_N(T)-\Psi_{2N}(T)|^2$")
-        plt.title(f"Norm difference {method}")
-        plt.show()
+        # plt.plot(time_steps[:-1], np.abs(norm_diff0[:]), '-o', label=method)
+        # plt.plot(time_steps[:-1], 1*np.array(time_steps[:-1], dtype=float)**-scale * np.abs(norm_diff0[0]) / time_steps[0]**-scale, '--', label=r"$\mathcal{{O}}(n^{{-{scale}}})$".format(scale=scale))
+        # plt.plot(time_steps[:-1], np.array(time_steps[:-1], dtype=float)**-1 * np.abs(norm_diff0[0]) / time_steps[0]**-1, '--', label=r"$\mathcal{O}(n^{-1})$")
+        # # plt.plot(time_steps[1:-1], 1e10*np.array(time_steps[1:-1], dtype=float)**-4, '--', label="O(n^-4)")
+        # plt.xscale("log")
+        # plt.yscale("log")
+        # plt.grid()
+        # plt.legend()
+        # plt.xlabel("N time steps")
+        # plt.ylabel(r"$| \Psi_N(T)-\Psi_{2N}(T)|^2$")
+        # plt.title(f"Norm difference {method}")
+        # plt.show()
         
         
         plt.plot(time_steps[:-1], np.abs(norm_diff1[:]), '-o', label=method)
@@ -485,8 +488,8 @@ if __name__ == "__main__":
     # print("Testing convergence RK4:")
     # Case_Examples().test_convergence()
     
-    # print("Testing convergence Lanczos:")
-    # Case_Examples().test_convergence(method="Lanczos")
+    print("Testing convergence Lanczos:")
+    Case_Examples().test_convergence(method="Lanczos")
     
     print("Plotting convergence.")
     # Case_Examples().plot_convergence()

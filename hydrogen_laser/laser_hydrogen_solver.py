@@ -927,7 +927,8 @@ class laser_hydrogen_solver:
             #goes through all the timesteps
             for tn in tqdm(range(self.nt)):
                 # we call whatever time propagator is to be used
-                self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn]+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                # self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn]+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
                 if tn in self.save_idx:
                     self.Ps.append(self.P)
 
