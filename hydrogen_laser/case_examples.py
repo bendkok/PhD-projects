@@ -187,7 +187,7 @@ class Case_Examples:
         os.makedirs(save_dir, exist_ok=True) #make sure the save directory exists
         os.makedirs(f"{save_dir}/{method}", exist_ok=True) #make sure the save directory exists
         
-        n = 25 if method == "Lanczos" else int(7_100)
+        n = 50 if method == "Lanczos" else int(7_100)
         lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=n, E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=20)
         
         if method == "Lanczos":
@@ -202,7 +202,7 @@ class Case_Examples:
         if method == "RK4":
             nt_vector = ((2**np.linspace(13, 17, 5))).astype(int)
         elif method == "Lanczos":
-            nt_vector = np.array([100*2**i for i in range(1,10)]).astype(int)
+            nt_vector = np.array([100*2**i for i in range(0,10)]).astype(int)
         else:
             print("Invalid method!")
         
@@ -218,7 +218,7 @@ class Case_Examples:
         np.save(f"{save_dir}/{method}/psi_{int(lhs.nt)}", lhs.Ps)
         
         # Ns[0] = si.simpson( np.insert( np.abs(psi_old.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-        Ns[0] =  np.abs(lhs.inner_product(psi_old,psi_old))
+        Ns[0] =  np.sqrt(lhs.inner_product(psi_old,psi_old))    # np.abs(lhs.inner_product(psi_old,psi_old))
         end = time.time()
         runtime[0] = end - start
         if np.isnan(psi_old).any():
@@ -247,7 +247,7 @@ class Case_Examples:
             
             np.save(f"{save_dir}/{method}/psi_{int(nt_vector[nt])}", lhs.Ps)
             
-            Ns[nt+1] = np.abs(lhs.inner_product(psi_new,psi_new))
+            Ns[nt+1] = np.sqrt(lhs.inner_product(psi_new,psi_new))       # np.abs(lhs.inner_product(psi_new,psi_new))
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new)**2,0,0), np.insert(np.array([lhs.r,lhs.r,lhs.r]).T,0,0)) 
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
             norm_diff [nt] = np.mean((psi_old - psi_new)**2) #* lhs.h
@@ -306,7 +306,7 @@ class Case_Examples:
         print()
 
         
-        plt.plot(time_steps[1:], np.abs(Ns[1:]-1), '--o', label=method)
+        plt.plot(time_steps[:], np.abs(Ns[:]-1), '--o', label=method)
         # [plt.axvline(np.array(time_steps)[i], color='black', linestyle='dashed') for i in k]
         plt.xscale("log")
         # if method == 'RK4':
@@ -394,7 +394,7 @@ class Case_Examples:
         
         
         
-        plt.plot(time_steps[1:-1], np.abs(norm_diff0[1:]), label=method)
+        plt.plot(time_steps[:-1], np.abs(norm_diff0[:]), label=method)
         plt.xscale("log")
         plt.yscale("log")
         plt.grid()
@@ -488,8 +488,8 @@ if __name__ == "__main__":
     # print("Testing convergence RK4:")
     # Case_Examples().test_convergence()
     
-    print("Testing convergence Lanczos:")
-    Case_Examples().test_convergence(method="Lanczos")
+    # print("Testing convergence Lanczos:")
+    # Case_Examples().test_convergence(method="Lanczos")
     
     print("Plotting convergence.")
     # Case_Examples().plot_convergence()
