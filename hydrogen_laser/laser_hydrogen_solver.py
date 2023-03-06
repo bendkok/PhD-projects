@@ -447,6 +447,53 @@ class laser_hydrogen_solver:
         TD = self.TD_Hamiltonian(t, P)
         return -1j * (TI + TD) # self.Hamiltonian(t, P)
     
+    
+    def Hamiltonian_CAP(self, t, P, Sigma):
+        """
+        The combined Hamiltonian with a complex absorbing potential (CAP).
+        
+        Parameters
+        ----------
+        t : float
+            The current time.
+        P : (self.n, self.l_max+1) numpy array
+            The current wave function.
+
+        Returns
+        -------
+        (self.n x self.l_max+1) numpy array
+            The new estimate of the wave function.
+        """
+        
+        TI = self.TI_Hamiltonian(t, P)
+        TD = self.TD_Hamiltonian(t, P)
+        return TI + TD - i*Sigma(t, P)
+    
+    def iHamiltonian_CAP(self, t, P, Gamma):
+        """
+        The combined Hamiltonian with a complex absorbing potential (CAP).
+        
+        Parameters
+        ----------
+        t : float
+            The current time.
+        P : (self.n, self.l_max+1) numpy array
+            The current wave function.
+
+        Returns
+        -------
+        (self.n x self.l_max+1) numpy array
+            The new estimate of the wave function.
+        """
+        
+        return -1j * Hamiltonian_CAP(t, P, Gamma)
+    
+    def square_gamma_CAP(self, gamma_0, R):
+        
+        self.r
+        return gamma_0*(self.r - R)**2 if abs(x)>R else 0
+    
+    
     def Hamiltonian_imag_time(self, t, P):
         """
         The combined Hamiltonian when using imaginary time. 
@@ -496,7 +543,7 @@ class laser_hydrogen_solver:
             The new estimate for the matrix.
         
         """
-
+        
         k1 = func(tn, self.P)
         k2 = func(tn + self.dt2, self.P + k1*self.dt2) 
         k3 = func(tn + self.dt2, self.P + k2*self.dt2) 
