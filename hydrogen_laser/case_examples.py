@@ -25,9 +25,9 @@ def key_sort_files(value):
 class Case_Examples:
     
     
-    def case_0(self, do_save_plots=True, save_dir="case0"):
+    def case_RK4_3point_analytical_E0_01(self, do_save_plots=True, save_dir="case_RK4_3point_analytical_E0_01"):
         """
-        A case with RK4, 3 point finite difference derivatives, real time and E0 = 0.1.
+        A case with RK4, 3 point finite difference derivatives, analytical ground state and E0 = 0.1.
 
         Parameters
         ----------
@@ -44,9 +44,9 @@ class Case_Examples:
         a.plot_res(do_save=do_save_plots)
     
     
-    def case_1(self, do_save_plots=False, save_dir="case1"):
+    def case_RK4_3point_imagtime_E0_01(self, do_save_plots=False, save_dir="case_RK4_3point_imagtime_E0_01"):
         """
-        A case with RK4, 3 point finite difference derivatives, real time and E0 = 0.1.
+        A case with RK4, 3 point finite difference derivatives, imaginary time ground state and E0 = 0.1.
         
         Parameters
         ----------
@@ -54,12 +54,13 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=7_100, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
+        # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=7_100, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
+        a = laser_hydrogen_solver(save_dir=save_dir) #, fd_method="3-point", E0=.1, nt=50_000, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # a.__init__(nt=2**13, n_saves=2)
-        a.nt = 144; a.n_saves=10
+        # a.nt = 144; a.n_saves=10
         # 115 144
-        a.make_time_vector()
-        a.set_time_propagator(a.Lanczos, k=10)
+        # a.make_time_vector()
+        # a.set_time_propagator(a.Lanczos, k=10)
         # a.energy_func = a.y_
         
         # a.n_plots = 2
@@ -92,9 +93,9 @@ class Case_Examples:
         # print(a.inner_product(a.Ps[-1], a.Ps[-1]))
         
     
-    def case_2(self, do_save_plots=True, save_dir="case2"):
+    def case_RK4_5pointasym_imagtime_E0_01(self, do_save_plots=True, save_dir="case_RK4_5pointasym_imagtime_E0_01"):
         """
-        A case with RK4, 5 point finite difference derivatives, real time and E0 = 0.1.
+        A case with RK4, 5 point asymmetric finite difference derivatives, imaginary time ground state and E0 = 0.1.
         
         Parameters
         ----------
@@ -114,9 +115,9 @@ class Case_Examples:
         a.plot_res(do_save=do_save_plots)
         
         
-    def case_3(self, do_save_plots=True, save_dir="case3"):
+    def case_RK4_56pointasym_imagtime_E0_01(self, do_save_plots=True, save_dir="case_RK4_56pointasym_imagtime_E0_01"):
         """
-        A case with RK4, 5/6 point finite difference derivatives, real time and E0 = 0.1.
+        A case with RK4, 5/6 point finite asymmetric difference derivatives, imaginary time ground state and E0 = 0.1.
         
         Parameters
         ----------
@@ -136,9 +137,9 @@ class Case_Examples:
         a.plot_res(do_save=do_save_plots)
         
         
-    def case_4(self, do_save_plots=True, save_dir="case4"):
+    def case_RK4_5pointantisym_imagtime_E0_01(self, do_save_plots=True, save_dir="case_RK4_5pointantisym_imagtime_E0_01"):
         """
-        A case with RK4, 5 mid-point finite difference derivatives, real time and E0 = 0.1.
+        A case with RK4, 5 point antisymmetric finite difference derivatives, imaginary time ground state and E0 = 0.1.
         
         Parameters
         ----------
@@ -158,9 +159,9 @@ class Case_Examples:
         a.plot_res(do_save=do_save_plots)
         
     
-    def case_5(self, do_save_plots=True, save_dir="case5"):
+    def case_Lanczos_3point_imagtime_E0_01(self, do_save_plots=True, save_dir="case_Lanczos_3point_imagtime_E0_01"):
         """
-        A case with Lanczos, 3 point finite difference derivatives, real time and E0 = 0.5.
+        A case with Lanczos, 3 point finite difference derivatives, imaginary time ground state and E0 = 0.1.
         
         Parameters
         ----------
@@ -168,7 +169,30 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=.3, nt=2_000, T=315, n=2000, r_max=200, Ncycle=10, nt_imag=10_000, T_imag=18, n_saves=100)
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=.1, nt=2_000, T=315, n=2000, r_max=200, Ncycle=10, nt_imag=10_000, T_imag=18, n_saves=100)
+        a.set_time_propagator(a.Lanczos, k=50)
+        
+        a.calculate_ground_state_imag_time()
+        a.plot_gs_res(do_save=do_save_plots)
+        
+        a.A = a.single_laser_pulse
+        a.calculate_time_evolution()
+        a.plot_res(do_save=do_save_plots)
+        # print(a.l_max)
+
+
+    def case_Lanczos_CAP_3point_imagtime_E0_01(self, do_save_plots=True, save_dir="case_Lanczos_CAP_3point_imagtime_E0_01"):
+        """
+        A case with Lanczos, CAP, 3 point finite difference derivatives, imaginary time ground state and E0 = 0.1.
+        
+        Parameters
+        ----------
+        do_save_plots : boolean, optional
+            DESCRIPTION. Whether to save the plots. The default is False.
+        """
+        
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=.1, nt=2_000, T=315, n=2000, r_max=200, Ncycle=10, nt_imag=10_000, T_imag=18, n_saves=100,
+                                  use_CAP=True, gamma_0=1, CAP_R_percent=.8)
         a.set_time_propagator(a.Lanczos, k=50)
         
         a.calculate_ground_state_imag_time()
@@ -179,6 +203,8 @@ class Case_Examples:
         a.plot_res(do_save=do_save_plots)
         # print(a.l_max)
     
+
+
     def test_convergence(self, save_dir="convergence_test_results", method="RK4", k=10):
         """
         A function which tests the convergence as nt increases for RK4 or Lanczos. 
@@ -276,6 +302,9 @@ class Case_Examples:
         
     
     def plot_convergence(self, save_dir="convergence_test_results", method="RK4"):
+        """
+        Plots the results form test_convergence().
+        """
         
         sns.set_theme(style="dark") # nice plots
         
@@ -480,10 +509,13 @@ if __name__ == "__main__":
     # e = Case_Examples() 
     # e.case_4(do_save_plots=True)    
         
-    # print("\nCase 5:")
-    # f = Case_Examples().case_5()
-    # # f.case_5
+    print("\nCase 5:")
+    f = Case_Examples().case_Lanczos_3point_imagtime_E0_01()
     # print(f.l_max)
+
+    print("\nCase 6:")
+    g = Case_Examples().case_Lanczos_CAP_3point_imagtime_E0_01()
+    # print(g.l_max)
     
     # print("Testing convergence RK4:")
     # Case_Examples().test_convergence()
@@ -491,8 +523,8 @@ if __name__ == "__main__":
     # print("Testing convergence Lanczos:")
     # Case_Examples().test_convergence(method="Lanczos")
     
-    print("Plotting convergence.")
+    # print("Plotting convergence.")
     # Case_Examples().plot_convergence()
-    Case_Examples().plot_convergence(method="Lanczos")
+    # Case_Examples().plot_convergence(method="Lanczos")
     
     
