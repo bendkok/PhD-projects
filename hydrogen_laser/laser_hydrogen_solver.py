@@ -37,9 +37,6 @@ class laser_hydrogen_solver:
                  cep                = 0,              # carrier-envelope phase of laser field 
                  save_dir           = "results",      # where to save the results
                  # k                  = 20,
-                 use_CAP            = False,           # 
-                 gamma_0            = 1.,              # 
-                 CAP_R_percent      = .8,              # 
                 ):
         """
         This is a class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -106,9 +103,6 @@ class laser_hydrogen_solver:
         self.w              = w 
         self.cep            = cep 
         self.save_dir       = save_dir
-        self.use_CAP        = use_CAP
-        self.gamma_0        = gamma_0
-        self.CAP_R_percent  = CAP_R_percent
             
         #initialise other things
         self.h  = r_max/n                        # physical step length
@@ -152,13 +146,7 @@ class laser_hydrogen_solver:
         
         self.set_time_propagator(self.RK4, k=None)
         
-        if self.use_CAP:
-            if np.abs(self.CAP_R_percent) > 1:
-                print("WARNING: CAP_R_percent needs to be between 0 and 1!")
-            self.CAP_R = self.CAP_R_percent*self.r_max  # we set the R variable in the CAP to be a percentage of r_max
-            self.gamma_function = self.square_gamma_CAP # TODO: Add functionality for choosing CAP function
-            
-    
+
     def make_time_vector(self):
         
         # real time vector
@@ -286,8 +274,21 @@ class laser_hydrogen_solver:
         else:
             print("Invalid finite difference method (fd_method)!")
             
+    def add_CAP(self, use_CAP = True, gamma_function = "square_gamma_CAP", gamma_0 = 1., CAP_R_percent = .8):
+
+        self.use_CAP        = use_CAP
+        self.gamma_0        = gamma_0
+        self.CAP_R_percent  = CAP_R_percent
+
+        if np.abs(self.CAP_R_percent) > 1:
+            print("WARNING: CAP_R_percent needs to be between 0 and 1!")
+        self.CAP_R = self.CAP_R_percent*self.r_max  # we set the R variable in the CAP to be a percentage of r_max
+        if gamma_function == "square_gamma_CAP":
+            self.gamma_function = self.square_gamma_CAP # 
+        else:
+            print("Invalid Gamma function!")
     
-    
+
     def b_l(self, l):
         """
         Helper function.
@@ -815,7 +816,38 @@ class laser_hydrogen_solver:
         """
         return self.h * np.sum( np.conj(psi1) * psi2 ) 
         
-    
+    def arnoldi_iteration(A, b, n: int):
+        """Computes a basis of the (n + 1)-Krylov subspace of A: the space
+        spanned by {b, Ab, ..., A^n b}.
+
+        Arguments
+        A: m × m array
+        b: initial vector (length m)
+        n: dimension of Krylov subspace, must be >= 1
+        
+        Returns
+        Q: m x (n + 1) array, the columns are an orthonormal basis of the
+            Krylov subspace.
+        h: (n + 1) x n array, A on basis Q. It is upper Hessenberg.  
+        """
+        eps = 1e-12
+        h = np.zeros((n+1,n))
+        Q = np.zeros((A.shape[0],n+1))
+        # Normalize the input vector
+        Q[:,0] = b / np.linalg.norm(b,2)   # Use it as the first Krylov vector
+        for k in range(1,n+1):
+            v = np.dot(A, Q[:,k-1])  # Generate a new candidate vector
+            for j in range(k):  # Subtract the projections on previous vectors
+                h[j,k-1] = np.dot(Q[:,j].T, v)
+                v = v - h[j,k-1] * Q[:,j]
+            h[k,k-1] = np.linalg.norm(v,2)
+            if h[k,k-1] > eps:  # Add the produced vector to the list, unless
+                Q[:,k] = v/h[k,k-1]
+            else:  # If that happens, stop iterating.
+                return Q, h
+        return Q, h
+
+
     def calculate_ground_state_analytical(self):
         """
         Estimates the ground state analytically. 
@@ -988,9 +1020,9 @@ class laser_hydrogen_solver:
             if self.use_CAP:
                 # Here we use the split operator method approximations:
                 # P(t+dt) = exp(-i*(H - iΓ)*Δt) * P(t) + O(Δt^3) = exp(-Γ*Δt/2)*exp(-i*H*Δt)*exp(-Γ*Δt/2) * P(t) + O(Δt^3)
-                # TODO: replace A,B with H,Γ, and check that the formula is correct. 
+                # TODO: check that the formula is correct. 
 
-                self.gamma_function(gamma_0=self.gamma_0, R=self.CAP_R) #set the Gamma-functions
+                # self.gamma_function(gamma_0=self.gamma_0, R=self.CAP_R) #set the Gamma-functions
                 
                 # applies the first exp(i*Γ*Δt/2) part to the wave function
                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] # np.exp( - self.Gamma_vector * self.dt2) * self.P[self.CAP_locs]
@@ -1054,7 +1086,9 @@ class laser_hydrogen_solver:
                     # print(i, self.save_idx[i])
                     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector[self.save_idx[i]-1]))
                 plt.legend()
-                plt.title(f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}. FD-method: {self.fd_method.replace('_', ' ')}"+"\n"+f"l = {ln}.")
+                title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
+                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f"l = {ln}."
+                plt.title(title)
                 plt.xlabel("r (a.u.)")
                 plt.ylabel("Wave function")
                 plt.grid()

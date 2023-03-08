@@ -191,9 +191,10 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=.1, nt=2_000, T=315, n=2000, r_max=200, Ncycle=10, nt_imag=10_000, T_imag=18, n_saves=100,
-                                  use_CAP=True, gamma_0=1, CAP_R_percent=.8)
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=.1, nt=2_000, T=315, n=2000, r_max=200, Ncycle=10, nt_imag=10_000, T_imag=18, n_saves=100)
         a.set_time_propagator(a.Lanczos, k=50)
+
+        a.add_CAP(use_CAP=True, gamma_function = "square_gamma_CAP", gamma_0=1, CAP_R_percent=.8)
         
         a.calculate_ground_state_imag_time()
         a.plot_gs_res(do_save=do_save_plots)
@@ -509,8 +510,8 @@ if __name__ == "__main__":
     # e = Case_Examples() 
     # e.case_4(do_save_plots=True)    
         
-    print("\nCase 5:")
-    f = Case_Examples().case_Lanczos_3point_imagtime_E0_01()
+    # print("\nCase 5:")
+    # f = Case_Examples().case_Lanczos_3point_imagtime_E0_01()
     # print(f.l_max)
 
     print("\nCase 6:")
