@@ -1,3 +1,7 @@
 {
     "python.analysis.typeCheckingMode": "off"
+
+    "terminal.integrated.shell.windows": "C:\\WINDOWS\\System32\\cmd.exe",
+    "terminal.integrated.shellArgs.windows": ["/K", "C:\\Anaconda3\\Scripts\\activate.bat C:\\Anaconda3"],
+    "python.condaPath": "C:\\Anaconda3\\Scripts\\conda.exe"
 }
