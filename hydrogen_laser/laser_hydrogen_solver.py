@@ -145,7 +145,7 @@ class laser_hydrogen_solver:
         self.make_time_vector()
         
         self.set_time_propagator(self.RK4, k=None)
-        
+        self.use_CAP = False # TODO: comment
 
     def make_time_vector(self):
         
@@ -287,7 +287,8 @@ class laser_hydrogen_solver:
             self.gamma_function = self.square_gamma_CAP # 
         else:
             print("Invalid Gamma function!")
-    
+        self.gamma_function(gamma_0=self.gamma_0, R=self.CAP_R)
+
 
     def b_l(self, l):
         """
@@ -692,7 +693,7 @@ class laser_hydrogen_solver:
         return res / np.sqrt(self.inner_product(res, res) )
     
     
-    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-4):
+    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-6):
         """
         The Lanczos propagator for one timestep. 
         This a fast method which we use to propagate a matrix ODE one timestep.
@@ -796,26 +797,6 @@ class laser_hydrogen_solver:
         
         return P_new * InitialNorm # the output P is scaled to the norm of the input P
     
-    
-    
-    def inner_product(self, psi1, psi2):
-        """
-        We calculate the inner product using the Riemann sum and Hadamard product.
-
-        Parameters
-        ----------
-        psi1 : (n,m) numpy array
-            A wavefunction.
-        psi2 : (n,m) numpy array
-            A wavefunction.
-
-        Returns
-        -------
-        (n,m) numpy array
-            The inner product.
-        """
-        return self.h * np.sum( np.conj(psi1) * psi2 ) 
-        
     def arnoldi_iteration(A, b, n: int):
         """Computes a basis of the (n + 1)-Krylov subspace of A: the space
         spanned by {b, Ab, ..., A^n b}.
@@ -846,6 +827,26 @@ class laser_hydrogen_solver:
             else:  # If that happens, stop iterating.
                 return Q, h
         return Q, h
+    
+    def inner_product(self, psi1, psi2):
+        """
+        We calculate the inner product using the Riemann sum and Hadamard product.
+
+        Parameters
+        ----------
+        psi1 : (n,m) numpy array
+            A wavefunction.
+        psi2 : (n,m) numpy array
+            A wavefunction.
+
+        Returns
+        -------
+        (n,m) numpy array
+            The inner product.
+        """
+        return self.h * np.sum( np.conj(psi1) * psi2 ) 
+        
+    
 
 
     def calculate_ground_state_analytical(self):
@@ -1024,6 +1025,8 @@ class laser_hydrogen_solver:
 
                 # self.gamma_function(gamma_0=self.gamma_0, R=self.CAP_R) #set the Gamma-functions
                 
+                # self.gamma_function()
+
                 # applies the first exp(i*Γ*Δt/2) part to the wave function
                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] # np.exp( - self.Gamma_vector * self.dt2) * self.P[self.CAP_locs]
                 
