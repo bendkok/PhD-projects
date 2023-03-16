@@ -37,9 +37,9 @@ class laser_hydrogen_solver:
                  cep                = 0,              # carrier-envelope phase of laser field 
                  save_dir           = "results",      # where to save the results
                  # k                  = 20,
-                ):
+                 ):
         """
-        This is a class for calculating the effects of a non-quantized laser field on a hydrogen atom.
+        Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
         We assume the quantum number m = 0 by using a dipole approximation. We can then represent the 
         wave function as a [n X l_max+1] matrix, and similar for the rest of the terms in the TDSE.
         Only the time dependent terms in the Hamiltonian has any effect across the different l-parts.
@@ -86,7 +86,7 @@ class laser_hydrogen_solver:
 
         """
         
-        #initialise the inputs
+        # initialise the inputs
         self.l_max          = l_max     
         self.n              = n     
         self.r_max          = r_max     
@@ -104,7 +104,7 @@ class laser_hydrogen_solver:
         self.cep            = cep 
         self.save_dir       = save_dir
             
-        #initialise other things
+        # initialise other things
         self.h  = r_max/n                        # physical step length
         self.P  = np.zeros((n, l_max+1))         # we represent the wave function as a matrix
         self.P0 = np.zeros((n, 1)) + .1          # initial guess for the ground state of the wave function as a matrix
@@ -123,12 +123,12 @@ class laser_hydrogen_solver:
 
         # tri-diagonal matrices for the SE
         # using scipy.sparse for the T1 and T2 matrices it is slower for small values of l_max 
-        T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation #TODO: find better description
+        T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation # TODO: find better description
         T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation
         self.T1 = np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
         self.T2 = np.diag(T2_diag, k=1) - np.diag(T2_diag, k=-1)
         
-        #for the electric field
+        # for the electric field
         self.Tpulse = self.Ncycle*2*np.pi/self.w
         self.E0_w = self.E0/self.w
         self.pi_Tpulse = np.pi/self.Tpulse
@@ -164,7 +164,7 @@ class laser_hydrogen_solver:
         
         # imaginary time vector
         self.dt_imag  = self.T_imag/(self.nt_imag-1)
-        self.dt2_imag = .5*self.dt_imag 
+        self.dt2_imag = .5*self.dt_imag
         self.dt6_imag = self.dt_imag / 6
         self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
         # print(self.dt_imag, self.time_vector_imag[1]-self.time_vector_imag[0], self.time_vector_imag[2]-self.time_vector_imag[1])
@@ -184,7 +184,7 @@ class laser_hydrogen_solver:
             self.energy_func = self.iHamiltonian
             self.k = None
         # elif name == self.call_a_i:
-        #     self.time_vector = np.linspace(0,self.T,self.nt) 
+        #     self.time_vector = np.linspace(0,self.T,self.nt)
         #     self.time_vector += self.dt2
         #     self.energy_func = self.Hamiltonian
         #     self.k = k
@@ -194,7 +194,7 @@ class laser_hydrogen_solver:
     
     def make_derivative_matrices(self):
         """
-        Generates self.D1 and self.D2, matrices used to represent the first and second derivative in the finite difference method.
+        Generate self.D1 and self.D2, matrices used to represent the first and second derivative in the finite difference method.
         Uses self.fd_method to determine number of points and how to handle the boundary at r=0. At r=r_max the WF should appach 0,
         so the boundary condition there isn't as important. 
 
@@ -210,8 +210,8 @@ class laser_hydrogen_solver:
             
             # tridiagonal matrices for the SE
             # for D1 and D2 we use scipy.sparse because it is faster
-            self.D1 = sp.diags( [-np.ones(self.n-1), np.ones(self.n-1)] , [-1, 1], format='coo') / (2*self.h)                       # first  order derivative
-            self.D2 = sp.diags( [ np.ones(self.n-1), -2*np.ones(self.n), np.ones(self.n-1)] , [-1, 0, 1], format='coo') / (self.h*self.h) # second order derivative
+            self.D1 = sp.diags( [-np.ones(self.n-1), np.ones(self.n-1)], [-1, 1], format='coo') / (2*self.h)                       # first  order derivative
+            self.D2 = sp.diags( [ np.ones(self.n-1), -2*np.ones(self.n), np.ones(self.n-1)], [-1, 0, 1], format='coo') / (self.h*self.h) # second order derivative
             
         elif self.fd_method == "5-point_asymmetric":
             # 5-point asymmetric method, with [-1,0,1,2,3]
@@ -220,7 +220,8 @@ class laser_hydrogen_solver:
             # pentadiagonal matrices for the SE
             # for D1 and D2 we use scipy.sparse because it is faster
             ones = np.ones (self.n)
-            diag = np.zeros(self.n); diag[0] = 1
+            diag = np.zeros(self.n) 
+            diag[0] = 1
             a = ones[:-2]; b = -8*ones[:-1]; c = -10*diag; d = 8*ones[:-1] + 10*diag[:-1]; e = -ones[2:] - 5*diag[:-2]; f = diag[:-3]
             self.D1 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*self.h)
             
@@ -233,7 +234,7 @@ class laser_hydrogen_solver:
             # self.D1 = sp.diags( [-3*ones[1:], -10*ones, 18*ones[1:], -6*ones[2:],  ones[3:]], [-1,0,1,2,3], format='coo') / (12*self.h)
             # self.D2 = sp.diags( [11*ones[1:], -20*ones,  6*ones[1:],  4*ones[2:], -ones[3:]], [-1,0,1,2,3], format='coo') / (12*self.h*self.h)
             
-        elif self.fd_method == "5_6-point_asymmetric": #TODO: test if correct
+        elif self.fd_method == "5_6-point_asymmetric": # TODO: test if correct
             # 5-point asymmetric method for D1 with [-1,0,1,2,3], 6-point asymmetric method for D2 with [-1,0,1,2,3,4]
             # both are O(h⁴)
         
@@ -309,7 +310,7 @@ class laser_hydrogen_solver:
     
     def single_laser_pulse(self, t):
         """
-        A function which generates a single laser pulse. 
+        Callculate the value of a single laser pulse at a specific time t.
         E0_w, Tpulse and pi_Tpulse are constants calculated in __innit__. 
 
         Parameters
@@ -322,7 +323,7 @@ class laser_hydrogen_solver:
         float
             The vector field contribution to the SE.
         """
-        return self.E0_w * (t>0) * (t<self.Tpulse) * (np.sin(t*self.pi_Tpulse))**2 *np.cos(self.w*t+self.cep)
+        return self.E0_w * (t>0) * (t<self.Tpulse) * (np.sin(t*self.pi_Tpulse))**2 * np.cos(self.w*t+self.cep)
     
     
     def TI_Hamiltonian(self, t, P):
@@ -368,11 +369,9 @@ class laser_hydrogen_solver:
         # P_new = (.5*self.D2.dot(P) 
         #          - .5 * np.multiply( np.multiply(self.Vs[:,None], P), self.S[0]) 
         #          + np.multiply(self.V[:,None], P))
-        P_new = (-self.D2_2.dot(P) 
-                 - np.multiply( np.multiply(self.Vs_2, P), self.S[0]) 
-                 + np.multiply(self.V_, P))
+        P_new = -self.D2_2.dot(P) - np.multiply( np.multiply(self.Vs_2, P), self.S[0]) + np.multiply(self.V_, P)
         
-        return (P_new)  #/ np.sqrt(N)
+        return P_new  # / np.sqrt(N)
     
     
     def TD_Hamiltonian(self, t, P):
@@ -392,14 +391,14 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
-        P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  #self.A(t+self.dt2)
-                             + np.matmul( np.multiply(self.V_, P), self.T2) )
+        P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  # self.A(t+self.dt2)
+                              + np.matmul( np.multiply(self.V_, P), self.T2))
         
         return P_new * (-1j)
     
     def TD_Hamiltonian_imag_time(self, t, P):
         """
-        The time dependent part of the Hamiltonian when using imaginary time. 
+        Cacluate the time dependent part of the Hamiltonian when using imaginary time.
         V_ is a constant matrix calculated in __innit__.
         Not currently in use.
         
@@ -415,14 +414,14 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
-        P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1) 
-                             + np.matmul( np.multiply(self.V_, P), self.T2) )
+        P_new = self.A(t) * (np.matmul( self.D1.dot(P), self.T1) 
+                             + np.matmul( np.multiply(self.V_, P), self.T2))
         
         return P_new * (1j)
     
     def Hamiltonian(self, t, P):
         """
-        The combined Hamiltonian.
+        Cacluate the combined Hamiltonian.
         
         Parameters
         ----------
@@ -436,14 +435,13 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
-        
         TI = self.TI_Hamiltonian(t, P)
         TD = self.TD_Hamiltonian(t, P)
         return TI + TD
     
     def iHamiltonian(self, t, P):
         """
-        The combined Hamiltonian times -i.
+        Cacluate the combined Hamiltonian times -i.
         
         Parameters
         ----------
@@ -464,7 +462,7 @@ class laser_hydrogen_solver:
     
     def Hamiltonian_CAP(self, t, P, Sigma):
         """
-        The combined Hamiltonian with a complex absorbing potential (CAP).
+        Cacluate the combined Hamiltonian with a complex absorbing potential (CAP).
         
         Parameters
         ----------
@@ -485,7 +483,7 @@ class laser_hydrogen_solver:
     
     def iHamiltonian_CAP(self, t, P, Gamma):
         """
-        The combined Hamiltonian with a complex absorbing potential (CAP) times -i.
+        Cacluate the combined Hamiltonian with a complex absorbing potential (CAP) times -i.
         
         Parameters
         ----------
@@ -505,14 +503,14 @@ class laser_hydrogen_solver:
     def square_gamma_CAP(self, gamma_0=1, R=160):
         
         self.CAP_locs = np.where(self.r > R) 
-        self.Gamma_vector = gamma_0*(self.r[self.CAP_locs] - R)**2  #if abs(x)>R else 0
+        self.Gamma_vector = gamma_0*(self.r[self.CAP_locs] - R)**2  # if abs(x)>R else 0
         self.exp_Gamma_vector_dt  = np.exp(-self.Gamma_vector*self.dt )[:,None]  # when actually using Γ we are using one of these formulas
         self.exp_Gamma_vector_dt2 = np.exp(-self.Gamma_vector*self.dt2)[:,None]  # so we just calculate them here to save flops
     
     
     def Hamiltonian_imag_time(self, t, P):
         """
-        The combined Hamiltonian when using imaginary time. 
+        Cacluate the combined Hamiltonian when using imaginary time.
         Not currently in use.
         
         Parameters
@@ -539,7 +537,7 @@ class laser_hydrogen_solver:
         return P*self.dt
     
     
-    def RK4_0(self, tn, func): #, dt, dt2, dt6):
+    def RK4_0(self, tn, func): # , dt, dt2, dt6):
         """
         DEPRECATED! 
         One step of Runge Kutta 4 for a matrix ODE. 
@@ -570,7 +568,7 @@ class laser_hydrogen_solver:
     
     def RK4(self, P, func, tn, dt, dt2, dt6, k=None):
         """
-        One step of Runge Kutta 4 for a matrix ODE.
+        Cacluate one step of Runge Kutta 4 for a matrix ODE.
         dt2 = dt/2. dt6 = dt/6.
 
         Parameters
@@ -599,8 +597,8 @@ class laser_hydrogen_solver:
     
     def RK4_imag(self, tn, func):
         """
-        DEPRECATED! 
-        One step of Runge Kutta 4 for a matrix ODE. We have a separate one for imaginary time
+        DEPRECATED!
+        Cacluate one step of Runge Kutta 4 for a matrix ODE. We have a separate one for imaginary time
         to save some flops.
         dt2_imag = dt_imag/2. dt6_imag = dt_imag/6.
 
@@ -629,7 +627,7 @@ class laser_hydrogen_solver:
     
     def Lanczos_(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=50):
         
-        #TODO: add some comments
+        # TODO: add some comments
         alpha  = np.zeros(k) * 1j 
         beta   = np.zeros(k-1) * 1j 
         V      = np.zeros((self.n, self.l_max+1, k)) * 1j 
@@ -676,12 +674,12 @@ class laser_hydrogen_solver:
         P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
         P_new = V.dot(P_k)[:,:,0]
         
-        return P_new #, T, V
+        return P_new # , T, V
         
     
     def find_orth(self, O, j):
-        #TODO: add comments
-        #https://stackoverflow.com/a/50661011/15147410
+        # TODO: add comments
+        # https://stackoverflow.com/a/50661011/15147410
         
         M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] )
         rand_vec = np.random.rand(M.shape[0], 1)
@@ -695,12 +693,13 @@ class laser_hydrogen_solver:
     
     def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-6):
         """
-        The Lanczos propagator for one timestep. 
+        Cacluate the Lanczos propagator for one timestep.
+        
         This a fast method which we use to propagate a matrix ODE one timestep.
         The idea is ot create a Krylow sub-space of the P state, and then calculate the 
         Hamiltonian on that instead of the full state. The result is then transformed 
         back into the regular space, giving a estimate of P_new. 
-        #TODO: Double check that the description is correct. 
+        # TODO: Double check that the description is correct. 
 
         Parameters
         ----------
@@ -727,8 +726,8 @@ class laser_hydrogen_solver:
             The estimate of the wave function for the next timestep.
         """
         
-        #TODO: add some comments
-        #TODO: explain tn + dt2
+        # TODO: add some comments
+        # TODO: explain tn + dt2
         alpha  = np.zeros(k) * 1j 
         beta   = np.zeros(k-1) * 1j 
         V      = np.zeros((self.n, self.l_max+1, k)) * 1j 
@@ -780,7 +779,7 @@ class laser_hydrogen_solver:
         for j in range(1,k):
         
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm 
-            V[:,:,j]  = w / beta[j-1]  if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1], j)
+            V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1], j)
                 
             w = Hamiltonian(tn + dt2, V[:,:,j]) 
             alpha[j] = self.inner_product(w, V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
@@ -788,7 +787,7 @@ class laser_hydrogen_solver:
         
         
         T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) #Not sure if this is the fastest
+        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # Not sure if this is the fastest
         P_new = V[:,:,:].dot(P_k)[:,:,0]
         # else:
         #     T     = sp.diags([beta[1:], alpha[1:], beta[1:]], [-1,0,1], format='csc')
@@ -851,7 +850,7 @@ class laser_hydrogen_solver:
 
     def calculate_ground_state_analytical(self):
         """
-        Estimates the ground state analytically. 
+        Estimate the ground state analytically.
 
         Returns
         -------
@@ -870,7 +869,7 @@ class laser_hydrogen_solver:
         
     def calculate_ground_state_imag_time(self):
         """
-        Estimates the ground state using imaginary time. 
+        Estimate the ground state using imaginary time.
         
         Returns
         -------
@@ -894,7 +893,7 @@ class laser_hydrogen_solver:
             # N = si.simpson( np.insert( np.abs(P0.flatten())**2,0,0), dx=h) 
             self.P0 = self.P0 / np.sqrt(N)
             
-            self.eps0.append( self.enrgy_constant * np.log(N) ) #we keep track of the estimated ground state energy
+            self.eps0.append( self.enrgy_constant * np.log(N) ) # we keep track of the estimated ground state energy
             if tn in self.save_idx_imag:
                 self.P0s.append(self.P0)
                 
@@ -905,7 +904,7 @@ class laser_hydrogen_solver:
         
     def save_ground_states(self, savename="ground_states"):
         """
-        Saves the ground sate to a file.
+        Save the ground sate to a file.
 
         Parameters
         ----------
@@ -919,7 +918,7 @@ class laser_hydrogen_solver:
         """
 
         if self.ground_state_found:
-            os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}", self.P0s)
         else:
             print("Warning: Ground state needs to be found before running save_ground_states().")
@@ -927,7 +926,7 @@ class laser_hydrogen_solver:
     
     def load_ground_states(self, savename="ground_states"):
         """
-        Loads the ground sate from a file.
+        Load the ground sate from a file.
 
         Parameters
         ----------
@@ -954,7 +953,7 @@ class laser_hydrogen_solver:
     
     def plot_gs_res(self, do_save=True): 
         """
-        Creates nice plots of the ground sate.
+        Create nice plots of the ground sate.
 
         Parameters
         ----------
@@ -982,7 +981,7 @@ class laser_hydrogen_solver:
             plt.grid()
             # plt.yscale("log")
             if do_save:
-                os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/gs_found.pdf")
             plt.show()    
             
@@ -1001,7 +1000,7 @@ class laser_hydrogen_solver:
     
     def calculate_time_evolution(self):
         """
-        Simulates the time propagation of the wave function.
+        Simulate the time propagation of the wave function.
         
         Returns
         -------
@@ -1009,14 +1008,14 @@ class laser_hydrogen_solver:
         
         """
         
-        if self.A == None:
+        if self.A is None:
             print("Warning: Need to define self.A() before running calculate_time_evolution().")
         elif not self.ground_state_found:
             print("Warning: Ground state needs to be found before running calculate_time_evolution().")
         else: # self.ground_state_found and self.A != None:
 
-            self.Ps     = [self.P] #list of the calculated wave functions
-            self.save_idx = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) #which WFs to save
+            self.Ps     = [self.P] # list of the calculated wave functions
+            self.save_idx = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) # which WFs to save
 
             if self.use_CAP:
                 # Here we use the split operator method approximations:
@@ -1030,14 +1029,14 @@ class laser_hydrogen_solver:
                 # applies the first exp(i*Γ*Δt/2) part to the wave function
                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] # np.exp( - self.Gamma_vector * self.dt2) * self.P[self.CAP_locs]
                 
-                #goes through all the timesteps
+                # goes through all the timesteps
                 for tn in tqdm(range(self.nt)):
                     # we call whatever time propagator is to be used
                     # self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn]+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
                     self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
 
                     # since exp(-Γ*Δt/2) is constant we can apply both the last one for this time step, and the first one for the next
-                    # time step at the same time #TODO double check that this is correct
+                    # time step at the same time # TODO double check that this is correct
                     self.P[self.CAP_locs] = self.exp_Gamma_vector_dt * self.P[self.CAP_locs] # np.exp(- self.Gamma_vector * self.dt) * self.P[self.CAP_locs]
                     if tn in self.save_idx:
                         self.Ps.append(self.P)
@@ -1046,7 +1045,7 @@ class laser_hydrogen_solver:
                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs] # np.exp(- self.Gamma_vector * self.dt2) * self.P[self.CAP_locs]
             
             else:
-                #goes through all the timesteps
+                # goes through all the timesteps
                 for tn in tqdm(range(self.nt)):
                     # we call whatever time propagator is to be used
                     # self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn]+self.dt2, dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
@@ -1062,7 +1061,7 @@ class laser_hydrogen_solver:
         
     def plot_res(self, do_save=True):
         """
-        Creates nice plots of the found wave functions.
+        Create nice plots of the found wave functions.
         
         Parameters
         ----------
@@ -1098,7 +1097,7 @@ class laser_hydrogen_solver:
                 plt.xscale("log")
                 # plt.yscale("log")
                 if do_save:
-                    os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
+                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                     plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
                 plt.show()
         else:
@@ -1107,7 +1106,7 @@ class laser_hydrogen_solver:
         
     def save_found_states(self, savename="found_states"):
         """
-        Saves the found wave functions to a file.
+        Save the found wave functions to a file.
         
         Parameters
         ----------
@@ -1120,7 +1119,7 @@ class laser_hydrogen_solver:
         
         """
         if self.time_evolved:
-            os.makedirs(self.save_dir, exist_ok=True) #make sure the save directory exists
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}", self.Ps)
         else:
             print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
@@ -1128,7 +1127,7 @@ class laser_hydrogen_solver:
     
     def load_found_states(self, savename="found_states.npy"):
         """
-        Loads a found wave functions from a file, and sets it into self.Ps.
+        Load a found wave functions from a file, and sets it into self.Ps.
         The loaded wave function needs to have been generated using the same grid.
         
         Parameters
