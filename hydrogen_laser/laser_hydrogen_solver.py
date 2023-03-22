@@ -481,7 +481,7 @@ class laser_hydrogen_solver:
         TD = self.TD_Hamiltonian(t, P)
         return TI + TD - 1j*Sigma(t, P)
     
-    def iHamiltonian_CAP(self, t, P, Gamma):
+    def iHamiltonian_CAP(self, t, P, Gamma): 
         """
         Cacluate the combined Hamiltonian with a complex absorbing potential (CAP) times -i.
         
@@ -508,7 +508,7 @@ class laser_hydrogen_solver:
         self.exp_Gamma_vector_dt2 = np.exp(-self.Gamma_vector*self.dt2)[:,None]  # so we just calculate them here to save flops
     
     
-    def Hamiltonian_imag_time(self, t, P):
+    def Hamiltonian_imag_time(self, t, P): 
         """
         Cacluate the combined Hamiltonian when using imaginary time.
         Not currently in use.
@@ -530,14 +530,14 @@ class laser_hydrogen_solver:
         TD = self.TD_Hamiltonian_imag_time(t, P)
         return TI + TD
     
-    def y_(self,t,P):
+    def y_(self,t,P): # analysis:ignore
         """
         DEPRECATED! 
         """
         return P*self.dt
     
     
-    def RK4_0(self, tn, func): # , dt, dt2, dt6):
+    def RK4_0(self, tn, func): # , dt, dt2, dt6): # analysis:ignore
         """
         DEPRECATED! 
         One step of Runge Kutta 4 for a matrix ODE. 
@@ -622,7 +622,7 @@ class laser_hydrogen_solver:
         k3 = func(tn + self.dt2_imag, self.P0 + k2*self.dt2_imag) 
         k4 = func(tn + self.dt_imag,  self.P0 + k3*self.dt_imag ) 
         
-        return self.P0 + (k1 + 2*k2 + 2*k3 + k4) * self.dt6_imag
+        return self.P0 + (k1 + 2*k2 + 2*k3 + k4) * self.dt6_imag 
     
     
     def Lanczos_(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=50):
