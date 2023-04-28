@@ -168,7 +168,7 @@ class laser_hydrogen_solver:
         self.dt6_imag = self.dt_imag / 6
         self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
         # print(self.dt_imag, self.time_vector_imag[1]-self.time_vector_imag[0], self.time_vector_imag[2]-self.time_vector_imag[1])
-        self.enrgy_constant = -.5 / self.dt_imag # constant to save some flops during re-normalisation
+        self.energy_constant = -.5 / self.dt_imag # constant to save some flops during re-normalisation
 
 
     def set_time_propagator(self, name, k):
@@ -195,7 +195,7 @@ class laser_hydrogen_solver:
     def make_derivative_matrices(self):
         """
         Generate self.D1 and self.D2, matrices used to represent the first and second derivative in the finite difference method.
-        Uses self.fd_method to determine number of points and how to handle the boundary at r=0. At r=r_max the WF should appach 0,
+        Uses self.fd_method to determine number of points and how to handle the boundary at r=0. At r=r_max the WF should approach 0,
         so the boundary condition there isn't as important.
 
         Returns
@@ -710,7 +710,7 @@ class laser_hydrogen_solver:
         tn : float
             Current time.
         dt : float
-            The differnce between each timestep.
+            The difference between each timestep.
         dt2 : float, optional
             dt/2. The default is None.
         dt6 : float, optional
@@ -893,7 +893,7 @@ class laser_hydrogen_solver:
             # N = si.simpson( np.insert( np.abs(P0.flatten())**2,0,0), dx=h)
             self.P0 = self.P0 / np.sqrt(N)
 
-            self.eps0.append( self.enrgy_constant * np.log(N) ) # we keep track of the estimated ground state energy
+            self.eps0.append( self.energy_constant * np.log(N) ) # we keep track of the estimated ground state energy
             if tn in self.save_idx_imag:
                 self.P0s.append(self.P0)
 
