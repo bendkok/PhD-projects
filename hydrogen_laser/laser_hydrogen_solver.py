@@ -37,6 +37,7 @@ class laser_hydrogen_solver:
                  cep                = 0,              # carrier-envelope phase of laser field
                  save_dir           = "results",      # where to save the results
                  # k                  = 20,
+                 use_CAP            = False,          # 
                  ):
         """
         Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -145,7 +146,10 @@ class laser_hydrogen_solver:
         self.make_time_vector()
 
         self.set_time_propagator(self.RK4, k=None)
-        self.use_CAP = False # TODO: comment
+        self.use_CAP = use_CAP # TODO: comment
+        if use_CAP:
+            self.add_CAP()
+        
 
     def make_time_vector(self):
 
@@ -275,7 +279,7 @@ class laser_hydrogen_solver:
         else:
             print("Invalid finite difference method (fd_method)!")
 
-    def add_CAP(self, use_CAP = True, gamma_function = "square_gamma_CAP", gamma_0 = 1., CAP_R_percent = .8):
+    def add_CAP(self, use_CAP = True, gamma_function = "square_gamma_CAP", gamma_0 = .01, CAP_R_percent = .8):
 
         self.use_CAP        = use_CAP
         self.gamma_0        = gamma_0
@@ -774,7 +778,7 @@ class laser_hydrogen_solver:
         w = Hamiltonian(tn + dt2, V[:,:,0])
 
         alpha[0] = self.inner_product(w, V[:,:,0])
-        w = w - alpha[0] * P
+        w = w - alpha[0] * V[:,:,0] # P
 
         for j in range(1,k):
 
@@ -787,7 +791,7 @@ class laser_hydrogen_solver:
 
 
         T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # Not sure if this is the fastest
+        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # Not sure if this is the fastest # TODO: wy did this work again?
         P_new = V[:,:,:].dot(P_k)[:,:,0]
         # else:
         #     T     = sp.diags([beta[1:], alpha[1:], beta[1:]], [-1,0,1], format='csc')
@@ -826,6 +830,7 @@ class laser_hydrogen_solver:
             else:  # If that happens, stop iterating.
                 return Q, h
         return Q, h
+
 
     def inner_product(self, psi1, psi2):
         """
@@ -1023,6 +1028,7 @@ class laser_hydrogen_solver:
                 # TODO: check that the formula is correct.
 
                 # self.gamma_function(gamma_0=self.gamma_0, R=self.CAP_R) #set the Gamma-functions
+                # self.add_CAP(gamma_0=self.gamma_0, R=self.CAP_R) #set the Gamma-functions
 
                 # self.gamma_function()
 
@@ -1077,14 +1083,14 @@ class laser_hydrogen_solver:
         # TODO: add CAP
         if self.time_evolved:
 
-            self.plot_idx = np.round(np.linspace(1, len(self.save_idx) - 1, self.n_plots)).astype(int)
+            self.plot_idx = np.round(np.linspace(0, len(self.save_idx) - 1, self.n_plots)).astype(int)
             # print(self.plot_idx)
 
             for ln in range(self.l_max+1):
                 plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
                 # print(len(self.Ps))
                 # print(self.time_vector)
-                for i in self.plot_idx: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
                     # print(i, self.save_idx[i])
                     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector[self.save_idx[i]-1]))
                 plt.legend()
@@ -1094,12 +1100,33 @@ class laser_hydrogen_solver:
                 plt.xlabel("r (a.u.)")
                 plt.ylabel("Wave function")
                 plt.grid()
-                plt.xscale("log")
+                # plt.xscale("log")
                 # plt.yscale("log")
                 if do_save:
                     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                     plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
                 plt.show()
+                
+            for ln in range(self.l_max+1):
+                # plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
+                # print(len(self.Ps))
+                # print(self.time_vector)
+                # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                # print(i, self.save_idx[i])
+                plt.plot(self.r, np.abs(self.Ps[-1][:,ln]), label="l = {}".format(ln))
+            plt.legend()
+            title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
+            title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."
+            plt.title(title)
+            plt.xlabel("r (a.u.)")
+            plt.ylabel("Wave function")
+            plt.grid()
+            # plt.xscale("log")
+            # plt.yscale("log")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf")
+            plt.show()
         else:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
 
@@ -1148,13 +1175,13 @@ class laser_hydrogen_solver:
 if __name__ == "__main__":
 
 
-    a = laser_hydrogen_solver(save_dir="example_res", fd_method="3-point", E0=.3, nt=4_000, T=315, n=200, r_max=200, Ncycle=10, nt_imag=5_000, T_imag=16)
+    a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
     a.set_time_propagator(a.Lanczos, k=50)
 
     a.calculate_ground_state_imag_time()
-    a.plot_gs_res(do_save=False)
+    a.plot_gs_res(do_save=True)
 
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
-    a.plot_res(do_save=False)
+    a.plot_res(do_save=True)
     # print(a.l_max)
