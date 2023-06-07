@@ -9,6 +9,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import scipy as sc
 import scipy.sparse as sp
 import scipy.integrate as si
 import scipy.linalg as sl
@@ -275,9 +276,25 @@ class laser_hydrogen_solver:
             diag_D2 = -30*ones; diag_D2[0] = -29
             self.D1 = sp.diags( [ ones[2:], -8*ones[1:], diag_D1,  8*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h)
             self.D2 = sp.diags( [-ones[2:], 16*ones[1:], diag_D2, 16*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h*self.h)
+            
+        elif self.fd_method == "fft": # TODO: make work
+            # Spatial derivative using Fourier transformation
+            # D2D1 O(h³)?
+
+            # diagonal(?) matrices for the SE
+            # for D1 and D2 we use scipy.sparse because it is faster
+            k = 2*(np.pi/self.r_max) * np.array(list(range(int(self.n/2))) + list(range(int(-self.n/2),0)))
+            k1 = sp.diags(k)
+            k2 = sp.diags(k**2)
+            u_fft = sc.fft.fft(np.eye(self.n), axis=0)
+            
+            self.D1 = sc.fft.ifft(1j * k1 * u_fft, axis=0)
+            self.D2 = sc.fft.ifft(   - k2 * u_fft, axis=0)
+            
 
         else:
             print("Invalid finite difference method (fd_method)!")
+
 
     def add_CAP(self, use_CAP = True, gamma_function = "square_gamma_CAP", gamma_0 = .01, CAP_R_percent = .8):
 
@@ -1175,7 +1192,18 @@ class laser_hydrogen_solver:
 if __name__ == "__main__":
 
 
-    a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
+    # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
+    # a.set_time_propagator(a.Lanczos, k=50)
+
+    # a.calculate_ground_state_imag_time()
+    # a.plot_gs_res(do_save=True)
+
+    # a.A = a.single_laser_pulse
+    # a.calculate_time_evolution()
+    # a.plot_res(do_save=True)
+    # # print(a.l_max)
+    
+    a = laser_hydrogen_solver(save_dir="example_res_CAP_fft", fd_method="fft", E0=.3, nt=10_000, T=315, n=1024, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
     a.set_time_propagator(a.Lanczos, k=50)
 
     a.calculate_ground_state_imag_time()

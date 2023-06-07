@@ -17,7 +17,7 @@ import re
 from laser_hydrogen_solver import laser_hydrogen_solver
 
 def key_sort_files(value):
-    #from: https://stackoverflow.com/a/59175736/15147410
+    # from: https://stackoverflow.com/a/59175736/15147410
     """Extract numbers from string and return a tuple of the numeric values"""
     return tuple(map(int, re.findall('\d+', value)))
 
@@ -203,6 +203,30 @@ class Case_Examples:
         a.calculate_time_evolution()
         a.plot_res(do_save=do_save_plots)
         # print(a.l_max)
+        
+
+    def case_Lanczos_CAP_fft_imagtime_E0_01(self, do_save_plots=True, save_dir="case_Lanczos_CAP_fft_imagtime_E0_01"):
+        """
+        A case with Lanczos, CAP, 3 point finite difference derivatives, imaginary time ground state and E0 = 0.1.
+        
+        Parameters
+        ----------
+        do_save_plots : boolean, optional
+            DESCRIPTION. Whether to save the plots. The default is False.
+        """
+        
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="fft", E0=.1, nt=2_000, T=315, n=2000, r_max=200, Ncycle=10, nt_imag=10_000, T_imag=18, n_saves=100)
+        a.set_time_propagator(a.Lanczos, k=50)
+
+        a.add_CAP(use_CAP=True, gamma_function = "square_gamma_CAP", gamma_0=1, CAP_R_percent=.8)
+        
+        a.calculate_ground_state_imag_time()
+        a.plot_gs_res(do_save=do_save_plots)
+        
+        a.A = a.single_laser_pulse
+        a.calculate_time_evolution()
+        a.plot_res(do_save=do_save_plots)
+        # print(a.l_max)        
     
 
 
@@ -518,14 +542,18 @@ if __name__ == "__main__":
     # g = Case_Examples().case_Lanczos_CAP_3point_imagtime_E0_01()
     # print(g.l_max)
     
-    print("Testing convergence RK4:")
-    Case_Examples().test_convergence()
+    print("\nCase 7:")
+    h = Case_Examples().case_Lanczos_CAP_fft_imagtime_E0_01()
+    print(h.l_max)
+    
+    # print("Testing convergence RK4:")
+    # Case_Examples().test_convergence()
     
     # print("Testing convergence Lanczos:")
     # Case_Examples().test_convergence(method="Lanczos")
     
-    print("Plotting convergence.")
-    Case_Examples().plot_convergence()
+    # print("Plotting convergence.")
+    # Case_Examples().plot_convergence()
     # Case_Examples().plot_convergence(method="Lanczos")
     
     
