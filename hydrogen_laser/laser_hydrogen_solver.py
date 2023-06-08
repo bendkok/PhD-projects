@@ -277,13 +277,14 @@ class laser_hydrogen_solver:
             self.D1 = sp.diags( [ ones[2:], -8*ones[1:], diag_D1,  8*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h)
             self.D2 = sp.diags( [-ones[2:], 16*ones[1:], diag_D2, 16*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h*self.h)
             
-        elif self.fd_method == "fft": # TODO: make work
+        elif self.fd_method == "fft" and False: # won't work
             # Spatial derivative using Fourier transformation
             # D2D1 O(h³)?
 
             # diagonal(?) matrices for the SE
             # for D1 and D2 we use scipy.sparse because it is faster
             k = 2*(np.pi/self.r_max) * np.array(list(range(int(self.n/2))) + list(range(int(-self.n/2),0)))
+            # k = 2*(np.pi * self.h) * np.array(list(range(int(self.n/2))) + list(range(int(-self.n/2),0)))
             k1 = sp.diags(k)
             k2 = sp.diags(k**2)
             u_fft = sc.fft.fft(np.eye(self.n), axis=0)
@@ -550,6 +551,42 @@ class laser_hydrogen_solver:
         TI = self.TI_Hamiltonian_imag_time(t, P)
         TD = self.TD_Hamiltonian_imag_time(t, P)
         return TI + TD
+    
+    def find_eigenstate_Hamiltonian(self, P):
+        """
+        A function which finds the eigenvalues and eigenvectors for the time independent Hamiltonian.
+        Since L is a good qunatum number, each eigenstate will correspond to one specific L-channel.
+
+        Parameters
+        ----------
+        P : (self.n, self.l_max+1) numpy array
+            The current wave function.
+
+        Returns
+        -------
+        eigen_vals : (self.l_max+1, self.n) numpy array
+            All the found eigenvalues.
+        eigen_vecs : (self.l_max+1, self.n, self.n) numpy array
+            All the found eigenvectors. eigen_vecs[L,:,n] corresponds to eigen_vals[L,n].
+        """
+        
+        eigen_vals = np.zeros((self.l_max+1, self.n))
+        eigen_vecs = np.zeros((self.l_max+1, self.n, self.n))
+        
+        # goes through all the l-channels
+        for L in range(self.l_max+1):
+            # the Hamiltonian for the current L
+            H_L = self.D2_2 + L*(L+1)*self.Vs_2 - self.V_
+            
+            # finds the eigen vectors and values for the current H_L
+            e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
+            
+            # stores the results
+            eigen_vals[L] = e_vals_L 
+            eigen_vecs[L] = e_vecs_L 
+            
+        return eigen_vals, eigen_vecs
+    
 
     def y_(self,t,P): # analysis:ignore
         """
@@ -1192,7 +1229,19 @@ class laser_hydrogen_solver:
 if __name__ == "__main__":
 
 
-    # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
+    a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
+    a.set_time_propagator(a.Lanczos, k=50)
+
+    a.calculate_ground_state_imag_time()
+    a.plot_gs_res(do_save=True)
+
+    a.A = a.single_laser_pulse
+    a.find_eigenstate_Hamiltonian(a.P)
+    a.calculate_time_evolution()
+    a.plot_res(do_save=True)
+    print(a.l_max)
+    
+    # a = laser_hydrogen_solver(save_dir="example_res_CAP_fft", fd_method="fft", E0=.3, nt=1_000, T=315, n=1024, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=2, use_CAP=True)
     # a.set_time_propagator(a.Lanczos, k=50)
 
     # a.calculate_ground_state_imag_time()
@@ -1201,15 +1250,4 @@ if __name__ == "__main__":
     # a.A = a.single_laser_pulse
     # a.calculate_time_evolution()
     # a.plot_res(do_save=True)
-    # # print(a.l_max)
-    
-    a = laser_hydrogen_solver(save_dir="example_res_CAP_fft", fd_method="fft", E0=.3, nt=10_000, T=315, n=1024, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
-    a.set_time_propagator(a.Lanczos, k=50)
-
-    a.calculate_ground_state_imag_time()
-    a.plot_gs_res(do_save=True)
-
-    a.A = a.single_laser_pulse
-    a.calculate_time_evolution()
-    a.plot_res(do_save=True)
     # print(a.l_max)

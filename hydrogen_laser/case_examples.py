@@ -538,13 +538,15 @@ if __name__ == "__main__":
     # f = Case_Examples().case_Lanczos_3point_imagtime_E0_01()
     # print(f.l_max)
 
-    # print("\nCase 6:")
-    # g = Case_Examples().case_Lanczos_CAP_3point_imagtime_E0_01()
-    # print(g.l_max)
+    print("\nCase 6:")
+    g = Case_Examples().case_Lanczos_CAP_3point_imagtime_E0_01()
+    print(g.l_max)
     
+    """
     print("\nCase 7:")
     h = Case_Examples().case_Lanczos_CAP_fft_imagtime_E0_01()
     print(h.l_max)
+    """
     
     # print("Testing convergence RK4:")
     # Case_Examples().test_convergence()
