@@ -552,7 +552,8 @@ class laser_hydrogen_solver:
         TD = self.TD_Hamiltonian_imag_time(t, P)
         return TI + TD
     
-    def find_eigenstate_Hamiltonian(self, P):
+    
+    def find_eigenstates_Hamiltonian(self, P):
         """
         A function which finds the eigenvalues and eigenvectors for the time independent Hamiltonian.
         Since L is a good qunatum number, each eigenstate will correspond to one specific L-channel.
@@ -1236,7 +1237,7 @@ if __name__ == "__main__":
     a.plot_gs_res(do_save=True)
 
     a.A = a.single_laser_pulse
-    a.find_eigenstate_Hamiltonian(a.P)
+    a.find_eigenstates_Hamiltonian(a.P)
     a.calculate_time_evolution()
     a.plot_res(do_save=True)
     print(a.l_max)
