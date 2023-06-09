@@ -580,6 +580,7 @@ class laser_hydrogen_solver:
             H_L = self.D2_2 + L*(L+1)*self.Vs_2 - self.V_
             
             # finds the eigen vectors and values for the current H_L
+            # e_vals_L, e_vecs_L = np.linalg.eigh(H_L) 
             e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
             
             # stores the results
@@ -1230,7 +1231,7 @@ class laser_hydrogen_solver:
 if __name__ == "__main__":
 
 
-    a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
+    a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=False)
     a.set_time_propagator(a.Lanczos, k=50)
 
     a.calculate_ground_state_imag_time()
