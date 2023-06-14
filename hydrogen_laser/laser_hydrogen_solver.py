@@ -574,19 +574,42 @@ class laser_hydrogen_solver:
         eigen_vals = np.zeros((self.l_max+1, self.n))
         eigen_vecs = np.zeros((self.l_max+1, self.n, self.n))
         
+        plotmax = 5
+        
         # goes through all the l-channels
         for L in range(self.l_max+1):
             # the Hamiltonian for the current L
             H_L = self.D2_2 + L*(L+1)*self.Vs_2 - self.V_
             
+            # self.V  = 1/self.r                                      # from the Coulomb potential
+            # self.Vs = 1/self.r**2                                   # from the centrifugal term
+            # self.S  = np.array([l*(l+1) for l in range(l_max+1)])   # from the centrifugal term
+        
+            # self.D2_2 = -.5*self.D2
+            # self.Vs_2 =  .5*self.Vs[:,None]
+            # self.V_   =     self.V [:,None]
+            
             # finds the eigen vectors and values for the current H_L
-            # e_vals_L, e_vecs_L = np.linalg.eigh(H_L) 
-            e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
+            e_vals_L, e_vecs_L = np.linalg.eigh(H_L) 
+            # e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
+            
+            inds = e_vals_L.argsort()
             
             # stores the results
-            eigen_vals[L] = e_vals_L 
-            eigen_vecs[L] = e_vecs_L 
+            eigen_vals[L] = e_vals_L[inds]
+            eigen_vecs[L] = e_vecs_L[inds]
             
+            for i in np.where(eigen_vals[L] < 0)[0]:
+                print(eigen_vals[L][i])
+            print()
+            
+            for n in range(plotmax):
+                plt.plot(self.r, eigen_vecs[L][:,n])
+            plt.title(f"L={L}")
+            plt.grid()
+            plt.show()
+            
+
         return eigen_vals, eigen_vecs
     
 
@@ -1231,17 +1254,18 @@ class laser_hydrogen_solver:
 if __name__ == "__main__":
 
 
+    # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=False)
     a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=315, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=False)
     a.set_time_propagator(a.Lanczos, k=50)
 
-    a.calculate_ground_state_imag_time()
-    a.plot_gs_res(do_save=True)
+    # a.calculate_ground_state_imag_time()
+    # a.plot_gs_res(do_save=True)
 
     a.A = a.single_laser_pulse
     a.find_eigenstates_Hamiltonian(a.P)
-    a.calculate_time_evolution()
-    a.plot_res(do_save=True)
-    print(a.l_max)
+    # a.calculate_time_evolution()
+    # a.plot_res(do_save=True)
+    # print(a.l_max)
     
     # a = laser_hydrogen_solver(save_dir="example_res_CAP_fft", fd_method="fft", E0=.3, nt=1_000, T=315, n=1024, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=2, use_CAP=True)
     # a.set_time_propagator(a.Lanczos, k=50)
