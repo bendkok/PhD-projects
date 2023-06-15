@@ -579,7 +579,8 @@ class laser_hydrogen_solver:
         # goes through all the l-channels
         for L in range(self.l_max+1):
             # the Hamiltonian for the current L
-            H_L = self.D2_2 + L*(L+1)*np.diag(self.Vs_2) - np.diag(self.V_)
+            H_L = self.D2_2 + np.diag(L*(L+1)*self.Vs_2[:,0]) - np.diag(self.V_[:,0])
+            np.savetxt(f"H_{L}.csv", H_L, delimiter=',', fmt='%.10f')
             
             # self.V  = 1/self.r                                      # from the Coulomb potential
             # self.Vs = 1/self.r**2                                   # from the centrifugal term
