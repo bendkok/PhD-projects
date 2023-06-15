@@ -579,7 +579,7 @@ class laser_hydrogen_solver:
         # goes through all the l-channels
         for L in range(self.l_max+1):
             # the Hamiltonian for the current L
-            H_L = self.D2_2 + L*(L+1)*self.Vs_2 - self.V_
+            H_L = self.D2_2 + L*(L+1)*np.diag(self.Vs_2) - np.diag(self.V_)
             
             # self.V  = 1/self.r                                      # from the Coulomb potential
             # self.Vs = 1/self.r**2                                   # from the centrifugal term
@@ -603,10 +603,12 @@ class laser_hydrogen_solver:
                 print(eigen_vals[L][i])
             print()
             
+            
             for n in range(plotmax):
-                plt.plot(self.r, eigen_vecs[L][:,n])
+                plt.plot(self.r, eigen_vecs[L][:,n], label="{:.3f}".format(eigen_vals[L][n]))
             plt.title(f"L={L}")
             plt.grid()
+            plt.legend()
             plt.show()
             
 
