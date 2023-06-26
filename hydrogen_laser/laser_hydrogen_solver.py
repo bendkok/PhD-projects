@@ -1128,7 +1128,7 @@ class laser_hydrogen_solver:
                     # ζ_l,l'(r;t=0) for cacluating dP/dΩ
                     # self.zeta_omega = np.zeros((self.n,self.l_max+1,self.l_max+1)) + 0j
                     self.zeta_omega   = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1)) + 0j
-                    self.zeta_epsilon = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1)) + 0j
+                    self.zeta_epsilon = np.zeros((len(self.CAP_locs),len(self.CAP_locs),self.l_max+1)) + 0j
                     
                     # self.norm_over_time = np.zeros(self.nt+1)
                     self.norm_over_time = np.zeros(len(self.time_vector) + len(self.time_vector1) + 1)
@@ -1155,6 +1155,14 @@ class laser_hydrogen_solver:
                         # self.zeta_omega = self.zeta_omega + self.P[...,None]*np.conjugate(self.P)[:,None] # from: https://stackoverflow.com/a/44729200/15147410
                         self.zeta_omega = self.zeta_omega + self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
                         
+                        # find ζ_l(r,r';t=tn) 
+                        self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
+                        
+                        # for r0,n0 in enumerate(self.CAP_locs):
+                        #     for r1,n1 in enumerate(self.CAP_locs):
+                        #         for l in range(self.l_max+1):
+                        #             self.zeta_epsilon[r0,r1,l] += self.P[n0,l]*np.conjugate(self.P[n1,l])
+                        
                         self.norm_over_time[tn+1] = np.real(self.inner_product(self.P, self.P))
                     
                     print()
@@ -1180,6 +1188,10 @@ class laser_hydrogen_solver:
                             # self.zeta_omega = self.zeta_omega + self.P[...,None]*np.conjugate(self.P)[:,None] # from: https://stackoverflow.com/a/44729200/15147410
                             self.zeta_omega = self.zeta_omega + self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
                             
+                            # find ζ_l(r,r';t=tn) 
+                            self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
+                            
+                            
                             self.norm_over_time[len(self.time_vector)+tn+1] = np.real(self.inner_product(self.P, self.P))
                     
                     
@@ -1201,6 +1213,11 @@ class laser_hydrogen_solver:
                     
                     self.dP_domega = self.dP_domega*2
                     self.dP_domega_calulated = True
+                    
+                    
+                    self.dP_domega = np.zeros(self.n)
+                    for l in range(self.l_max+1):
+                        inte 
                     
                     tmp = np.trapz(self.dP_domega, self.h*np.linspace(0, np.pi, len(self.dP_domega))) 
                     k_fft = 2*(np.pi/self.r_max)*np.array(list(range(int(self.n/2))) + list(range(int(-self.n/2),0)))
@@ -1431,7 +1448,7 @@ if __name__ == "__main__":
 
 
     # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=3, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
-    a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=2, n=1000, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=14, use_CAP=True, l_max=2, calc_dPdomega=True, calc_norm=True)
+    a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=2, n=1000, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True, l_max=2, calc_dPdomega=True, calc_norm=True)
     # a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=3, n=200, r_max=50, l_max=2, Ncycle=10, nt_imag=1_000, T_imag=14, use_CAP=True, calc_dPdomega=True, calc_norm=True) 
     # a.find_eigenstates_Hamiltonian()
     a.set_time_propagator(a.Lanczos, k=50)
