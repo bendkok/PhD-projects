@@ -13,6 +13,7 @@ import scipy as sc
 import scipy.sparse as sp
 import scipy.integrate as si
 import scipy.linalg as sl
+from scipy.interpolate import BSpline
 import seaborn as sns
 import time
 
@@ -150,6 +151,7 @@ class laser_hydrogen_solver:
         self.time_evolved           = False
         self.norm_calulated         = False
         self.dP_domega_calulated    = False
+        self.dP_depsilon_calulated  = False
 
         self.make_time_vector_imag()
         self.make_time_vector()
@@ -585,19 +587,17 @@ class laser_hydrogen_solver:
         for L in range(self.l_max+1):
             # the Hamiltonian for the current L
             H_L = self.D2_2 + np.diag(L*(L+1)*self.Vs_2[:,0]) - np.diag(self.V_[:,0])
-            # np.savetxt(f"H_{L}.csv", H_L, delimiter=',', fmt='%.10f')
-            
+            # Symbol explenation:            
+                
             # self.V  = 1/self.r                                      # from the Coulomb potential
             # self.Vs = 1/self.r**2                                   # from the centrifugal term
             # self.S  = np.array([l*(l+1) for l in range(l_max+1)])   # from the centrifugal term
-        
             # self.D2_2 = -.5*self.D2
             # self.Vs_2 =  .5*self.Vs[:,None]
             # self.V_   =     self.V [:,None]
             
             # finds the eigen vectors and values for the current H_L
             e_vals_L, e_vecs_L = np.linalg.eigh(H_L) 
-            # e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
             
             inds = e_vals_L.argsort()
             
@@ -606,26 +606,25 @@ class laser_hydrogen_solver:
             eigen_vecs[L] = e_vecs_L[inds]
             
             # prints the bound states, the ones with negative e.v.
-            for i in np.where(eigen_vals[L] < 0)[0]:
-                # print("{:.8f}".format((eigen_vals[L][i])))
-                print("{:.8f}, {:.8f}".format((eigen_vals[L][i]), -.5*(i+L+1.)**-2))
-            print()
+            # for i in np.where(eigen_vals[L] < 0)[0]:
+            #     print("{:.8f}, {:.8f}".format((eigen_vals[L][i]), -.5*(i+L+1.)**-2))
+            # print()
             
             
-            for n in range(plotmax):
-                plt.plot(self.r, eigen_vecs[L][:,n], label="{:.3f}".format(eigen_vals[L][n]))
-            plt.title(f"L={L}")
-            plt.grid()
-            plt.legend(loc='right')
-            plt.show()
+            # for n in range(plotmax):
+            #     plt.plot(self.r, eigen_vecs[L][:,n], label="{:.3f}".format(eigen_vals[L][n]))
+            # plt.title(f"L={L}")
+            # plt.grid()
+            # plt.legend(loc='right')
+            # plt.show()
         
-        n = 2
-        for L in range(self.l_max+1):
-            plt.plot(self.r, eigen_vecs[L][:,n-L], label="{}".format(L))
-        plt.grid()
-        plt.legend(loc='right')
-        plt.title(f"i={n}")
-        plt.show()
+        # n = 2
+        # for L in range(self.l_max+1):
+        #     plt.plot(self.r, eigen_vecs[L][:,n-L], label="{}".format(L))
+        # plt.grid()
+        # plt.legend(loc='right')
+        # plt.title(f"i={n}")
+        # plt.show()
 
         return eigen_vals, eigen_vecs
     
@@ -1027,7 +1026,7 @@ class laser_hydrogen_solver:
 
     def load_ground_states(self, savename="ground_states"):
         """
-        Load the ground sate from a file.
+        Load a found ground sate from a file.
 
         Parameters
         ----------
@@ -1128,7 +1127,7 @@ class laser_hydrogen_solver:
                     # ζ_l,l'(r;t=0) for cacluating dP/dΩ
                     # self.zeta_omega = np.zeros((self.n,self.l_max+1,self.l_max+1)) + 0j
                     self.zeta_omega   = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1)) + 0j
-                    self.zeta_epsilon = np.zeros((len(self.CAP_locs),len(self.CAP_locs),self.l_max+1)) + 0j
+                    self.zeta_epsilon = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1)) + 0j
                     
                     # self.norm_over_time = np.zeros(self.nt+1)
                     self.norm_over_time = np.zeros(len(self.time_vector) + len(self.time_vector1) + 1)
@@ -1156,12 +1155,8 @@ class laser_hydrogen_solver:
                         self.zeta_omega = self.zeta_omega + self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
                         
                         # find ζ_l(r,r';t=tn) 
-                        self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
-                        
-                        # for r0,n0 in enumerate(self.CAP_locs):
-                        #     for r1,n1 in enumerate(self.CAP_locs):
-                        #         for l in range(self.l_max+1):
-                        #             self.zeta_epsilon[r0,r1,l] += self.P[n0,l]*np.conjugate(self.P[n1,l])
+                        # self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
+                        self.zeta_epsilon += self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
                         
                         self.norm_over_time[tn+1] = np.real(self.inner_product(self.P, self.P))
                     
@@ -1189,7 +1184,9 @@ class laser_hydrogen_solver:
                             self.zeta_omega = self.zeta_omega + self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
                             
                             # find ζ_l(r,r';t=tn) 
-                            self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
+                            # self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
+                            # self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
+                            self.zeta_epsilon += self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
                             
                             
                             self.norm_over_time[len(self.time_vector)+tn+1] = np.real(self.inner_product(self.P, self.P))
@@ -1197,9 +1194,9 @@ class laser_hydrogen_solver:
                     
                     self.norm_calulated = True
                     
-                    # self.dP_domega = np.zeros(len(self.CAP_locs))
+                    # finds dP/dΩ
                     self.dP_domega = np.zeros(self.n)
-                    for l in range(self.l_max+1):
+                    for l in range(self.l_max+1): # goes through all the l's twice
                         for l_ in range(self.l_max+1):
                             inte = np.trapz(self.Gamma_vector*self.zeta_omega[:,l,l_], self.r[self.CAP_locs]) # ,l,l_
                             # Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,len(self.CAP_locs)), np.zeros(len(self.CAP_locs)) )
@@ -1214,19 +1211,44 @@ class laser_hydrogen_solver:
                     self.dP_domega = self.dP_domega*2
                     self.dP_domega_calulated = True
                     
+                    # finds dP/dε
+                    eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
+                    epsilon = np.linspace(np.min(eigen_vals[np.where(eigen_vals>0)[0]]), np.max(eigen_vals[np.where(eigen_vals>0)[0]]), 1000)
+                    self.dP_depsilon = np.zeros_like(epsilon)
                     
-                    self.dP_domega = np.zeros(self.n)
-                    for l in range(self.l_max+1):
-                        inte 
+                    for l in range(self.l_max+1): # goes through all the l's
+                        pos_ind = np.where(eigen_vals[l]>0)[0]
+                        pos_eps = eigen_vals[l,pos_ind]
+                        
+                        D_l_eps = np.zeros_like(pos_eps)
+                        D_l_eps[1:-1] = 2/(pos_eps[2:]-pos_eps[:-2])
+                        D_l_eps[0]  = 1/(pos_eps[ 1]-pos_eps[ 0])
+                        D_l_eps[-1] = 1/(pos_eps[-1]-pos_eps[-2])
+                        
+                        F_l_eps = np.zeros_like(pos_eps)+0j
+                        
+                        for i, eps in enumerate(pos_ind):
+                            inte_dr = np.zeros(self.zeta_epsilon.shape[1])+0j
+                            for r_ in range(len(self.Gamma_vector)):    
+                                inte_dr[r_] = np.trapz( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector*self.zeta_epsilon[:,r_,l], self.r[self.CAP_locs] )
+                            # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps,self.CAP_locs], self.r[self.CAP_locs] )
+                            F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps], self.r )
+                        
+                        # self.dP_depsilon += np.real(BSpline(pos_eps, F_l_eps, epsilon))
                     
-                    tmp = np.trapz(self.dP_domega, self.h*np.linspace(0, np.pi, len(self.dP_domega))) 
-                    k_fft = 2*(np.pi/self.r_max)*np.array(list(range(int(self.n/2))) + list(range(int(-self.n/2),0)))
-                    k_fft = np.fft.fftshift(k_fft)
-                    tmp1 = np.trapz(self.dP_domega, k_fft) 
-                    # print(tmp, np.sum(self.dP_domega))
-                    print(f"Norm of dP/dθ: {tmp}.")
-                    print(f"Norm of dP/dθ: {tmp1}.")
-                    print(f"Norm of dP/dθ: {np.trapz(self.dP_domega, np.linspace(0, np.pi, len(self.dP_domega)))}.")
+                    self.dP_depsilon *= 2
+                    self.dP_depsilon_calulated = True
+                    
+                    
+                    theta = np.linspace(0, np.pi, len(self.dP_domega))
+                    dP_domega_norm = np.trapz(self.dP_domega*np.sin(theta), theta) 
+                    print()
+                    print(f"Norm of dP/dθ: {dP_domega_norm}.")
+                    print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), self.h*theta)}.")
+                    print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), theta/self.h)}.")
+                    # print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta)/self.h, theta)}.")
+                    # print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), np.abs(theta[2]-theta[1])*theta)}.")
+                    # print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), theta/np.abs(theta[2]-theta[1]))}.")
                     print(self.norm_over_time[-1])
                     print(1-self.norm_over_time[-1])
                     
@@ -1426,7 +1448,7 @@ class laser_hydrogen_solver:
 
     def load_found_states(self, savename="found_states.npy"):
         """
-        Load a found wave functions from a file, and sets it into self.Ps.
+        Load a found wave function from a file, and sets it into self.Ps.
         The loaded wave function needs to have been generated using the same grid.
 
         Parameters
@@ -1448,7 +1470,7 @@ if __name__ == "__main__":
 
 
     # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=3, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
-    a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=2, n=1000, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True, l_max=2, calc_dPdomega=True, calc_norm=True)
+    a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=5_00, T=3, n=2000, r_max=500, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True, l_max=3, calc_dPdomega=True, calc_norm=True)
     # a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=3, n=200, r_max=50, l_max=2, Ncycle=10, nt_imag=1_000, T_imag=14, use_CAP=True, calc_dPdomega=True, calc_norm=True) 
     # a.find_eigenstates_Hamiltonian()
     a.set_time_propagator(a.Lanczos, k=50)
