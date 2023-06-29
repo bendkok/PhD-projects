@@ -1418,16 +1418,16 @@ class laser_hydrogen_solver:
                 
             
             if plot_dP_domega and self.dP_domega_calulated: 
-                plt.axes(projection = 'polar')
-                plt.plot(np.linspace(0,2*np.pi,self.n), self.dP_domega, label="dP_domega")
-                # plt.grid()
-                # plt.xlabel("θ")
-                # plt.ylabel(r"$dP/d\omega$")
-                # plt.legend()
-                if do_save:
-                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                    plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_polar.pdf")
-                plt.show()
+                # plt.axes(projection = 'polar')
+                # plt.plot(np.linspace(0,2*np.pi,self.n), self.dP_domega, label="dP_domega")
+                # # plt.grid()
+                # # plt.xlabel("θ")
+                # # plt.ylabel(r"$dP/d\omega$")
+                # # plt.legend()
+                # if do_save:
+                #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                #     plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_polar.pdf")
+                # plt.show()
                 
                 plt.axes(projection = None)
                 plt.plot(np.linspace(0, np.pi, self.n), self.dP_domega, label="dP_domega")
@@ -1439,6 +1439,19 @@ class laser_hydrogen_solver:
                     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                     plt.savefig(f"{self.save_dir}/time_evolved_dP_domega.pdf")
                 plt.show()
+                
+                plt.axes(projection = None)
+                plt.plot( self.dP_domega, np.linspace(0, np.pi, self.n), label="dP_domega")
+                # plt.plot(-self.dP_domega, np.linspace(0, np.pi, self.n), label="dP_domega")
+                plt.grid()
+                plt.ylabel("φ")
+                # plt.ylabel(r"$dP/d\theta$")
+                plt.xlabel(r"$dP/d\Omega$")
+                if do_save:
+                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                    plt.savefig(f"{self.save_dir}/time_evolved_dP_domega0.pdf")
+                plt.show()
+                
             elif plot_dP_domega:
                 print("Need to calculate dP/dΩ berfore plotting it.")
                 
@@ -1498,24 +1511,109 @@ class laser_hydrogen_solver:
         """
         self.Ps = np.load(f"{self.save_dir}/{savename}")
         self.time_evolved = True
+        
+        
+    def save_dP_domega(self, savename="found_states"):
+        """
+        Save the found wave functions to a file.
 
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.time_evolved:
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            np.save(f"{self.save_dir}/{savename}_dP_domega", self.dP_domega)
+        else:
+            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+
+
+    def load_dP_domega(self, savename="found_states_dP_domega.npy"):
+        """
+        Load a found wave function from a file, and sets it into self.Ps.
+        The loaded wave function needs to have been generated using the same grid.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        self.dP_domega = np.load(f"{self.save_dir}/{savename}")
+        self.time_evolved = True
+        
+    
+    def save_hyperparameters(self):
+        
+        
+        hyperparameters = {
+            "l_max":               self.l_max,
+            "n":                   self.n,
+            "r_max":               self.r_max,
+            "T":                   self.T,
+            "nt":                  self.nt,
+            "T_imag":              self.T_imag,
+            "nt_imag":             self.nt_imag,
+            "n_saves":             self.n_saves,
+            "n_saves_imag":        self.n_saves_imag,
+            "n_plots":             self.n_plots,
+            "fd_method":           self.fd_method,
+            "Ncycle":              self.Ncycle,
+            "E0":                  self.E0,
+            "w":                   self.w,
+            "cep":                 self.cep,
+            "save_dir":            self.save_dir,
+            "calc_dPdomega":       self.calc_dPdomega,
+            "calc_norm":           self.calc_norm,
+            "calc_dPdepsilon":     self.calc_dPdepsilon,
+            "spline_n":            self.spline_n,
+            "k":                   self.k,
+            "beta":                1e-6,
+            "time_propagator":     self.time_propagator.__name__,
+            "gamma_function":      self.gamma_function.__name__,
+            "use_CAP":             self.use_CAP,
+            "gamma_0":             self.gamma_0,
+            "CAP_R_percent":       self.CAP_R_percent,
+            }
+        
+        print(hyperparameters)
+        with open(f"{self.save_dir}/hyperparameters.txt", 'w') as f: 
+            for key, value in hyperparameters.items(): 
+                f.write('%s:%s\n' % (key, value))
+        
+        
+        
+        
 
 
 if __name__ == "__main__":
 
 
     # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=3, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
-    a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_00, T=1, n=1000, r_max=500, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True, l_max=2, calc_dPdomega=True, calc_norm=True)
+    a = laser_hydrogen_solver(save_dir="dP_domega", fd_method="3-point", E0=.3, nt=1_000, T=3, n=2000, r_max=800, Ncycle=10, nt_imag=1_000, T_imag=16, use_CAP=True, l_max=2, calc_dPdomega=True, calc_norm=True)
     # a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=3, n=200, r_max=50, l_max=2, Ncycle=10, nt_imag=1_000, T_imag=14, use_CAP=True, calc_dPdomega=True, calc_norm=True) 
     # a.find_eigenstates_Hamiltonian()
     a.set_time_propagator(a.Lanczos, k=50)
 
     a.calculate_ground_state_imag_time()
-    a.plot_gs_res(do_save=False)
+    a.plot_gs_res(do_save=True)
 
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
-    a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    a.save_hyperparameters()
+    a.save_dP_domega()
+    
     # a.plot_res(do_save=False)
     # print(a.l_max)
     
