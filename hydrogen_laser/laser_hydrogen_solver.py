@@ -1139,7 +1139,10 @@ class laser_hydrogen_solver:
                     # ζ_l,l'(r;t=0) for cacluating dP/dΩ
                     # self.zeta_omega = np.zeros((self.n,self.l_max+1,self.l_max+1)) + 0j
                     self.zeta_omega   = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1)) + 0j
+                    # self.zeta_omega0  = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1)) + 0j
+                    
                     self.zeta_epsilon = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1)) + 0j
+                    # self.zeta_epsilon0= np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1)) + 0j
                     
                     # self.norm_over_time = np.zeros(self.nt+1)
                     self.norm_over_time = np.zeros(len(self.time_vector) + len(self.time_vector1) + 1)
@@ -1165,10 +1168,30 @@ class laser_hydrogen_solver:
                         # find ζ_l,l'(r;t=tn) 
                         # self.zeta_omega = self.zeta_omega + self.P[...,None]*np.conjugate(self.P)[:,None] # from: https://stackoverflow.com/a/44729200/15147410
                         self.zeta_omega = self.zeta_omega + self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
+                        # self.zeta_omega += self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
+                        # for l0 in range(self.l_max+1):
+                        #     for l1 in range(self.l_max+1):
+                        #         self.zeta_omega0[:,l0,l1] += self.P[self.CAP_locs,l0] * np.conjugate(self.P[self.CAP_locs,l1])
+                        
+                        # if (not np.array_equal(self.zeta_omega, self.zeta_omega0)) or (not np.array_equiv(self.zeta_omega, self.zeta_omega0)):
+                        #     print("\nzeta_omega wrong!")
+                        #     print(f"tn = {tn}" + "\n")
+                        #     print(np.array_equal(self.zeta_omega, self.zeta_omega0), np.array_equiv(self.zeta_omega, self.zeta_omega0))
+                            # exit()
                         
                         # find ζ_l(r,r';t=tn) 
                         # self.zeta_epsilon = self.zeta_epsilon + self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,self.CAP_locs]
                         self.zeta_epsilon += self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
+                        # for r0,n0 in enumerate(self.CAP_locs):
+                        #     for r1,n1 in enumerate(self.CAP_locs):
+                        #         for l in range(self.l_max+1):
+                        #             self.zeta_epsilon0[r0,r1,l] = self.zeta_epsilon0[r0,r1,l] + self.P[n0,l]*np.conjugate(self.P[n1,l])
+                        
+                        # if (not np.array_equal(self.zeta_epsilon, self.zeta_epsilon0)) or (not np.array_equiv(self.zeta_epsilon, self.zeta_epsilon0)):
+                        #     print("zeta_epsilon wrong!")
+                        #     print(f"tn = {tn}.")
+                        #     print(np.array_equal(self.zeta_epsilon, self.zeta_epsilon0), np.array_equiv(self.zeta_epsilon, self.zeta_epsilon0))
+                        #     # exit()
                         
                         self.norm_over_time[tn+1] = np.real(self.inner_product(self.P, self.P))
                     
@@ -1206,30 +1229,47 @@ class laser_hydrogen_solver:
                     
                     self.norm_calulated = True
                     
+                    self.zeta_omega     *= self.dt
+                    self.zeta_epsilon   *= self.dt
+                    
                     # finds dP/dΩ
                     self.dP_domega = np.zeros(self.n)
+                    # long_CAP = np.zeros_like(self.r)
+                    # long_CAP[self.CAP_locs] = self.Gamma_vector
                     print("\nCalculating dP/dΩ:")
                     for l in tqdm(range(self.l_max+1)): # goes through all the l's twice
                         for l_ in range(self.l_max+1):
-                            inte = np.trapz(self.Gamma_vector*self.zeta_omega[:,l,l_], self.r[self.CAP_locs]) # ,l,l_
+                            inte = np.trapz(self.Gamma_vector*self.zeta_omega[:,l,l_], self.r[self.CAP_locs]) 
+                            # inte = np.trapz(long_CAP*self.zeta_omega[:,l,l_], self.r) 
                             # Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,len(self.CAP_locs)), np.zeros(len(self.CAP_locs)) )
                             # Y_   = np.conjugate(sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,len(self.CAP_locs)), np.zeros(len(self.CAP_locs)) ))
-                            Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n) )
+                            Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n))
                             Y_   = np.conjugate( sc.special.sph_harm(0, l_, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) )
                             # Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,len(self.CAP_locs)), np.linspace(0,np.pi,len(self.CAP_locs)) )
                             # Y_   = np.conjugate(sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,len(self.CAP_locs)), np.linspace(0,np.pi,len(self.CAP_locs)) ))
+                            
+                            # Y and Y_ are always real
+                            
+                            # if (np.sum(np.abs((np.imag(Y))))>0) or (np.sum(np.abs((np.imag(Y_))))>0):
+                            #     print()
+                            # if np.any(np.imag(Y))!=0 or np.any(np.imag(Y_))!=0:
+                            #     print()
                             
                             self.dP_domega += np.real(Y*Y_*inte)
                     
                     self.dP_domega = self.dP_domega*2
                     self.dP_domega_calulated = True
                     
+                    # checks the norm of dP/dΩ
                     theta = np.linspace(0, np.pi, len(self.dP_domega))
                     dP_domega_norm = np.trapz(self.dP_domega*np.sin(theta), theta) 
                     print("\n")
-                    print(f"Norm of dP/dθ: {dP_domega_norm}.")
-                    print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), self.h*theta)}.")
-                    print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), theta/self.h)}.")
+                    print(f"Norm of dP/dΩ: {dP_domega_norm}.")
+                    print(f"Norm of dP/dΩ: {np.trapz(self.dP_domega*np.sin(theta), self.h*theta)}.")
+                    print(f"Norm of dP/dΩ: {np.trapz(self.dP_domega*np.sin(theta), theta/self.h)}.")
+                    print(f"Norm of dP/dΩ: {np.trapz(self.dP_domega, theta)}.")
+                    print(f"Norm of dP/dΩ: {np.trapz(self.dP_domega, self.h*theta)}.")
+                    print(f"Norm of dP/dΩ: {np.trapz(self.dP_domega, theta/self.h)}.")
                     # print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta)/self.h, theta)}.")
                     # print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), np.abs(theta[2]-theta[1])*theta)}.")
                     # print(f"Norm of dP/dθ: {np.trapz(self.dP_domega*np.sin(theta), theta/np.abs(theta[2]-theta[1]))}.")
@@ -1259,7 +1299,7 @@ class laser_hydrogen_solver:
                         
                         for i, eps in enumerate(pos_ind): # , position=1, leave=False)):
                             inte_dr = np.zeros(self.zeta_epsilon.shape[1])+0j
-                            for r_ in range(len(self.Gamma_vector)):    
+                            for r_ in range(len(self.Gamma_vector)):     # TODO: can this be vectorized? 
                                 inte_dr[r_] = np.trapz( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector*self.zeta_epsilon[:,r_,l], self.r[self.CAP_locs] )
                             # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps,self.CAP_locs], self.r[self.CAP_locs] )
                             F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps], self.r )
@@ -1621,8 +1661,8 @@ if __name__ == "__main__":
 
     total_start_time = time.time()
     # a = laser_hydrogen_solver(save_dir="example_res_CAP0", fd_method="3-point", E0=.3, nt=1_000, T=3, n=500, r_max=200, Ncycle=10, nt_imag=1_000, T_imag=15, use_CAP=True)
-    a = laser_hydrogen_solver(save_dir="dP_domega", fd_method="3-point", E0=.3, nt=300, T=5, n=2048, r_max=750, Ncycle=10, nt_imag=1_000, T_imag=16, 
-                              use_CAP=True, gamma_0=0.1, CAP_R_percent=.75, l_max=2, calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True)
+    a = laser_hydrogen_solver(save_dir="dP_domega0", fd_method="3-point", E0=.3, nt=200, T=1, n=1000, r_max=300, Ncycle=10, nt_imag=1_000, T_imag=15, 
+                              use_CAP=True, gamma_0=0.1, CAP_R_percent=.75, l_max=2, calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=500)
     
     # a = laser_hydrogen_solver(save_dir="test_dPdomega", fd_method="3-point", E0=.3, nt=1_000, T=3, n=200, r_max=50, l_max=2, Ncycle=10, nt_imag=1_000, T_imag=14, use_CAP=True, calc_dPdomega=True, calc_norm=True) 
     # a.find_eigenstates_Hamiltonian()
