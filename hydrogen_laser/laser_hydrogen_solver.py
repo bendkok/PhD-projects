@@ -18,6 +18,7 @@ import scipy.linalg as sl
 from scipy.interpolate import BSpline
 import seaborn as sns
 import time
+import pandas as pd
 
 
 class laser_hydrogen_solver:
@@ -41,9 +42,10 @@ class laser_hydrogen_solver:
                  cep                = 0,                    # carrier-envelope phase of laser field
                  save_dir           = "results",            # where to save the results
                  use_CAP            = False,                # add complex absorbing potentials (CAP)
-                 gamma_function     = "square_gamma_CAP",   # which CAP-function to use
+                 gamma_function     = "polynomial_gamma_CAP",   # which CAP-function to use
                  gamma_0            = .01,                  # strength of CAP
                  CAP_R_proportion   = .8,                   # CAP onset
+                 Gamma_power        = 2,                    # the power of the monimial
                  calc_norm          = False,                # whether to calculate the norm
                  calc_dPdomega      = False,                # whether to calculate dP/dΩ
                  calc_dPdepsilon    = False,                # whether to calculate dP/dε
@@ -143,15 +145,16 @@ class laser_hydrogen_solver:
         T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation
         self.T1 = np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
         self.T2 = np.diag(T2_diag, k=1) - np.diag(T2_diag, k=-1)
+        
+        # reformats the 
+        self.D2_2 = -.5*self.D2
+        self.Vs_2 =  .5*self.Vs[:,None]
+        self.V_   =     self.V [:,None]
 
         # for the electric field
         self.Tpulse = self.Ncycle*2*np.pi/self.w
         self.E0_w = self.E0/self.w
         self.pi_Tpulse = np.pi/self.Tpulse
-
-        self.D2_2 = -.5*self.D2
-        self.Vs_2 =  .5*self.Vs[:,None]
-        self.V_   =     self.V [:,None]
 
         # some booleans to check that thing have been run
         self.ground_state_found      = False
@@ -168,6 +171,7 @@ class laser_hydrogen_solver:
         self.gamma_function = gamma_function
         self.gamma_0 = gamma_0
         self.CAP_R_proportion = CAP_R_proportion
+        self.Gamma_power = Gamma_power
         if use_CAP:
             self.add_CAP(gamma_function=gamma_function,gamma_0=gamma_0,CAP_R_proportion=CAP_R_proportion)
         
@@ -299,20 +303,21 @@ class laser_hydrogen_solver:
             print("Invalid finite difference method (fd_method)!")
 
 
-    def add_CAP(self, use_CAP = True, gamma_function = "square_gamma_CAP", gamma_0 = .01, CAP_R_proportion = .8):
+    def add_CAP(self, use_CAP = True, gamma_function = "polynomial_gamma_CAP", gamma_0 = .01, CAP_R_proportion = .8, Gamma_power = 2):
 
-        self.use_CAP        = use_CAP
-        self.gamma_0        = gamma_0
-        self.CAP_R_proportion  = CAP_R_proportion
+        self.use_CAP            = use_CAP
+        self.gamma_0            = gamma_0
+        self.CAP_R_proportion   = CAP_R_proportion
+        self.Gamma_power        = Gamma_power
 
         if np.abs(self.CAP_R_proportion) > 1:
             print("WARNING: CAP_R_proportion needs to be between 0 and 1!")
         self.CAP_R = self.CAP_R_proportion*self.r_max  # we set the R variable in the CAP to be a percentage of r_max
-        if gamma_function == "square_gamma_CAP":
-            self.gamma_function = self.square_gamma_CAP #
+        if gamma_function == "polynomial_gamma_CAP":
+            self.gamma_function = self.polynomial_gamma_CAP #
         else:
             print("Invalid Gamma function!")
-        self.gamma_function(gamma_0=self.gamma_0, R=self.CAP_R)
+        self.gamma_function(gamma_0=gamma_0, R=self.CAP_R, Gamma_power=Gamma_power)
 
 
     def b_l(self, l):
@@ -524,10 +529,10 @@ class laser_hydrogen_solver:
 
         return -1j * self.Hamiltonian_CAP(t, P, Gamma)
 
-    def square_gamma_CAP(self, gamma_0=1, R=160):
+    def polynomial_gamma_CAP(self, gamma_0=1, R=160, Gamma_power=2):
 
         self.CAP_locs = np.where(self.r > R)[0]
-        self.Gamma_vector = gamma_0*(self.r[self.CAP_locs] - R)**2  # if abs(x)>R else 0
+        self.Gamma_vector = gamma_0*(self.r[self.CAP_locs] - R)**Gamma_power  # if abs(x)>R else 0
         self.exp_Gamma_vector_dt  = np.exp(-self.Gamma_vector*self.dt )[:,None]  # when actually using Γ we are using one of these formulas
         self.exp_Gamma_vector_dt2 = np.exp(-self.Gamma_vector*self.dt2)[:,None]  # so we just calculate them here to save flops
 
@@ -976,6 +981,9 @@ class laser_hydrogen_solver:
         
         H_0 = self.D2_2 - np.diag(self.V_[:,0]) # + np.diag(0*(0+1)*self.Vs_2[:,0])
         exp_Hamiltonian = sl.expm(-H_0*self.dt_imag)
+        
+        data = pd.read_csv("ImTimePropagator.dat", sep=" ", header=None)
+        
         # we find the numerical ground state by using imaginary time
         for tn in tqdm(range(self.nt_imag)):
 
@@ -1397,8 +1405,9 @@ class laser_hydrogen_solver:
     def plot_dP_domega(self, do_save=True):
         
         if self.dP_domega_calculated: 
-            # plt.axes(projection = 'polar', rlabel_position=-22.5)
-            plt.axes(projection = 'polar', rlabel_position=90) 
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
+            # plt.axes(projection = 'polar', rlabel_position=90) 
+            # plt.axes(projection = 'polar') 
             theta = np.linspace(0,np.pi,self.n)
             plt.plot(np.pi/2-theta, self.dP_domega, label="dP_domega")
             plt.plot(np.pi/2+theta, self.dP_domega, label="dP_domega")
@@ -1716,14 +1725,14 @@ if __name__ == "__main__":
 
     total_start_time = time.time()
 
-    # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="3-point", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, r_max=100, Ncycle=10, 
-    #                           nt_imag=1_000, T_imag=16, use_CAP=True, gamma_0=0.001, CAP_R_proportion=.5, l_max=5, 
+    # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, r_max=100, Ncycle=10, 
+    #                           nt_imag=20_000, T_imag=200, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="3-point", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
-                              r_max=100, Ncycle=10, nt_imag=20_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
+    a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
+                              r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
                               calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
     
-    a.set_time_propagator(a.Lanczos, k=10)
+    a.set_time_propagator(a.Lanczos, k=20)
 
     a.calculate_ground_state_imag_time()
     a.plot_gs_res(do_save=True)
