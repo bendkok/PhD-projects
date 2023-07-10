@@ -1591,7 +1591,28 @@ class laser_hydrogen_solver:
                 plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf")
             plt.show()
             
-            P_s = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
+            P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
+            
+            for ln in range(self.l_max+1):
+                # plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
+                # print(len(self.Ps))
+                # print(self.time_vector)
+                # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                # print(i, self.save_idx[i])
+                plt.plot(self.r, np.abs(P_S[:,ln]), label="l = {}".format(ln))
+            plt.legend()
+            # title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
+            # title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."
+            plt.title("Sølve")
+            plt.xlabel("r (a.u.)")
+            plt.ylabel("Wave function")
+            plt.grid()
+            # plt.xscale("log")
+            # plt.yscale("log")
+            # if do_save:
+            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            #     plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf")
+            plt.show()
             
             if plot_norm:
                 self.plot_norm(do_save)
