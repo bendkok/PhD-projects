@@ -7,6 +7,36 @@ Created on Tue Jan 17 13:40:22 2023
 
 import numpy as np
 import scipy.sparse as sp
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+data = pd.read_csv("sølve/NormVector.dat", sep=" ", header=None)
+
+time = data.to_numpy()[:,0]
+norm = data.to_numpy()[:,1]
+
+plt.plot(time, norm, label="Norm")
+plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+plt.grid()
+plt.xlabel("Time (a.u.)")
+plt.ylabel("Norm")
+plt.legend()
+plt.show()
+
+print(norm[-1])
+
+
+P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
+# P = np.loadtxt("sølve/PsiMatrix.dat")
+print(P_S)
+print(P_S.shape)
+
+# P = P.to_numpy().astype(complex)
+# print(P)
+# print(P.shape)
+
+
 
 
 # P = np.arange(25).reshape((5,5))
@@ -221,84 +251,84 @@ import scipy.sparse as sp
 
 
 
-# from numpy.linalg import lstsq
-from scipy.linalg import orth
+# # from numpy.linalg import lstsq
+# from scipy.linalg import orth
 
-# random matrix
-M = np.random.rand(6, 3, 5)
+# # random matrix
+# M = np.random.rand(6, 3, 5)
 
-# print(M)
-# print(M.reshape(18,5))
+# # print(M)
+# # print(M.reshape(18,5))
 
-# get 5 orthogonal vectors in 10 dimensions in a matrix form
-O = orth(M.reshape(18,5))
+# # get 5 orthogonal vectors in 10 dimensions in a matrix form
+# O = orth(M.reshape(18,5))
 
-# print(O)
-
-
-
-def inner_product(psi1, psi2):
-    """
-    We calculate the inner product using the Riemann sum and Hadamard product.
-
-    Parameters
-    ----------
-    psi1 : (n,m) numpy array
-        A wavefunction.
-    psi2 : (n,m) numpy array
-        A wavefunction.
-
-    Returns
-    -------
-    (n,m) numpy array
-        The inner product.
-    """
-    return np.sum( np.conj(psi1) * psi2 ) 
+# # print(O)
 
 
-print([inner_product(col, col)  for col in O.T])
 
-for i in range(O.shape[1]):
-    O[:,i] = O[:,i] / inner_product(O[:,i], O[:,i])
+# def inner_product(psi1, psi2):
+#     """
+#     We calculate the inner product using the Riemann sum and Hadamard product.
 
-# print(O)
+#     Parameters
+#     ----------
+#     psi1 : (n,m) numpy array
+#         A wavefunction.
+#     psi2 : (n,m) numpy array
+#         A wavefunction.
+
+#     Returns
+#     -------
+#     (n,m) numpy array
+#         The inner product.
+#     """
+#     return np.sum( np.conj(psi1) * psi2 ) 
 
 
-def find_orth(O):
-    #https://stackoverflow.com/a/50661011/15147410
-    rand_vec = np.random.rand(O.shape[0], 1)
-    A = np.hstack((O, rand_vec))
-    b = np.zeros(O.shape[1] + 1)
-    b[-1] = 1
-    return np.linalg.lstsq(A.T, b)[0]
-
-
-res = find_orth(O)
-
-print(res)
-
-# print([inner_product(col, col)  for col in res.T])
 # print([inner_product(col, col)  for col in O.T])
 
-res = res / inner_product(res, res)
+# for i in range(O.shape[1]):
+#     O[:,i] = O[:,i] / inner_product(O[:,i], O[:,i])
 
-print()
-print(inner_product(res, res))
-print(res)
+# # print(O)
 
 
-if all(np.abs(np.dot(res, col)) < 10e-9 for col in O.T):
-    print("Success")
-else:
-    print("Failure")
+# def find_orth(O):
+#     #https://stackoverflow.com/a/50661011/15147410
+#     rand_vec = np.random.rand(O.shape[0], 1)
+#     A = np.hstack((O, rand_vec))
+#     b = np.zeros(O.shape[1] + 1)
+#     b[-1] = 1
+#     return np.linalg.lstsq(A.T, b)[0]
+
+
+# res = find_orth(O)
+
+# print(res)
+
+# # print([inner_product(col, col)  for col in res.T])
+# # print([inner_product(col, col)  for col in O.T])
+
+# res = res / inner_product(res, res)
+
+# print()
+# print(inner_product(res, res))
+# print(res)
+
+
+# if all(np.abs(np.dot(res, col)) < 10e-9 for col in O.T):
+#     print("Success")
+# else:
+#     print("Failure")
     
-if ( np.abs(inner_product(res, res) -1) < 10e-9 ):
-    print("Success")
-else:
-    print("Failure")
+# if ( np.abs(inner_product(res, res) -1) < 10e-9 ):
+#     print("Success")
+# else:
+#     print("Failure")
 
-def y(t):
-    return t
+# def y(t):
+#     return t
 
 
 
