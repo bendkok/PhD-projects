@@ -36,6 +36,7 @@ class laser_hydrogen_solver:
                  n_saves_imag       = 50,                   # how many gs wave functions we save
                  n_plots            = 5,                    # number of plotted wave functions
                  fd_method          = "3-point",            # method of finite difference
+                 gs_fd_method       = "5-point_asymmetric", # method of finite difference for GS
                  Ncycle             = 10,                   # optical cycles of laser field
                  E0                 = .1,                   # maximum electric field strength
                  w                  = .2,                   # central frequency of laser field
@@ -112,6 +113,7 @@ class laser_hydrogen_solver:
         self.n_saves_imag       = n_saves_imag
         self.n_plots            = n_plots
         self.fd_method          = fd_method
+        self.gs_fd_method       = gs_fd_method
         self.Ncycle             = Ncycle
         self.E0                 = E0
         self.w                  = w
@@ -129,15 +131,20 @@ class laser_hydrogen_solver:
         self.r  = np.linspace(self.h, r_max, n)  # physical grid
         self.A  = None                           # the laser field as a function
 
-        # print(self.h, self.r[1]-self.r[0], self.r[2]-self.r[1])
+        # print(self.h, self.r[1]-self.r[0], self.r[3]-self.r[2])
 
         # mono-diagonal matrices for the SE. We only keep the diagonal to save on computing resources
         self.V  = 1/self.r                                      # from the Coulomb potential
         self.Vs = 1/self.r**2                                   # from the centrifugal term
         self.S  = np.array([l*(l+1) for l in range(l_max+1)])   # from the centrifugal term
 
-        # get matrices for the finite difference for the SE
-        self.make_derivative_matrices()
+        # get matrices for the finite difference for the GS of the SE
+        self.make_derivative_matrices(self.gs_fd_method)
+        self.D2_2_gs = -.5*self.D2 # this and V_ are the only matrices the GS needs
+        
+        # get matrices for the finite difference for the regular SE
+        # having the GS and the regular calculations seperate allows us to use different FD-scheems 
+        self.make_derivative_matrices(self.fd_method)
 
         # tri-diagonal matrices for the SE
         # using scipy.sparse for the T1 and T2 matrices it is slower for small values of l_max
@@ -146,7 +153,7 @@ class laser_hydrogen_solver:
         self.T1 = np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
         self.T2 = np.diag(T2_diag, k=1) - np.diag(T2_diag, k=-1)
         
-        # reformats the 
+        # reformats the  # TODO: the what?
         self.D2_2 = -.5*self.D2
         self.Vs_2 =  .5*self.Vs[:,None]
         self.V_   =     self.V [:,None]
@@ -193,10 +200,12 @@ class laser_hydrogen_solver:
     def make_time_vector_imag(self):
 
         # imaginary time vector
-        self.dt_imag  = self.T_imag/(self.nt_imag-1)
+        # self.dt_imag  = self.T_imag/(self.nt_imag-1)
+        self.dt_imag  = self.T_imag/(self.nt_imag)
         self.dt2_imag = .5*self.dt_imag
         self.dt6_imag = self.dt_imag / 6
-        self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
+        # self.time_vector_imag = np.linspace(0,self.T_imag,self.nt_imag)
+        self.time_vector_imag = np.linspace(0,self.T_imag-self.dt_imag,self.nt_imag)
         # print(self.dt_imag, self.time_vector_imag[1]-self.time_vector_imag[0], self.time_vector_imag[2]-self.time_vector_imag[1])
         self.energy_constant = -.5 / self.dt_imag # constant to save some flops during re-normalisation
 
@@ -222,7 +231,7 @@ class laser_hydrogen_solver:
             print("Invalid time propagator method!")
 
 
-    def make_derivative_matrices(self):
+    def make_derivative_matrices(self, fd_method="3-point"):
         """
         Generate self.D1 and self.D2, matrices used to represent the first and second derivative in the finite difference method.
         Uses self.fd_method to determine number of points and how to handle the boundary at r=0. At r=r_max the WF should approach 0,
@@ -234,7 +243,7 @@ class laser_hydrogen_solver:
 
         """
 
-        if self.fd_method == "3-point":
+        if fd_method == "3-point":
             # 3-point symmetric method
             # both are O(h²)
 
@@ -243,7 +252,7 @@ class laser_hydrogen_solver:
             self.D1 = sp.diags( [-np.ones(self.n-1), np.ones(self.n-1)], [-1, 1], format='coo') / (2*self.h)                             # first  order derivative
             self.D2 = sp.diags( [ np.ones(self.n-1), -2*np.ones(self.n), np.ones(self.n-1)], [-1, 0, 1], format='coo') / (self.h*self.h) # second order derivative
 
-        elif self.fd_method == "5-point_asymmetric":
+        elif fd_method == "5-point_asymmetric":
             # 5-point asymmetric method, with [-1,0,1,2,3]
             # D1 is O(h⁴), D2 is O(h³)
 
@@ -258,7 +267,7 @@ class laser_hydrogen_solver:
             a = - ones[:-2]; b = 16*ones[:-1]; c = -30*ones + 10*diag; d = 16*ones[:-1] - 10*diag[:-1]; e = -ones[2:] + 5*diag[:-2]; f = -diag[:-3]
             self.D2 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*self.h*self.h)
 
-        elif self.fd_method == "5_6-point_asymmetric": # TODO: test if correct
+        elif fd_method == "5_6-point_asymmetric": # TODO: test if correct
             # 5-point asymmetric method for D1 with [-1,0,1,2,3], 6-point asymmetric method for D2 with [-1,0,1,2,3,4]
             # both are O(h⁴)
 
@@ -272,7 +281,7 @@ class laser_hydrogen_solver:
             a = - ones[:-2]; b = 16*ones[:-1]; c = -30*ones + 15*diag; d = 16*ones[:-1] - 20*diag[:-1]; e = -ones[2:] + 15*diag[:-2]; f = -6*diag[:-3]
             self.D2 = sp.diags([a, b, c, d, e, f, diag[:-4]], [-2,-1,0,1,2,3,4], format='coo') / (12*self.h*self.h)
 
-        elif self.fd_method == "5-point_symmetric":
+        elif fd_method == "5-point_symmetric":
             # 5-point symmetric method, with antisymmetric BC
             # both are O(h⁴)
 
@@ -284,7 +293,7 @@ class laser_hydrogen_solver:
             self.D1 = sp.diags( [ ones[2:], -8*ones[1:], diag_D1,  8*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h)
             self.D2 = sp.diags( [-ones[2:], 16*ones[1:], diag_D2, 16*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h*self.h)
             
-        # elif self.fd_method == "fft" and False: # won't work
+        # elif fd_method == "fft" and False: # won't work
         #     # Spatial derivative using Fourier transformation
         #     # D2D1 O(h³)?
 
@@ -718,7 +727,7 @@ class laser_hydrogen_solver:
 
         return self.P0 + (k1 + 2*k2 + 2*k3 + k4) * self.dt6_imag
 
-
+    """
     def Lanczos_(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=50):
 
         # TODO: add some comments
@@ -728,26 +737,26 @@ class laser_hydrogen_solver:
 
         V[:,:,0] = P
 
-        """
-        #tried not using w or w'
-        V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?
+        
+        # #tried not using w or w'
+        # V[:,:,1] = Hamiltonian(tn, P) # or tn + dt/2 ?
 
-        alpha[0] = self.inner_product(V[:,:,1], V[:,:,0])
-        V[:,:,1] = V[:,:,1] - alpha[0] * P  #not sure if correct
+        # alpha[0] = self.inner_product(V[:,:,1], V[:,:,0])
+        # V[:,:,1] = V[:,:,1] - alpha[0] * P  #not sure if correct
 
-        for j in range(1,k):
-            beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm
-            V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
+        # for j in range(1,k):
+        #     beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm
+        #     V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
 
-            V[:,:,j+1] = Hamiltonian(tn, V[:,:,j])
-            alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
-            V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+        #     V[:,:,j+1] = Hamiltonian(tn, V[:,:,j])
+        #     alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) # np.sum( np.conj(w).T.dot(V[:,:,j]) )
+        #     V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
 
-        T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
+        # T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
 
-        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-        P_new = V.dot(P_k)[:,:,0]
-        """
+        # P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
+        # P_new = V.dot(P_k)[:,:,0]
+        
 
         w = Hamiltonian(tn, P)
 
@@ -769,7 +778,7 @@ class laser_hydrogen_solver:
         P_new = V.dot(P_k)[:,:,0]
 
         return P_new # , T, V
-
+    """
 
     def find_orth(self, O, j):
         # TODO: add comments
@@ -939,7 +948,7 @@ class laser_hydrogen_solver:
         (n,m) numpy array
             The inner product.
         """
-        return self.h * np.sum( np.conj(psi1) * psi2 )
+        return np.sum( np.conj(psi1) * psi2 ) * self.h
 
 
 
@@ -979,7 +988,7 @@ class laser_hydrogen_solver:
 
         self.save_idx_imag = np.round(np.linspace(0, len(self.time_vector_imag) - 1, self.n_saves_imag)).astype(int)
         
-        H_0 = self.D2_2 - np.diag(self.V_[:,0]) # + np.diag(0*(0+1)*self.Vs_2[:,0])
+        H_0 = self.D2_2_gs - np.diag(self.V_[:,0]) # + np.diag(0*(0+1)*self.Vs_2[:,0])
         exp_Hamiltonian = sl.expm(-H_0*self.dt_imag)
         
         # data = pd.read_csv("ImTimePropagator.dat", sep=" ", header=None)
@@ -1137,7 +1146,8 @@ class laser_hydrogen_solver:
 
             if self.use_CAP:
                 if self.calc_norm or self.calc_dPdomega or self.calc_dPdepsilon:
-                    t_ = 0
+                    t_ = 0 # allows us to save the norm for both during and after the laser pulse
+                    
                     def calc_norm():
                         self.norm_over_time[tn+t_+1] = np.real(self.inner_product(self.P, self.P))
                     
@@ -1188,7 +1198,7 @@ class laser_hydrogen_solver:
                             func()
                     
                     print()
-                    t_ = len(self.time_vector)
+                    t_ = len(self.time_vector) # allows us to save the norm for both during and after the laser pulse
                     if self.T > 0:
                         # goes through all the non-pulse timesteps
                         print("After laser pulse: ")
@@ -1495,54 +1505,56 @@ class laser_hydrogen_solver:
             # print(self.plot_idx)
             
             self.plot_idx1 = np.round(np.linspace(0, len(self.save_idx) + len(self.save_idx_) - 2, self.n_plots)).astype(int)
-
-            # for ln in range(self.l_max+1):
-            #     plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
-            #     # print(len(self.Ps))
-            #     # print(self.time_vector)
-            #     for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-            #         # print(i, self.save_idx[i])
-            #         plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector [self.save_idx [i]-1]))
-            #     # for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-            #     #     # print(i, self.save_idx[i])
-            #     #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
-            #     plt.legend()
-            #     title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-            #     title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
-            #     plt.title(title)
-            #     plt.xlabel("r (a.u.)")
-            #     plt.ylabel("Wave function")
-            #     plt.grid()
-            #     # plt.xscale("log")
-            #     # plt.yscale("log")
-            #     if do_save:
-            #         os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-            #         plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
-            #     plt.show()
             
-            # for ln in range(self.l_max+1):
-            #     plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
-            #     # print(len(self.Ps))
-            #     # print(self.time_vector)
-            #     # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-            #     #     # print(i, self.save_idx[i])
-            #     #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector [self.save_idx [i]-1]))
-            #     for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-            #         # print(i, self.save_idx[i])
-            #         plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
-            #     plt.legend()
-            #     title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-            #     title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
-            #     plt.title(title)
-            #     plt.xlabel("r (a.u.)")
-            #     plt.ylabel("Wave function")
-            #     plt.grid()
-            #     # plt.xscale("log")
-            #     # plt.yscale("log")
-            #     if do_save:
-            #         os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-            #         plt.savefig(f"{self.save_dir}/time_evolved_{ln}_1.pdf")
-            #     plt.show()
+            """
+            for ln in range(self.l_max+1):
+                plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
+                # print(len(self.Ps))
+                # print(self.time_vector)
+                for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                    # print(i, self.save_idx[i])
+                    plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector [self.save_idx [i]-1]))
+                # for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                #     # print(i, self.save_idx[i])
+                #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
+                plt.legend()
+                title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
+                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
+                plt.title(title)
+                plt.xlabel("r (a.u.)")
+                plt.ylabel("Wave function")
+                plt.grid()
+                # plt.xscale("log")
+                # plt.yscale("log")
+                if do_save:
+                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                    plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
+                plt.show()
+            
+            for ln in range(self.l_max+1):
+                plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
+                # print(len(self.Ps))
+                # print(self.time_vector)
+                # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                #     # print(i, self.save_idx[i])
+                #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector [self.save_idx [i]-1]))
+                for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
+                    # print(i, self.save_idx[i])
+                    plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
+                plt.legend()
+                title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
+                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
+                plt.title(title)
+                plt.xlabel("r (a.u.)")
+                plt.ylabel("Wave function")
+                plt.grid()
+                # plt.xscale("log")
+                # plt.yscale("log")
+                if do_save:
+                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                    plt.savefig(f"{self.save_dir}/time_evolved_{ln}_1.pdf")
+                plt.show()
+            """
             
             si = np.append(self.save_idx,self.save_idx_[1:]+self.save_idx[-1])
             tv = np.append(self.time_vector, self.time_vector1)
@@ -1593,13 +1605,15 @@ class laser_hydrogen_solver:
             
             P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
             
+            s_r = np.linspace(self.h, self.r_max, len(P_S))
+            
             for ln in range(self.l_max+1):
                 # plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
                 # print(len(self.Ps))
                 # print(self.time_vector)
                 # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
                 # print(i, self.save_idx[i])
-                plt.plot(self.r, np.abs(P_S[:,ln]), label="l = {}".format(ln))
+                plt.plot(s_r, np.abs(P_S[:,ln]), label="l = {}".format(ln))
             plt.legend()
             # title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
             # title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."
@@ -1765,9 +1779,10 @@ if __name__ == "__main__":
 
     total_start_time = time.time()
 
-    a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, r_max=100, Ncycle=10, 
-                              nt_imag=20_000, T_imag=200, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=False, spline_n=1000, w=.2, cep=0)
+    a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
+                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
+                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=True, spline_n=1000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
