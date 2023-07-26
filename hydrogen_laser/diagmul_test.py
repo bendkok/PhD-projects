@@ -16,15 +16,15 @@ data = pd.read_csv("sølve/NormVector.dat", sep=" ", header=None)
 time = data.to_numpy()[:,0]
 norm = data.to_numpy()[:,1]
 
-plt.plot(time, norm, label="Norm")
-plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
-plt.grid()
-plt.xlabel("Time (a.u.)")
-plt.ylabel("Norm")
-plt.legend()
-plt.show()
+# plt.plot(time, norm, label="Norm")
+# plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+# plt.grid()
+# plt.xlabel("Time (a.u.)")
+# plt.ylabel("Norm")
+# plt.legend()
+# plt.show()
 
-print(norm[-1])
+# print(norm[-1])
 
 
 P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
@@ -329,10 +329,3 @@ print(P_S.shape)
 
 # def y(t):
 #     return t
-
-
-
-
-
-
-
