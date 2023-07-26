@@ -343,7 +343,8 @@ class laser_hydrogen_solver:
         float
             l / √( (2l-1)*(2l+1) ).
         """
-        return l / np.sqrt((2*l-1)*(2*l+1))
+        # return l / np.sqrt((2*l-1)*(2*l+1))
+        return (l+1) / np.sqrt((2*l+1)*(2*l+3))
 
 
     def single_laser_pulse(self, t):
@@ -429,8 +430,10 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
+        # P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  # self.A(t+self.dt2)
+        #                       + np.matmul( np.multiply(self.V_, P), self.T2))
         P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  # self.A(t+self.dt2)
-                              + np.matmul( np.multiply(self.V_, P), self.T2))
+                              - np.matmul( np.multiply(self.V_, P), self.T2))
 
         return P_new * (-1j)
 
@@ -452,8 +455,10 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
+        # P_new = self.A(t) * (np.matmul( self.D1.dot(P), self.T1)
+        #                      + np.matmul( np.multiply(self.V_, P), self.T2))
         P_new = self.A(t) * (np.matmul( self.D1.dot(P), self.T1)
-                             + np.matmul( np.multiply(self.V_, P), self.T2))
+                             - np.matmul( np.multiply(self.V_, P), self.T2))
 
         return P_new * (1j)
 
@@ -1110,7 +1115,7 @@ class laser_hydrogen_solver:
             plt.show()
             
             plt.plot(self.time_vector_imag, self.N0s, label="N")
-            plt.plot(self.time_vector_imag, np.sqrt(self.N0s), label="√N")
+            # plt.plot(self.time_vector_imag, np.sqrt(self.N0s), label="√N")
             # plt.yscale("log")
             plt.xlabel("τ (s)")
             plt.ylabel("Norm of ground state")
@@ -1235,6 +1240,9 @@ class laser_hydrogen_solver:
                     
                     if self.calc_norm:
                         self.norm_calculated = True
+                        print("\n")
+                        print(f"Norm   |Ψ|^2 = {self.norm_over_time[-1]}.")
+                        print(f"Norm 1-|Ψ|^2 = {1-self.norm_over_time[-1]}.")
                     
                     
                     if self.calc_dPdomega:
@@ -1271,13 +1279,10 @@ class laser_hydrogen_solver:
                         # checks the norm of dP/dΩ
                         theta = np.linspace(0, np.pi, len(self.dP_domega))
                         dP_domega_norm = 2*np.pi*np.trapz(self.dP_domega*np.sin(theta), theta) 
-                        print("\n")
-                        if self.calc_norm:
-                            print(f"Norm of   |Ψ|^2: {self.norm_over_time[-1]}.")
-                            print(f"Norm of 1-|Ψ|^2: {1-self.norm_over_time[-1]}.")
-                        print(f"Norm of dP/dΩ:   {dP_domega_norm}.")
-                        print(f"Norm of dP/dΩ:   {dP_domega_norm*self.dt}.")
-                        print(f"Norm of dP/dΩ:   {dP_domega_norm/self.dt}.")
+                        print()
+                        print(f"Norm of dP/dΩ = {dP_domega_norm}.")
+                        # print(f"Norm of dP/dΩ:   {dP_domega_norm*self.dt}.")
+                        # print(f"Norm of dP/dΩ:   {dP_domega_norm/self.dt}.")
                     
                     
                     if self.calc_dPdepsilon:
@@ -1323,11 +1328,11 @@ class laser_hydrogen_solver:
                         
                         print()
                         dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
-                        print(f"Norm of dP/dε: {dP_depsilon_norm}.")
-                        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*self.h)}.")
+                        print(f"Norm of dP/dε = {dP_depsilon_norm}.")
+                        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*self.h)}.")
                         # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h)}.")
                         # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
-                        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
+                        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
                         
                 else:
                     # Here we use the split operator method approximations:
@@ -1417,13 +1422,18 @@ class laser_hydrogen_solver:
             time = data.to_numpy()[:,0]
             norm = data.to_numpy()[:,1]
             
-            plt.plot(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm")
-            plt.plot(time, norm, label="Norm")
+            plt.plot(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm Min")
+            plt.plot(time, norm, label="Norm Sølve")
             plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
             plt.grid()
             plt.xlabel("Time (a.u.)")
             plt.ylabel("Norm")
             plt.legend()
+            # plt.title("b_l = l / np.sqrt((2*l-1)*(2*l+1))")
+            # plt.title("b_l = (l+1) / np.sqrt((2*l+1)*(2*l+3))")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_norm_comp.pdf")
             plt.show()
             print()
         else:
@@ -1435,18 +1445,31 @@ class laser_hydrogen_solver:
         
         if self.dP_domega_calculated: 
             plt.axes(projection = 'polar', rlabel_position=-22.5)
-            # plt.axes(projection = 'polar', rlabel_position=90) 
-            # plt.axes(projection = 'polar') 
             theta = np.linspace(0,np.pi,self.n)
             plt.plot(np.pi/2-theta, self.dP_domega, label="dP_domega")
             plt.plot(np.pi/2+theta, self.dP_domega, label="dP_domega")
-            # plt.grid()
-            # plt.xlabel("θ")
-            # plt.ylabel(r"$dP/d\omega$")
-            # plt.legend()
+            plt.title(r"$dP/d\Omega$ with polar projection.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_polar.pdf")
+            plt.show()
+            
+            data = pd.read_csv("sølve/dPdTh.dat", sep=" ", header=None).to_numpy()
+            
+            ome = data[:,0]
+            dP_domega = data[:,1]
+            
+            dP_domega_norm = 2*np.pi*np.trapz(dP_domega*np.sin(ome), ome) 
+            print(f"Norm of dP/dΩ Sølve = {dP_domega_norm}.")
+            
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
+            theta = np.linspace(0,np.pi,self.n)
+            plt.plot(np.pi/2-ome, dP_domega, label="dP_domega")
+            plt.plot(np.pi/2+ome, dP_domega, label="dP_domega")
+            plt.title("Sølve")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_polar_sølve.pdf")
             plt.show()
             
             plt.axes(projection = None)
@@ -1455,9 +1478,22 @@ class laser_hydrogen_solver:
             plt.xlabel("φ")
             # plt.ylabel(r"$dP/d\theta$")
             plt.ylabel(r"$dP/d\Omega$")
+            plt.title(r"$dP/d\Omega$ with cartesian coordinates.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP_domega.pdf")
+            plt.show()
+            
+            plt.axes(projection = None)
+            plt.plot(ome, dP_domega, label="dP_domega")
+            plt.grid()
+            plt.xlabel("φ")
+            # plt.ylabel(r"$dP/d\theta$")
+            plt.ylabel(r"$dP/d\Omega$")
+            plt.title("Sølve")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_sølve.pdf")
             plt.show()
             
         else:
@@ -1779,10 +1815,10 @@ if __name__ == "__main__":
 
     total_start_time = time.time()
 
-    a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S4", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=True, spline_n=1000)
+                              calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
@@ -1794,7 +1830,7 @@ if __name__ == "__main__":
 
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=False)
     # hyps = a.save_hyperparameters()
     a.save_dP_domega()
     
