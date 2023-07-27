@@ -1286,7 +1286,7 @@ class laser_hydrogen_solver:
                     
                     
                     if self.calc_dPdepsilon:
-                        self.zeta_epsilon   *= self.dt
+                        self.zeta_epsilon *= self.dt
                         # finds dP/dε
                         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
                         self.epsilon_grid = np.linspace(np.min(eigen_vals[np.where(eigen_vals>0)[0]]), np.max(eigen_vals[np.where(eigen_vals>0)[0]]), self.spline_n)
@@ -1818,7 +1818,7 @@ if __name__ == "__main__":
     a = laser_hydrogen_solver(save_dir="dP_domega_S4", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000)
+                              calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=10000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
@@ -1830,7 +1830,7 @@ if __name__ == "__main__":
 
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=False)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
     # hyps = a.save_hyperparameters()
     a.save_dP_domega()
     
