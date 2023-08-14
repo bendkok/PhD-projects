@@ -343,8 +343,8 @@ class laser_hydrogen_solver:
         float
             l / √( (2l-1)*(2l+1) ).
         """
-        # return l / np.sqrt((2*l-1)*(2*l+1))
-        return (l+1) / np.sqrt((2*l+1)*(2*l+3))
+        return l / np.sqrt((2*l-1)*(2*l+1))
+        # return (l+1) / np.sqrt((2*l+1)*(2*l+3))
 
 
     def single_laser_pulse(self, t):
@@ -1815,7 +1815,7 @@ if __name__ == "__main__":
 
     total_start_time = time.time()
 
-    a = laser_hydrogen_solver(save_dir="dP_domega_S4", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
                               calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=10000)
