@@ -343,8 +343,8 @@ class laser_hydrogen_solver:
         float
             l / √( (2l-1)*(2l+1) ).
         """
-        return l / np.sqrt((2*l-1)*(2*l+1))
-        # return (l+1) / np.sqrt((2*l+1)*(2*l+3))
+        # return l / np.sqrt((2*l-1)*(2*l+1))
+        return (l+1) / np.sqrt((2*l+1)*(2*l+3))
 
 
     def single_laser_pulse(self, t):
@@ -988,7 +988,7 @@ class laser_hydrogen_solver:
         """
 
         self.P0s  = [self.P0] # a list to store some of the P0 results. We only keep n_saves values
-        self.eps0 = []        # a list to the estimated local energy
+        self.eps0 = []        # a list to store the estimated local energy
         self.N0s  = [] # [self.inner_product(self.P0, self.P0)]
 
         self.save_idx_imag = np.round(np.linspace(0, len(self.time_vector_imag) - 1, self.n_saves_imag)).astype(int)
@@ -1040,6 +1040,7 @@ class laser_hydrogen_solver:
         if self.ground_state_found:
             os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}", self.P0s)
+            np.save(f"{self.save_dir}/{savename}_eps0", self.eps0)
         else:
             print("Warning: Ground state needs to be found before running save_ground_states().")
 
@@ -1059,13 +1060,17 @@ class laser_hydrogen_solver:
 
         """
 
-        self.P0s = np.load(f"{self.save_dir}/{savename}")
-        self.P[:,0] = self.P0[:,0] = self.P0s
+        self.P0s  = np.load(f"{self.save_dir}/{savename}.npy")
+        self.eps0 = np.load(f"{self.save_dir}/{savename}_eps0.npy")
+        self.N0s  = np.exp( self.eps0 / self.energy_constant )
+        
+        self.P [:,0] = self.P0s[-1,:,0]
+        self.P0[:,0] = self.P0s[-1,:,0]
 
-        N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0))
-        eps0 = np.log(N) * -.5 / self.dt_imag
+        # N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0))
+        # eps0 = np.log(N) * -.5 / self.dt_imag
 
-        print( f"\nAnalytical ground state energy: {eps0} au.")
+        print( f"\nAnalytical ground state energy: {self.eps0[-1]} au.")
 
         # self.P0s = np.load(f"{self.save_dir}/{savename}")
         self.ground_state_found = True
@@ -1718,7 +1723,56 @@ class laser_hydrogen_solver:
         self.Ps = np.load(f"{self.save_dir}/{savename}")
         self.time_evolved = True
         
+        self.save_idx  = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) # which WFs to save
+        self.save_idx_ = np.round(np.linspace(0, self.nt*self.T, int(self.n_saves*self.T))).astype(int) # which WFs to save
         
+    
+    def save_norm_over_time(self, savename="found_states"):
+        """
+        Save the found dP/dΩ to a file.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.norm_calculated:
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            np.save(f"{self.save_dir}/{savename}_norm_over_time", self.norm_over_time)
+            np.savetxt(f"{self.save_dir}/{savename}_norm_over_time.csv", self.norm_over_time, delimiter=',')
+        else:
+            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+
+
+    def load_norm_over_time(self, savename="found_states_norm_over_time.npy"):
+        """
+        Load a found dP/dΩ from a file, and sets it into self.norm_over_time.
+        The loaded dP/dΩ needs to have been generated using the same grid.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        self.norm_over_time = np.load(f"{self.save_dir}/{savename}")
+        self.time_evolved    = True
+        self.norm_calculated = True
+        
+        print()
+        print(f"Norm   |Ψ|^2 = {self.norm_over_time[-1]}.")
+        print(f"Norm 1-|Ψ|^2 = {1-self.norm_over_time[-1]}.")
+    
+    
     def save_dP_domega(self, savename="found_states"):
         """
         Save the found dP/dΩ to a file.
@@ -1758,6 +1812,62 @@ class laser_hydrogen_solver:
         """
         self.dP_domega = np.load(f"{self.save_dir}/{savename}")
         self.time_evolved = True
+        self.dP_domega_calculated = True
+        
+        theta = np.linspace(0, np.pi, len(self.dP_domega))
+        dP_domega_norm = 2*np.pi*np.trapz(self.dP_domega*np.sin(theta), theta) 
+        print()
+        print(f"Norm of dP/dΩ = {dP_domega_norm}.")
+        
+    
+    def save_dP_depsilon(self, savename="found_states"):
+        """
+        Save the found dP/dΩ to a file.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.dP_depsilon_calculated:
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            np.save(f"{self.save_dir}/{savename}_dP_depsilon", self.dP_depsilon)
+            np.savetxt(f"{self.save_dir}/{savename}_dP_depsilon.csv", self.dP_depsilon, delimiter=',')
+            
+            np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
+            np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
+        else:
+            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+
+
+    def load_dP_depsilon(self, savename="found_states"):
+        """
+        Load a found dP/dΩ from a file, and sets it into self.dP_depsilon.
+        The loaded dP/dΩ needs to have been generated using the same grid.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        self.dP_depsilon  = np.load(f"{self.save_dir}/{savename}_dP_depsilon.npy")
+        self.time_evolved = True
+        self.dP_depsilon_calculated = True
+        self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
+        
+        dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
+        print()
+        print(f"Norm of dP/dε = {dP_depsilon_norm}.")
         
     
     def save_hyperparameters(self):
@@ -1782,6 +1892,7 @@ class laser_hydrogen_solver:
             "n_saves_imag":        self.n_saves_imag,
             "n_plots":             self.n_plots,
             "fd_method":           self.fd_method,
+            "gs_fd_method":        self.gs_fd_method, 
             "Ncycle":              self.Ncycle,
             "E0":                  self.E0,
             "w":                   self.w,
@@ -1805,17 +1916,44 @@ class laser_hydrogen_solver:
             for key, value in hyperparameters.items(): 
                 f.write('%s:%s\n' % (key, value))
         
+        np.save('hyperparameters.npy', hyperparameters)
+        
         return hyperparameters
         
-        
-        
 
-
-if __name__ == "__main__":
+def load_run_program_and_plot(save_dir="dP_domega_S4"):
+    
+    # loads the hyperparameters
+    hyp = np.load('hyperparameters.npy',allow_pickle='TRUE').item()
+    
+    # sets up a class with the relevant hyperparameters
+    a = laser_hydrogen_solver(save_dir=save_dir, fd_method=hyp["fd_method"], gs_fd_method=hyp["gs_fd_method"], nt=hyp["nt"], 
+                              T=hyp["T"], n=hyp["n"], r_max=hyp["r_max"], E0=hyp["E0"], Ncycle=hyp["Ncycle"], w=hyp["w"], cep=hyp["cep"], 
+                              nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
+                              CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
+                              calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
+    
+    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    # a.set_time_propagator(getattr(a, hyp["gamma_function"]), k=hyp["k"])
+    
+    # loads run data
+    a.load_ground_states()
+    a.A = a.single_laser_pulse
+    a.load_found_states()
+    a.load_norm_over_time()
+    a.load_dP_domega()
+    a.load_dP_depsilon()
+    
+    # plots stuff
+    a.plot_gs_res(do_save=False)
+    a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    
+        
+def main():
 
     total_start_time = time.time()
 
-    a = laser_hydrogen_solver(save_dir="dP_domega_S4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S6", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
                               calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=10000)
@@ -1827,13 +1965,16 @@ if __name__ == "__main__":
 
     a.calculate_ground_state_imag_time()
     a.plot_gs_res(do_save=True)
+    a.save_ground_states()
 
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
     a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
-    # hyps = a.save_hyperparameters()
+    hyps = a.save_hyperparameters()
+    a.save_found_states()
+    a.save_norm_over_time()
     a.save_dP_domega()
-    
+    a.save_dP_depsilon()
     
     total_end_time = time.time()
     
@@ -1848,3 +1989,9 @@ if __name__ == "__main__":
     print("Total runtime: {:02d}h:{:02d}m:{:02d}s:{:02d}ms.".format(int(total_time_hou),int(total_time_min),int(total_time_sec),int(total_time_mil)))
     
     # print("Total runtime: {}s.".format(total_end_time-total_start_time))
+
+
+
+if __name__ == "__main__":
+    main()
+    # load_run_program_and_plot("dP_domega_S5")
