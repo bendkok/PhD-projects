@@ -150,10 +150,10 @@ class laser_hydrogen_solver:
         # using scipy.sparse for the T1 and T2 matrices it is slower for small values of l_max
         T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation # TODO: find better description
         T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation
-        self.T1 = np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
-        self.T2 = np.diag(T2_diag, k=1) - np.diag(T2_diag, k=-1)
+        self.T1 =  np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
+        self.T2 = -np.diag(T2_diag, k=1) + np.diag(T2_diag, k=-1) # might have switched the + and - around
         
-        # reformats the  # TODO: the what?
+        # reformats the matrices for the finite difference of the SE 
         self.D2_2 = -.5*self.D2
         self.Vs_2 =  .5*self.Vs[:,None]
         self.V_   =     self.V [:,None]
@@ -343,8 +343,8 @@ class laser_hydrogen_solver:
         float
             l / √( (2l-1)*(2l+1) ).
         """
-        # return l / np.sqrt((2*l-1)*(2*l+1))
-        return (l+1) / np.sqrt((2*l+1)*(2*l+3))
+        return l / np.sqrt((2*l-1)*(2*l+1))
+        # return (l+1) / np.sqrt((2*l+1)*(2*l+3))
 
 
     def single_laser_pulse(self, t):
@@ -382,6 +382,7 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
+        # self.D2_2 = -.5*self.D2
         P_new = self.D2_2.dot(P) + np.multiply( np.multiply(self.Vs_2, P), self.S) - np.multiply(self.V_, P)
         return P_new
 
@@ -408,7 +409,7 @@ class laser_hydrogen_solver:
         # P_new = (.5*self.D2.dot(P)
         #          - .5 * np.multiply( np.multiply(self.Vs[:,None], P), self.S[0])
         #          + np.multiply(self.V[:,None], P))
-        P_new = -self.D2_2.dot(P) - np.multiply( np.multiply(self.Vs_2, P), self.S[0]) + np.multiply(self.V_, P)
+        P_new = - self.D2_2.dot(P) - np.multiply( np.multiply(self.Vs_2, P), self.S[0]) + np.multiply(self.V_, P)
 
         return P_new  # / np.sqrt(N)
 
@@ -430,12 +431,11 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
+        P_new = - 1j * self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  # self.A(t+self.dt2)
+                                     + np.matmul( np.multiply(self.V_, P), self.T2) ) 
         # P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  # self.A(t+self.dt2)
-        #                       + np.matmul( np.multiply(self.V_, P), self.T2))
-        P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)  # self.A(t+self.dt2)
-                              - np.matmul( np.multiply(self.V_, P), self.T2))
-
-        return P_new * (-1j)
+        #                       - np.matmul( np.multiply(self.V_, P), self.T2) )
+        return P_new 
 
     def TD_Hamiltonian_imag_time(self, t, P):
         """
@@ -455,10 +455,10 @@ class laser_hydrogen_solver:
         (self.n x self.l_max+1) numpy array
             The new estimate of the wave function.
         """
-        # P_new = self.A(t) * (np.matmul( self.D1.dot(P), self.T1)
-        #                      + np.matmul( np.multiply(self.V_, P), self.T2))
-        P_new = self.A(t) * (np.matmul( self.D1.dot(P), self.T1)
-                             - np.matmul( np.multiply(self.V_, P), self.T2))
+        P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)
+                              + np.matmul( np.multiply(self.V_, P), self.T2) )
+        # P_new = self.A(t) * ( np.matmul( self.D1.dot(P), self.T1)
+        #                       - np.matmul( np.multiply(self.V_, P), self.T2) )
 
         return P_new * (1j)
 
@@ -1427,12 +1427,23 @@ class laser_hydrogen_solver:
             time = data.to_numpy()[:,0]
             norm = data.to_numpy()[:,1]
             
+            print(f"Norm 1-|Ψ|^2 = {1-norm[-1]} Sølve 0.")
+            
+            data = pd.read_csv("sølve/NormData.dat", sep=",", header=None)
+
+            time0 = data.to_numpy()[:,0]
+            norm0 = data.to_numpy()[:,1]
+            
+            print(f"Norm 1-|Ψ|^2 = {1-norm0[-1]} Sølve 1.")
+            
             plt.plot(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm Min")
-            plt.plot(time, norm, label="Norm Sølve")
+            # plt.plot(time, norm, label="Norm Sølve")
+            plt.plot(time0, norm0, '--', label="Norm Sølve 2")
             plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
             plt.grid()
             plt.xlabel("Time (a.u.)")
             plt.ylabel("Norm")
+            plt.ylim([0,1.1])
             plt.legend()
             # plt.title("b_l = l / np.sqrt((2*l-1)*(2*l+1))")
             # plt.title("b_l = (l+1) / np.sqrt((2*l+1)*(2*l+3))")
@@ -1934,7 +1945,6 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
                               calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
     
     a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
-    # a.set_time_propagator(getattr(a, hyp["gamma_function"]), k=hyp["k"])
     
     # loads run data
     a.load_ground_states()
@@ -1953,7 +1963,11 @@ def main():
 
     total_start_time = time.time()
 
-    a = laser_hydrogen_solver(save_dir="dP_domega_S6", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
+    # a = laser_hydrogen_solver(save_dir="dP_domega_S11", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
+    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
+    #                           calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=10000)
+    a = laser_hydrogen_solver(save_dir="dP_domega_S14", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=2*6283.185307179585, 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
                               calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=10000)
@@ -1994,4 +2008,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # load_run_program_and_plot("dP_domega_S5")
+    # load_run_program_and_plot("dP_domega_S9")
