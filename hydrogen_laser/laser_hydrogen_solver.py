@@ -105,8 +105,7 @@ class laser_hydrogen_solver:
         self.n                  = n
         self.r_max              = r_max
         self.T                  = T
-        self.nt                 = nt
-        # self.nt1                = nt1
+        self.nt                 = int(nt) # if it is not int we might gain exploding values
         self.T_imag             = T_imag
         self.nt_imag            = nt_imag
         self.n_saves            = n_saves
@@ -148,10 +147,10 @@ class laser_hydrogen_solver:
 
         # tri-diagonal matrices for the SE
         # using scipy.sparse for the T1 and T2 matrices it is slower for small values of l_max
-        T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation # TODO: find better description
-        T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relation
-        self.T1 =  np.diag(T1_diag, k=1) + np.diag(T1_diag, k=-1)
-        self.T2 = -np.diag(T2_diag, k=1) + np.diag(T2_diag, k=-1) # might have switched the + and - around
+        T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relations in the time dependent Hamiltonian
+        T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relations in the time dependent Hamiltonian
+        self.T1 = np.diag(T1_diag, k=-1) + np.diag(T1_diag, k=1)
+        self.T2 = np.diag(T2_diag, k=-1) - np.diag(T2_diag, k=1) 
         
         # reformats the matrices for the finite difference of the SE 
         self.D2_2 = -.5*self.D2
@@ -267,14 +266,15 @@ class laser_hydrogen_solver:
             a = - ones[:-2]; b = 16*ones[:-1]; c = -30*ones + 10*diag; d = 16*ones[:-1] - 10*diag[:-1]; e = -ones[2:] + 5*diag[:-2]; f = -diag[:-3]
             self.D2 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*self.h*self.h)
 
-        elif fd_method == "5_6-point_asymmetric": # TODO: test if correct
+        elif fd_method == "5_6-point_asymmetric": 
             # 5-point asymmetric method for D1 with [-1,0,1,2,3], 6-point asymmetric method for D2 with [-1,0,1,2,3,4]
             # both are O(h⁴)
 
             # penta-diagonal matrices for the SE
             # for D1 and D2 we use scipy.sparse because it is faster
             ones = np.ones (self.n)
-            diag = np.zeros(self.n); diag[0] = 1
+            diag = np.zeros(self.n)
+            diag[0] = 1
             a = ones[:-2]; b = -8*ones[:-1]; c = -10*diag; d = 8*ones[:-1] + 10*diag[:-1]; e = -ones[2:] - 5*diag[:-2]; f = diag[:-3]
             self.D1 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*self.h)
 
@@ -735,7 +735,7 @@ class laser_hydrogen_solver:
     """
     def Lanczos_(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=50):
 
-        # TODO: add some comments
+        
         alpha  = np.zeros(k) * 1j
         beta   = np.zeros(k-1) * 1j
         V      = np.zeros((self.n, self.l_max+1, k)) * 1j
@@ -785,21 +785,36 @@ class laser_hydrogen_solver:
         return P_new # , T, V
     """
 
-    def find_orth(self, O, j):
-        # TODO: add comments
-        # https://stackoverflow.com/a/50661011/15147410
+    def find_orth(self, O):
+        """
+        Finds a vector which is orthogonal (orthonormal?) to a set of vectors in O.
+        Found at https://stackoverflow.com/a/50661011/15147410 , but we also needed
+        to reshape O to make the functions work. 
 
-        M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] ) 
-        rand_vec = np.random.rand(M.shape[0], 1)
-        A = np.hstack((M, rand_vec))
+        Parameters
+        ----------
+        O : (self.n, self.l_max, j) Numpy array 
+            A matrix containing a set of orthogonal vectors.
+
+        Returns
+        -------
+        (self.n, self.l_max) Numpy array 
+            The resulting orthonormal vector.
+
+        """
+        
+        M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] ) # reshapes the input
+        rand_vec = np.random.rand(M.shape[0], 1) # generates a random vector of the correct shape
+        A = np.hstack((M, rand_vec)) 
         b = np.zeros(M.shape[1] + 1)
         b[-1] = 1
-        res = np.linalg.lstsq(A.T, b, rcond=None)[0].reshape(O.shape[0], O.shape[1])
+        # here we solve a least squares problem, which returns a orthogonal vector
+        res = np.linalg.lstsq(A.T, b, rcond=None)[0].reshape(O.shape[0], O.shape[1]) 
 
-        return res / np.sqrt(self.inner_product(res, res) )
+        return res / np.sqrt(self.inner_product(res, res) ) # normalises the result
 
 
-    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-6):
+    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=3e-3):
         """
         Calculate the Lanczos propagator for one timestep.
 
@@ -879,9 +894,10 @@ class laser_hydrogen_solver:
             w  = w_ - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
         """
         
-        # dt2=0 # TODO: might have found a bug here. Is the inputted tn actually t_n+dt/2? in that case we would be using t_(n+1)
+        # dt2=0 # might have found a bug here. Is the inputted tn actually t_n+dt/2? in that case we would be using t_(n+1)
         # might not be actually. Not sure why. It is a tiny difference anyways. 
         # with dt2=0 it works, but without it does not (get exploding values). Not sure why, it dosen't make much sense. 
+        # fixed. Just needed to add int() around the inputed nt
         w = Hamiltonian(tn + dt2, V[:,:,0])
 
         alpha[0] = self.inner_product(w, V[:,:,0])
@@ -890,7 +906,7 @@ class laser_hydrogen_solver:
         for j in range(1,k):
 
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm
-            V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1], j)
+            V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
             # TODO: Implement stopping criterion of np.abs(beta[j-1]) > tol
 
             w = Hamiltonian(tn + dt2, V[:,:,j])
@@ -1334,6 +1350,9 @@ class laser_hydrogen_solver:
                         # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
                         # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
                         
+                    if self.calc_norm and self.calc_dPdomega:
+                        print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-self.norm_over_time[-1]-dP_domega_norm)}.", '\n')
+                        
                 else:
                     # Here we use the split operator method approximations:
                     # P(t+Δt) = exp(-i*(H - iΓ)*Δt) * P(t) + O(Δt^3) = exp(-Γ*Δt/2)*exp(-i*H*Δt)*exp(-Γ*Δt/2) * P(t) + O(Δt^3)
@@ -1689,7 +1708,7 @@ class laser_hydrogen_solver:
                 self.plot_dP_depsilon(do_save)
             
             try:
-                print(f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-s_f_norm-s_dPdo_norm)}.")
+                print(f"Norm diff |Ψ| and dP/dΩ Sølve: {np.abs(1-s_f_norm-s_dPdo_norm)}.")
             except:
                 ""
             
@@ -1973,10 +1992,10 @@ def main():
     #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S16", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=1*6283.185307179585, 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S23", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=10000)
+                              calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, spline_n=1000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
@@ -1984,12 +2003,12 @@ def main():
     a.set_time_propagator(a.Lanczos, k=10)
 
     a.calculate_ground_state_imag_time()
-    a.plot_gs_res(do_save=True)
+    # a.plot_gs_res(do_save=True)
     a.save_ground_states()
 
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    # a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
     hyps = a.save_hyperparameters()
     a.save_found_states()
     a.save_norm_over_time()
@@ -2014,4 +2033,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # load_run_program_and_plot("dP_domega_S14")
+    # load_run_program_and_plot("dP_domega_S19")
