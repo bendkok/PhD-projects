@@ -9,12 +9,39 @@ import numpy as np
 import scipy.sparse as sp
 import pandas as pd
 import matplotlib.pyplot as plt
+import scipy as sc
+import seaborn as sns
+
+sns.set_theme(style="dark") # nice plots
+
+x = np.linspace(0, 6*np.pi, 20)
+sine_func = np.sin(x)
+
+det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
 
 
-data = pd.read_csv("sølve/NormVector.dat", sep=" ", header=None)
+spline = sc.interpolate.BSpline(x, sine_func, 1)
+det_sine0 = spline(det_x)
+spline = sc.interpolate.splrep(x, sine_func)
+det_sine1 = sc.interpolate.splev(det_x,spline)
+det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
 
-time = data.to_numpy()[:,0]
-norm = data.to_numpy()[:,1]
+
+plt.plot(det_x, det_sine0, label='det_sine0')
+plt.plot(det_x, det_sine1, label='det_sine1')
+plt.plot(det_x, det_sine2, '--', label='det_sine2')
+plt.plot(x, sine_func, 'o')
+plt.grid()
+plt.legend()
+plt.show()
+
+
+
+
+# data = pd.read_csv("sølve/NormVector.dat", sep=" ", header=None)
+
+# time = data.to_numpy()[:,0]
+# norm = data.to_numpy()[:,1]
 
 # plt.plot(time, norm, label="Norm")
 # plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
@@ -27,10 +54,10 @@ norm = data.to_numpy()[:,1]
 # print(norm[-1])
 
 
-P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
-# P = np.loadtxt("sølve/PsiMatrix.dat")
-print(P_S)
-print(P_S.shape)
+# P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
+# # P = np.loadtxt("sølve/PsiMatrix.dat")
+# print(P_S)
+# print(P_S.shape)
 
 # P = P.to_numpy().astype(complex)
 # print(P)
