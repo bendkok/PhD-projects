@@ -595,12 +595,13 @@ class laser_hydrogen_solver:
         eigen_vals = np.zeros((self.l_max+1, self.n))
         eigen_vecs = np.zeros((self.l_max+1, self.n, self.n))
         
-        plotmax = 5
+        plotmax = 4
         
         # goes through all the l-channels
         for L in range(self.l_max+1):
             # the Hamiltonian for the current L
             H_L = self.D2_2 + np.diag(L*(L+1)*self.Vs_2[:,0]) - np.diag(self.V_[:,0])
+            # H_L = [[1,2,1],[2,1,1],[3,1,2]]
             # Symbol explanation:            
                 
             # self.V  = 1/self.r                                      # from the Coulomb potential
@@ -611,7 +612,10 @@ class laser_hydrogen_solver:
             # self.V_   =     self.V [:,None]
             
             # finds the eigen vectors and values for the current H_L
-            e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
+            # e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
+            T, Z = sl.schur(H_L)
+            # e_vals_L = T.diag()
+            e_vals_L, e_vecs_L = sl.eig(H_L) # , left=True, right=False) 
             
             inds = e_vals_L.argsort()
             
@@ -625,10 +629,10 @@ class laser_hydrogen_solver:
             # print()
             
             # for n in range(plotmax):
-            #     plt.plot(self.r, eigen_vecs[L][:,n], label="{:.3f}".format(eigen_vals[L][n]))
+            #     plt.plot(self.r, eigen_vecs[L].T[:,n], label="{:.3f}".format(eigen_vals[L][n]))
             # plt.title(f"L={L}")
             # plt.grid()
-            # plt.legend(loc='right')
+            # plt.legend(loc='best')
             # plt.show()
         
         # n = 2
@@ -1403,7 +1407,7 @@ class laser_hydrogen_solver:
         pos_inds = [np.where(eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
         
         min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
-        self.epsilon_grid = np.linspace(np.max(min_ls), 5, self.spline_n)
+        self.epsilon_grid = np.linspace(np.max(min_ls), 3, self.spline_n)
         self.dP_depsilon = np.zeros_like(self.epsilon_grid)
         
         pos_lenghts = sum([len(p) for p in pos_inds])
@@ -1415,12 +1419,12 @@ class laser_hydrogen_solver:
             # TODO: sjekk: egenvektorerene er boksnormerte, og ser fornuftige ut, skal være 0 i kantene
             # jo større l, jo mer skal toppene være dratt ut 
             
-            # for n in range(0,5):
-            #     plt.plot(self.r, eigen_vecs[l][:,pos_ind[0]+n], label="{:.3f}".format(eigen_vals[l,pos_ind[0]+n]))
-            # plt.title(f"L={l}")
-            # plt.grid()
-            # plt.legend(loc='best')
-            # plt.show()
+            for n in range(0,5):
+                plt.plot(self.r, eigen_vecs[l].T[:,pos_ind[0]+n], label="{:.3f}".format(eigen_vals[l,pos_ind[0]+n]))
+            plt.title(f"L={l}")
+            plt.grid()
+            plt.legend(loc='lower center')
+            plt.show()
             
             D_l_eps = np.zeros(pos_eps.shape)
             D_l_eps[1:-1] = 2/(pos_eps[2:]-pos_eps[:-2])
@@ -1432,7 +1436,8 @@ class laser_hydrogen_solver:
             for i, eps in enumerate(pos_ind): # , position=1, leave=False)):
                 inte_dr = np.zeros(self.zeta_epsilon.shape[1], dtype='complex') 
                 for r_ in range(len(self.Gamma_vector)):     # TODO: can this be vectorized? 
-                    inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) * self.h
+                    # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) * self.h
+                    inte_dr[r_] = np.sum( eigen_vecs[l,eps,self.CAP_locs] * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) * self.h
                     # inte_dr[r_] = np.trapz( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector*self.zeta_epsilon[:,r_,l], self.r[self.CAP_locs] )
                 # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps,self.CAP_locs], self.r[self.CAP_locs] )
                 # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps], self.r )
@@ -1459,10 +1464,10 @@ class laser_hydrogen_solver:
         print()
         dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
         print(f"Norm of dP/dε = {dP_depsilon_norm}.", "\n")
-        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*self.h)}.")
-        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h)}.")
-        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
-        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
+        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*self.h)}.")
+        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h)}.")
+        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
+        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
         
         
     
@@ -2059,10 +2064,14 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
 
 def load_zeta_epsilon():
     
+    # a = laser_hydrogen_solver(save_dir="dP_domega_S25", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
+    #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=100_000)
     a = laser_hydrogen_solver(save_dir="dP_domega_S25", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=100_000)
+                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=10_000)
     a.zeta_epsilon = a.load_variable("zeta_epsilon.npy")
     a.calculate_dPdepsilon()
     a.plot_dP_depsilon(do_save=False)
