@@ -1436,19 +1436,18 @@ class laser_hydrogen_solver:
             for i, eps in enumerate(pos_ind): # , position=1, leave=False)):
                 inte_dr = np.zeros(self.zeta_epsilon.shape[1], dtype='complex') 
                 for r_ in range(len(self.Gamma_vector)):     # TODO: can this be vectorized? 
-                    # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) * self.h
-                    inte_dr[r_] = np.sum( eigen_vecs[l,eps,self.CAP_locs] * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) * self.h
+                    inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
                     # inte_dr[r_] = np.trapz( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector*self.zeta_epsilon[:,r_,l], self.r[self.CAP_locs] )
                 # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps,self.CAP_locs], self.r[self.CAP_locs] )
                 # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps], self.r )
-                F_l_eps[i] = D_l_eps[i] * np.sum( inte_dr * eigen_vecs[l,eps] ) * self.h
+                F_l_eps[i] = D_l_eps[i] * np.sum( inte_dr * eigen_vecs[l][eps] ) * self.h * self.h 
                 pbar.update()
             
             # spline = sc.interpolate.BSpline(pos_eps, F_l_eps, 3)      # This one dosen't work
             # self.dP_depsilon += np.real(spline(self.epsilon_grid))
-            # spline = sc.interpolate.splrep(pos_eps, np.real(F_l_eps))
-            # self.dP_depsilon += np.real(sc.interpolate.splev(self.epsilon_grid,spline))
-            self.dP_depsilon += np.real(sc.interpolate.InterpolatedUnivariateSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
+            spline = sc.interpolate.splrep(pos_eps, np.real(F_l_eps))
+            self.dP_depsilon += np.real(sc.interpolate.splev(self.epsilon_grid,spline))
+            # self.dP_depsilon += np.real(sc.interpolate.InterpolatedUnivariateSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
             # TODO: test simpler spline example, difference between spline and Bsplie
             
             if l==1:
@@ -1464,10 +1463,11 @@ class laser_hydrogen_solver:
         print()
         dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
         print(f"Norm of dP/dε = {dP_depsilon_norm}.", "\n")
-        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*self.h)}.")
-        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h)}.")
-        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
-        print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
+        print(np.min(self.dP_depsilon))
+        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*self.h)}.")
+        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h)}.")
+        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
+        # print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
         
         
     
@@ -2064,11 +2064,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
 
 def load_zeta_epsilon():
     
-    # a = laser_hydrogen_solver(save_dir="dP_domega_S25", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-    #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=100_000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S25", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S26", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
                               calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=10_000)
@@ -2076,6 +2072,7 @@ def load_zeta_epsilon():
     a.calculate_dPdepsilon()
     a.plot_dP_depsilon(do_save=False)
         
+    
 def main():
 
     total_start_time = time.time()
@@ -2085,9 +2082,9 @@ def main():
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
     a = laser_hydrogen_solver(save_dir="dP_domega_S26", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=100_000)
+                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=True, spline_n=100_000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 

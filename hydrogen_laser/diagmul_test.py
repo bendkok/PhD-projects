@@ -36,6 +36,32 @@ plt.legend()
 plt.show()
 
 
+import numpy as np
+
+txt = "I like bananas from Guido van Rossum's garden. Or do I? I think I like them, maybe. Can you like them? bananas bananas"
+
+x = txt.replace("Guido van Rossum", "Bendik")
+
+text = txt.replace(',','').replace('.','').replace('?','').replace('!','')
+text = text.split()
+text0 = np.unique(text, return_counts=True)
+
+print(x)
+print(text)
+print(text0)
+print()
+
+text_dict = {}
+for t in range(len(text0[0])):
+	text_dict[text0[0][t]] = text0[1][t]
+print(text_dict)
+print()
+
+for t in text_dict:
+	if text_dict[t] >= 3:
+		print(t)
+
+
 
 
 # data = pd.read_csv("sølve/NormVector.dat", sep=" ", header=None)
