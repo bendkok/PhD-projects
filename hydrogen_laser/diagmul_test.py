@@ -134,7 +134,7 @@ print(find_max_palindrome(max_val))
 """
 
 
-target = 100
+target = 20
 
 all_prods = []
 for i in range(1, target+1):
@@ -151,14 +151,15 @@ for i in range(1, target+1):
     for item in set(remainders):
         all_prods.extend([item]*(remainders.count(item)-all_prods.count(item)))
 
-pro = 1 # np.product(all_prods, dtype=np.int64)
+# we don't use numpy here because of overflow
+pro = 1 
 for i in all_prods:
     pro*=i 
 
 print(f"Found prime factors: {', '.join(map(str, np.sort(all_prods)))}.\n")
 print(f"The smallest number that can be divided by each of the numbers from 1 to {target} without any remainder is: {pro}.\n")
-print(f"{pro} divided by by each of the numbers from 1 to {target}: ")
-print(f"{', '.join(map(str, [pro/i for i in range(1,target)]))}.\n")
+# print(f"{pro} divided by by each of the numbers from 1 to {target}: ")
+# print(f"{', '.join(map(str, [pro/i for i in range(1,target)]))}.\n")
 print(f"Is {pro} divisible by all the numbers from 1 to {target}?: {np.all([pro%i==0 for i in range(1,11)])}.")
 
 
