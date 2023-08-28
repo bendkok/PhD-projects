@@ -11,29 +11,31 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import scipy as sc
 import seaborn as sns
+from tqdm import tqdm
+
 
 sns.set_theme(style="dark") # nice plots
 
-x = np.linspace(0, 6*np.pi, 20)
-sine_func = np.sin(x)
+# x = np.linspace(0, 6*np.pi, 20)
+# sine_func = np.sin(x)
 
-det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
-
-
-spline = sc.interpolate.BSpline(x, sine_func, 1)
-det_sine0 = spline(det_x)
-spline = sc.interpolate.splrep(x, sine_func)
-det_sine1 = sc.interpolate.splev(det_x,spline)
-det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
+# det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
 
 
-plt.plot(det_x, det_sine0, label='det_sine0')
-plt.plot(det_x, det_sine1, label='det_sine1')
-plt.plot(det_x, det_sine2, '--', label='det_sine2')
-plt.plot(x, sine_func, 'o')
-plt.grid()
-plt.legend()
-plt.show()
+# spline = sc.interpolate.BSpline(x, sine_func, 1)
+# det_sine0 = spline(det_x)
+# spline = sc.interpolate.splrep(x, sine_func)
+# det_sine1 = sc.interpolate.splev(det_x,spline)
+# det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
+
+
+# plt.plot(det_x, det_sine0, label='det_sine0')
+# plt.plot(det_x, det_sine1, label='det_sine1')
+# plt.plot(det_x, det_sine2, '--', label='det_sine2')
+# plt.plot(x, sine_func, 'o')
+# plt.grid()
+# plt.legend()
+# plt.show()
 
 """
 import numpy as np
@@ -60,6 +62,104 @@ print()
 for t in text_dict:
 	if text_dict[t] >= 3:
 		print(t)
+"""
+
+ 
+# sum([(i if i%3 == 0 else 0) for i in range(1,1001)])
+# sum([i * (i%3==0 or i%5==0) for i in range(1,1001)])
+
+# even_numbers = []
+# limit = 4_000_000
+
+# num0 = 1
+# num1 = 2
+
+# while num1 < limit+1:
+#     if num1%2==0:
+#         even_numbers.append(num1)
+#     num0,num1 = (num1, num0+num1)
+
+# print(even_numbers)
+# print(sum(even_numbers))
+
+"""
+# target = 13195 
+target = 600_851_475_143
+prime_factors = [2]  if target%2==0 else []
+primes = []
+
+if not target%2==0:
+    # goes through all numbers up to the target
+    for n in tqdm(range(3, int(np.sqrt(target)+1),2)):
+        is_prime = True
+        # checks if the current number is prime
+        for p in primes:
+            if  n%p==0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(n) # adds n to the list of primes
+            # checks if the current number is a prime factor
+            if target%n==0:
+                prime_factors.append(n)
+
+print()
+# print(primes)
+print(prime_factors)
+print(max(prime_factors))
+"""
+
+"""
+import math
+
+max_val = 999
+
+def find_max_palindrome(max_val):
+    for n0 in range(max_val+1,0,-1):
+        for n1 in range(max_val,n0-1,-1):
+            palindrome = True
+            nn = n0*n1
+            # print(n0,n1,nn)
+            val_list = [(nn//(10**i))%10 for i in range(math.ceil(math.log(nn, 10)), -1, -1)][bool(math.log(nn,10)%1):]
+            for v in range(int(len(val_list)/2)):
+                # print(val_list[v])
+                if val_list[v] != val_list[-v-1]:
+                    palindrome = False
+                    break
+            if palindrome:
+                return n0,n1,nn
+
+print(find_max_palindrome(max_val))
+"""
+
+
+target = 20
+
+all_prods = []
+for i in range(1, target+1):
+    tmp = i
+    remainders = []
+    # finds all non-unique prime factors for n
+    for n in range(2, i+1):
+        while tmp%n==0:
+            remainders.append(n)
+            tmp/=n
+        if n>=i:
+            break
+    # adds all found prime factors into all_prods if they aren't present already
+    for item in set(remainders):
+        all_prods.extend([item]*(remainders.count(item)-all_prods.count(item)))
+
+# we don't use numpy here because of overflow
+pro = 1 
+for i in all_prods:
+    pro*=i 
+
+print(f"Found prime factors: {', '.join(map(str, np.sort(all_prods)))}.\n")
+print(f"The smallest number that can be divided by each of the numbers from 1 to {target} without any remainder is: {pro}.\n")
+# print(f"{pro} divided by by each of the numbers from 1 to {target}: ")
+# print(f"{', '.join(map(str, [pro/i for i in range(1,target)]))}.\n")
+print(f"Is {pro} divisible by all the numbers from 1 to {target}?: {np.all([pro%i==0 for i in range(1,11)])}.")
 
 """
 
