@@ -51,6 +51,7 @@ class laser_hydrogen_solver:
                  calc_norm          = False,                # whether to calculate the norm
                  calc_dPdomega      = False,                # whether to calculate dP/dΩ
                  calc_dPdepsilon    = False,                # whether to calculate dP/dε
+                 calc_dP2depsdomegak= False,                # whether to calculate dP^2/dεdΩ_k
                  spline_n           = 1000,                 # dimension of the spline used for finding dP/dε
                  ):
         """
@@ -123,6 +124,7 @@ class laser_hydrogen_solver:
         self.calc_dPdomega      = calc_dPdomega
         self.calc_norm          = calc_norm
         self.calc_dPdepsilon    = calc_dPdepsilon
+        self.calc_dP2depsdomegak= calc_dP2depsdomegak
         self.spline_n           = spline_n
 
         # initialise other things
@@ -1194,7 +1196,7 @@ class laser_hydrogen_solver:
             self.save_idx_ = np.round(np.linspace(0, self.nt*self.T, int(self.n_saves*self.T))).astype(int) # which WFs to save
 
             if self.use_CAP:
-                if self.calc_norm or self.calc_dPdomega or self.calc_dPdepsilon:
+                if self.calc_norm or self.calc_dPdomega or self.calc_dPdepsilon or self.calc_dP2depsdomegak:
                     t_ = 0 # allows us to save the norm for both during and after the laser pulse
                     
                     def calc_norm():
@@ -1208,8 +1210,18 @@ class laser_hydrogen_solver:
                         # find ζ_l(r,r';t=tn) 
                         self.zeta_epsilon += self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
                     
+                    def calc_zeta_eps_omegak():
+                        # find ζ_l,l'(r,r';t=tn) 
+                        # for r in range(len(self.CAP_locs)):
+                        #     for r_ in range(len(self.r)):
+                        #         for l in range(self.l_max+1):
+                        #             for l_ in range(self.l_max+1):
+                        #                 self.calc_zeta_eps_omegak[r,r_,l,l_] += self.P[self.CAP_locs[r],l]*np.conjugate(self.P[r_,l_])
+                        self.zeta_eps_omegak += self.P[self.CAP_locs,None,:,None]*np.conjugate(self.P)[None,:,None,:]
+                        
+                        
                     # test which things we are going to calculate on the fly
-                    extra_funcs = [[calc_norm,self.calc_norm],[calc_zeta_omega,self.calc_dPdomega],[calc_zeta_epsilon,self.calc_dPdepsilon]]
+                    extra_funcs = [[calc_norm,self.calc_norm],[calc_zeta_omega,self.calc_dPdomega],[calc_zeta_epsilon,self.calc_dPdepsilon],[calc_zeta_eps_omegak,self.calc_dP2depsdomegak]]
                     extra_funcs = [ff[0] for ff in extra_funcs if ff[1]] # [ff for ff in extra_funcs if [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon]]
                     
                     if self.calc_norm:
@@ -1218,11 +1230,15 @@ class laser_hydrogen_solver:
                     
                     if self.calc_dPdomega:
                         # ζ_l,l'(r;t=0) for calculating dP/dΩ
-                        self.zeta_omega   = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1)) + 0j
+                        self.zeta_omega   = np.zeros((len(self.CAP_locs),self.l_max+1,self.l_max+1), dtype=complex)
                     
                     if self.calc_dPdepsilon:
                         # ζ_l(r,r';t=0) for calculating dP/dΩ
-                        self.zeta_epsilon = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1)) + 0j
+                        self.zeta_epsilon = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1), dtype=complex)
+                        
+                    if self.calc_dP2depsdomegak:
+                        # ζ_l(r,r';t=0) for calculating dP/dΩ
+                        self.zeta_eps_omegak = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1,self.l_max+1), dtype=complex)
                     
                     # Here we use the split operator method approximations:
                     # P(t+Δt) = exp(-i*(H - iΓ)*Δt) * P(t) + O(Δt^3) = exp(-Γ*Δt/2)*exp(-i*H*Δt)*exp(-Γ*Δt/2) * P(t) + O(Δt^3)
@@ -1301,6 +1317,11 @@ class laser_hydrogen_solver:
                         # finds dP/dε
                         self.zeta_epsilon *= self.dt
                         self.calculate_dPdepsilon()
+                        
+                    if self.calc_dP2depsdomegak:
+                        # finds dP/dε
+                        self.zeta_eps_omegak *= self.dt
+                        self.calculate_dPdepsilon()
         
                         
                     if self.calc_norm and self.calc_dPdomega:
@@ -1377,14 +1398,15 @@ class laser_hydrogen_solver:
         
         self.dP_domega = np.zeros(self.n)
         print("\nCalculating dP/dΩ:")
-        for l in tqdm(range(self.l_max+1)): # goes through all the l's twice
+        Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
+        for l in tqdm(range(self.l_max+1)): # goes through all the l's twice. # TODO: Can this be vetorized? 
             for l_ in range(self.l_max+1):
                 inte = np.trapz(self.Gamma_vector*self.zeta_omega[:,l,l_], self.r[self.CAP_locs]) 
-                Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n))
-                Y_   = np.conjugate( sc.special.sph_harm(0, l_, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) )
+                # Y    = sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n))
+                # Y_   = np.conjugate( sc.special.sph_harm(0, l_, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) )
                 
                 # Y and Y_ are always real
-                self.dP_domega += np.real(Y*Y_*inte)
+                self.dP_domega += np.real(Y[l]*Y[l_]*inte)
         
         self.dP_domega = self.dP_domega*2
         self.dP_domega_calculated = True
@@ -1411,15 +1433,13 @@ class laser_hydrogen_solver:
         
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
         
-        # the used grid spans from the smalest to the largest of the positive values
-        # self.epsilon_grid = np.linspace(np.min(eigen_vals[np.where(eigen_vals>0)[0]]), np.max(eigen_vals[np.where(eigen_vals>0)[0]]), self.spline_n)
-            
         print("\nCalculating dP/dε:")
         # finds the indexes where the energies are positive
         pos_inds = [np.where(eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
         
         min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
-        self.epsilon_grid = np.linspace(np.max(min_ls), 3, self.spline_n)
+        # the used grid spans from the smalest to the largest of the positive values
+        self.epsilon_grid = np.linspace(np.max(min_ls), 5, self.spline_n)
         self.dP_depsilon = np.zeros_like(self.epsilon_grid)
         
         pos_lenghts = sum([len(p) for p in pos_inds])
@@ -1428,33 +1448,34 @@ class laser_hydrogen_solver:
             pos_ind = pos_inds[l] # np.where(eigen_vals[l]>0)[0]
             pos_eps = eigen_vals[l,pos_ind]
             
-            # TODO: sjekk: egenvektorerene er boksnormerte, og ser fornuftige ut, skal være 0 i kantene
-            # jo større l, jo mer skal toppene være dratt ut 
+            # TODO: sjekk: egenvektorerene er boksnormerte, og ser fornuftige ut, skal være 0 i kantene jo større l, jo mer skal toppene være dratt ut 
             
-            for n in range(0,5):
-                plt.plot(self.r[:], eigen_vecs[l].T[:,pos_ind[0]+n], label="{:.3f}".format(eigen_vals[l,pos_ind[0]+n]))
-            plt.title(f"L={l}")
-            plt.grid()
-            plt.legend(loc='lower center')
-            plt.show()
+            # for n in range(0,5):
+            #     plt.plot(self.r[:], eigen_vecs[l].T[:,pos_ind[0]+n], label="{:.3f}".format(eigen_vals[l,pos_ind[0]+n]))
+            # plt.title(f"L={l}")
+            # plt.grid()
+            # plt.legend(loc='lower center')
+            # plt.show()
             
             D_l_eps = np.zeros(pos_eps.shape)
             D_l_eps[1:-1] = 2/(pos_eps[2:]-pos_eps[:-2])
             D_l_eps[ 0]   = 1/(pos_eps[ 1]-pos_eps[ 0])
             D_l_eps[-1]   = 1/(pos_eps[-1]-pos_eps[-2])
             
-            F_l_eps = np.zeros(pos_eps.shape)+0j
+            F_l_eps = np.zeros(pos_eps.shape, dtype=complex)
             
             for i, eps in enumerate(pos_ind): # , position=1, leave=False)):
+                # inte_dr = np.zeros(self.zeta_epsilon.shape[1], dtype='complex') 
+                # for r_ in range(len(self.Gamma_vector)):     # TODO: can this be vectorized? 
+                #     # inte_dr[self.CAP_locs[r_]] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
+                #     inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
+                # F_l_eps[i] = D_l_eps[i] * np.sum( inte_dr[:] * eigen_vecs[l][eps] ) * self.h * self.h 
+                # pbar.update()
                 inte_dr = np.zeros(self.zeta_epsilon.shape[1], dtype='complex') 
-                for r_ in range(len(self.Gamma_vector)):     # TODO: can this be vectorized? 
+                for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
                     # inte_dr[self.CAP_locs[r_]] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
-                    inte_dr[r_]                = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
-                    
-                    # inte_dr[r_] = np.trapz( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector*self.zeta_epsilon[:,r_,l], self.r[self.CAP_locs] )
-                # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps,self.CAP_locs], self.r[self.CAP_locs] )
-                # F_l_eps[i] = D_l_eps[i] * np.trapz( inte_dr * eigen_vecs[l,eps], self.r )
-                F_l_eps[i] = D_l_eps[i] * np.sum( inte_dr[:] * eigen_vecs[l][eps] ) * self.h * self.h 
+                    inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
+                F_l_eps[i] = D_l_eps[i] * np.sum( inte_dr * eigen_vecs[l,eps] ) * self.h * self.h 
                 pbar.update()
             
             # spline = sc.interpolate.BSpline(pos_eps, F_l_eps, 3)      # This one dosen't work
@@ -1483,9 +1504,64 @@ class laser_hydrogen_solver:
         print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid/self.h**2)}.")
         print(f"Norm of dP/dε: {np.trapz(self.dP_depsilon, self.epsilon_grid*(self.epsilon_grid[3]-self.epsilon_grid[2]))}.")
         
+    
+    def calculate_dP2depsdomegak(self):
+        """
+        WIP!
+        """
         
-    
-    
+        eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
+        
+        print("\nCalculating dP/dεdΩ_k:")
+        
+        # finds the indexes where the energies are positive
+        pos_inds = [np.where(eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
+        
+        min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
+        # the used grid spans from the smalest to the largest of the positive values
+        self.epsilon_grid = np.linspace(np.max(min_ls), 3, self.spline_n)
+        self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.n))
+        
+        pos_lenghts = sum([len(p) for p in pos_inds])
+        pbar = tqdm(total=pos_lenghts*2) # for the progress bar
+        
+        # pos_eps = eigen_vals[l,pos_inds]
+        
+        D_l_eps = []
+        for l in range(self.l_max+1):
+            pos_ind = pos_inds[l]
+            D_l_eps.append(np.zeros(eigen_vals[l,pos_ind].shape))
+            D_l_eps[l][1:-1] = 2/(eigen_vals[l,pos_ind][2:]-eigen_vals[l,pos_ind][:-2])
+            D_l_eps[l][ 0]   = 1/(eigen_vals[l,pos_ind][ 1]-eigen_vals[l,pos_ind][ 0])
+            D_l_eps[l][-1]   = 1/(eigen_vals[l,pos_ind][-1]-eigen_vals[l,pos_ind][-2])
+        
+        Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
+        for l in range(self.l_max+1): # goes through all the l's twice. # TODO: Can this be vetorized? 
+            
+            
+            for l_ in range(self.l_max+1):
+                
+                F_l_eps = np.zeros((pos_inds[l].shape[0],pos_inds[l_].shape[0]), dtype=complex)
+                
+                for n, eps in enumerate(pos_inds[l]):
+                    for n_, eps_ in enumerate(pos_inds[l_]):
+                        inte_dr = np.zeros(len(self.r), dtype='complex') 
+                        for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
+                            inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
+                        F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n_]) * np.sum( inte_dr * eigen_vecs[l_][eps_] ) * self.h * self.h 
+                    pbar.update()
+                
+                # TODO: add spline stuff
+                
+                # the Y's are always real
+                sigma_l = [1]*(self.l_max+1) # TODO: ask what this is
+                self.dP2_depsilon_domegak += np.real( 1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])) * Y[l]*Y[l_]*F_l_eps )
+        
+        pbar.close()
+        
+        
+        
+        
     def plot_norm(self, do_save=True):
         
         if self.norm_calculated: 
@@ -2081,10 +2157,21 @@ def load_zeta_epsilon():
     a = laser_hydrogen_solver(save_dir="dP_domega_S25", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=10_000)
+                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1_000)
     a.zeta_epsilon = a.load_variable("zeta_epsilon.npy")
     a.calculate_dPdepsilon()
     a.plot_dP_depsilon(do_save=False)
+    
+
+def load_zeta_eps_omegak():
+    
+    a = laser_hydrogen_solver(save_dir="dP_domega_S27", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
+                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=True, calc_dP2depsdomegak=True, spline_n=10_000)
+    a.zeta_eps_omegak = a.load_variable("zeta_eps_omegak.npy")
+    a.calculate_dP2depsdomegak()
+    # a.plot_dP_depsilon(do_save=False)
         
     
 def main():
@@ -2095,10 +2182,10 @@ def main():
     #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S26", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S27", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=True, spline_n=100_000)
+                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=True, calc_dP2depsdomegak=True, spline_n=100_000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
@@ -2112,6 +2199,7 @@ def main():
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
     a.save_variable(a.zeta_epsilon, 'zeta_epsilon')
+    a.save_variable(a.zeta_eps_omegak, 'zeta_eps_omegak')
     a.plot_res(do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=True)
     hyps = a.save_hyperparameters()
     a.save_found_states()
@@ -2138,4 +2226,5 @@ def main():
 if __name__ == "__main__":
     # main()
     # load_run_program_and_plot("dP_domega_S19")
-    load_zeta_epsilon()
+    # load_zeta_epsilon()
+    load_zeta_eps_omegak()
