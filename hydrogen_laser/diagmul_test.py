@@ -16,26 +16,28 @@ from tqdm import tqdm
 
 sns.set_theme(style="dark") # nice plots
 
-# x = np.linspace(0, 6*np.pi, 20)
-# sine_func = np.sin(x)
+x = np.linspace(0, 6*np.pi, 20)
+sine_func = np.sin(x)
 
-# det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
-
-
-# spline = sc.interpolate.BSpline(x, sine_func, 1)
-# det_sine0 = spline(det_x)
-# spline = sc.interpolate.splrep(x, sine_func)
-# det_sine1 = sc.interpolate.splev(det_x,spline)
-# det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
+det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
 
 
-# plt.plot(det_x, det_sine0, label='det_sine0')
-# plt.plot(det_x, det_sine1, label='det_sine1')
-# plt.plot(det_x, det_sine2, '--', label='det_sine2')
-# plt.plot(x, sine_func, 'o')
-# plt.grid()
-# plt.legend()
-# plt.show()
+spline = sc.interpolate.BSpline(x, sine_func, 1)
+det_sine0 = spline(det_x)
+spline = sc.interpolate.splrep(x, sine_func)
+det_sine1 = sc.interpolate.splev(det_x,spline)
+det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
+det_sine3 = sc.interpolate.CubicSpline(x, sine_func)(det_x)
+
+
+plt.plot(det_x, det_sine0, label='BSpline')
+plt.plot(det_x, det_sine1, label='splrep')
+plt.plot(det_x, det_sine2, '--', label='InterpolatedUnivariateSpline')
+plt.plot(det_x, det_sine3, '--', label='CubicSpline')
+plt.plot(x, sine_func, 'o')
+plt.grid()
+plt.legend()
+plt.show()
 
 """
 import numpy as np
@@ -132,7 +134,7 @@ def find_max_palindrome(max_val):
 print(find_max_palindrome(max_val))
 """
 
-
+"""
 target = 20
 
 all_prods = []
@@ -160,6 +162,8 @@ print(f"The smallest number that can be divided by each of the numbers from 1 to
 # print(f"{pro} divided by by each of the numbers from 1 to {target}: ")
 # print(f"{', '.join(map(str, [pro/i for i in range(1,target)]))}.\n")
 print(f"Is {pro} divisible by all the numbers from 1 to {target}?: {np.all([pro%i==0 for i in range(1,11)])}.")
+"""
+
 
 """
 
