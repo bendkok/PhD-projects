@@ -128,13 +128,16 @@ class laser_hydrogen_solver:
         self.spline_n           = spline_n
 
         # initialise other things
-        self.h  = r_max/n                        # physical step length
+        self.h_ = r_max/n                        # physical step length
         self.P  = np.zeros((n, l_max+1))         # we represent the wave function as a matrix
         self.P0 = np.zeros((n, 1)) + .1          # initial guess for the ground state of the wave function as a matrix
-        self.r  = np.linspace(self.h, r_max, n)  # physical grid
+        # self.r  = np.linspace(self.h, r_max, n)  # physical grid
+        self.r  = np.linspace(0, r_max, n+2)  # physical grid
+        self.r  = self.r[1:-1]
+        self.h  = self.r[2]-self.r[1]
         self.A  = None                           # the laser field as a function
 
-        # print(self.h, self.r[1]-self.r[0], self.r[3]-self.r[2])
+        # print(self.h, self.h_, self.r[1]-self.r[0], self.r[3]-self.r[2])
 
         # mono-diagonal matrices for the SE. We only keep the diagonal to save on computing resources
         self.V  = 1/self.r                                      # from the Coulomb potential
@@ -603,7 +606,7 @@ class laser_hydrogen_solver:
         # goes through all the l-channels
         for L in range(self.l_max+1):
             # the Hamiltonian for the current L
-            H_L = self.D2_2 + np.diag(L*(L+1)*self.Vs_2[:,0]) - np.diag(self.V_[:,0])
+            H_L = self.D2_2 + np.diag(L*(L+1)*self.Vs_2[:,0]) - np.diag(self.V)
             # H_L = H_L[1:,1:]
             # H_L = [[1,2,1],[2,1,1],[3,1,2]]
             # Symbol explanation:            
@@ -617,11 +620,11 @@ class laser_hydrogen_solver:
             
             # finds the eigen vectors and values for the current H_L
             # e_vals_L, e_vecs_L = np.linalg.eig(H_L) 
-            T, Z = sl.schur(H_L)
+            # T, Z = sl.schur(H_L)
             # e_vals_L = T.diag()
             # e_vals_L, e_vecs_L, e_vecs_Lr = sl.eig(H_L, left=True, right=True) 
-            e_vals_L, e_vecs_L = sl.eigh(H_L) # , left=True, right=False) 
-            # e_vals_L, e_vecs_L = sl.eig(H_L) 
+            # e_vals_L, e_vecs_L = sl.eigh(H_L) # , left=True, right=False) 
+            e_vals_L, e_vecs_L = sl.eig(H_L) 
             
             inds = e_vals_L.argsort()
             
@@ -1450,12 +1453,12 @@ class laser_hydrogen_solver:
             
             # TODO: sjekk: egenvektorerene er boksnormerte, og ser fornuftige ut, skal være 0 i kantene jo større l, jo mer skal toppene være dratt ut 
             
-            # for n in range(0,5):
-            #     plt.plot(self.r[:], eigen_vecs[l].T[:,pos_ind[0]+n], label="{:.3f}".format(eigen_vals[l,pos_ind[0]+n]))
-            # plt.title(f"L={l}")
-            # plt.grid()
-            # plt.legend(loc='lower center')
-            # plt.show()
+            for n in range(0,5):
+                plt.plot(self.r[:], eigen_vecs[l].T[:,pos_ind[0]+n], label="{:.3f}".format(eigen_vals[l,pos_ind[0]+n]))
+            plt.title(f"L={l}")
+            plt.grid()
+            plt.legend(loc='lower center')
+            plt.show()
             
             D_l_eps = np.zeros(pos_eps.shape)
             D_l_eps[1:-1] = 2/(pos_eps[2:]-pos_eps[:-2])
@@ -1480,7 +1483,7 @@ class laser_hydrogen_solver:
             
             # spline = sc.interpolate.BSpline(pos_eps, F_l_eps, 3)      # This one dosen't work
             # self.dP_depsilon += np.real(spline(self.epsilon_grid))
-            spline = sc.interpolate.splrep(pos_eps, np.real(F_l_eps))
+            spline = sc.interpolate.splrep(pos_eps, np.real(F_l_eps))  # TODO: try qubic spline
             self.dP_depsilon += np.real(sc.interpolate.splev(self.epsilon_grid,spline))
             # self.dP_depsilon += np.real(sc.interpolate.InterpolatedUnivariateSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
             # TODO: test simpler spline example, difference between spline and Bsplie
@@ -2154,7 +2157,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
 
 def load_zeta_epsilon():
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S25", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S28", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
                               calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1_000)
@@ -2182,10 +2185,10 @@ def main():
     #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S27", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+    a = laser_hydrogen_solver(save_dir="dP_domega_S28", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=True, calc_dP2depsdomegak=True, spline_n=100_000)
+                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=True, calc_dP2depsdomegak=False, spline_n=100_000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
@@ -2199,7 +2202,7 @@ def main():
     a.A = a.single_laser_pulse
     a.calculate_time_evolution()
     a.save_variable(a.zeta_epsilon, 'zeta_epsilon')
-    a.save_variable(a.zeta_eps_omegak, 'zeta_eps_omegak')
+    # a.save_variable(a.zeta_eps_omegak, 'zeta_eps_omegak')
     a.plot_res(do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=True)
     hyps = a.save_hyperparameters()
     a.save_found_states()
@@ -2224,7 +2227,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
+    main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_epsilon()
-    load_zeta_eps_omegak()
+    # load_zeta_eps_omegak()
