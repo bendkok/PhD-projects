@@ -1481,7 +1481,8 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.n))
         
         pos_lenghts = sum([len(p) for p in pos_inds])
-        # pbar = tqdm(total=pos_lenghts*2) # for the progress bar
+        # pbar = tqdm(total=pos_lenghts) # for the progress bar
+        pbar = tqdm(total=(self.l_max+1)**2) # for the progress bar
         
         # pos_eps = eigen_vals[l,pos_inds]
         
@@ -1500,29 +1501,30 @@ class laser_hydrogen_solver:
         # eigen_vecs_conjugate_gamma = [eigen_vecs_conjugate[l][None,self.CAP_locs] * self.Gamma_vector for l in range(self.l_max+1)]
         for l in range(self.l_max+1): # goes through all the l's twice. # TODO: Can this be vetorized? 
             for l_ in range(self.l_max+1):
-                # F_l_eps = np.zeros((pos_inds[l].shape[0],pos_inds[l_].shape[0]), dtype=complex)
-                F_l_eps = np.zeros(pos_inds[l].shape[0], dtype=complex)
+                F_l_eps = np.zeros((pos_inds[l].shape[0],pos_inds[l_].shape[0]), dtype=complex)
+                # F_l_eps = np.zeros(pos_inds[l].shape[0], dtype=complex)
                 
-                pbar = tqdm(total=len(pos_inds[l])) # *len(pos_inds[l_]))
+                # pbar = tqdm(total=len(pos_inds[l])) # *len(pos_inds[l_]))
                 # TODO: do we only need the diagonal of F_l_eps? How would that work if it isn't square? 
                 for n, eps in enumerate(pos_inds[l]):
                     eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector
-                    # for n_, eps_ in enumerate(pos_inds[l]):
-                    inte_dr = np.zeros(len(self.r), dtype='complex') 
-                    for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
-                        # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
-                        # inte_dr[r_] = np.sum( eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
-                        inte_dr[r_] = np.sum( eigen_vecs_conjugate_gamma * self.zeta_eps_omegak[:,r_,l,l_] )
-                    F_l_eps[n] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][eps] ) * self.h * self.h 
-                    pbar.update()
+                    for n_, eps_ in enumerate(pos_inds[l]):
+                        inte_dr = np.zeros(len(self.r), dtype='complex') 
+                        for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
+                            # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
+                            # inte_dr[r_] = np.sum( eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
+                            inte_dr[r_] = np.sum( eigen_vecs_conjugate_gamma * self.zeta_eps_omegak[:,r_,l,l_] )
+                        F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][eps_] ) * self.h * self.h 
+                pbar.update()
                 
                 # TODO: add spline stuff
                 # should I interploate over l or l_?
-                splined = np.real(sc.interpolate.CubicSpline(eigen_vals[l,pos_inds[l]], np.real(F_l_eps))(self.epsilon_grid))
+                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps))
+                spl     = np.real(splined((self.epsilon_grid, self.epsilon_grid)))
                 # splined = np.real(sc.interpolate.CubicSpline(eigen_vals[l,pos_inds], np.real(np.diag(F_l_eps)))(self.epsilon_grid))
                 
                 # the Y's are always real
-                self.dP2_depsilon_domegak += np.real( 1j**(l_-l) * (np.exp(1j*(sigma_l[l]-sigma_l[l_])) @ Y[l]*Y[l_]) @ splined )
+                self.dP2_depsilon_domegak += np.real( 1j**(l_-l) * (np.exp(1j*(sigma_l[l]-sigma_l[l_])) @ Y[l]*Y[l_]) @ spl )
         
         self.dP2_depsilon_domegak *= 2
         pbar.close()
@@ -2191,7 +2193,8 @@ def main():
 
 
 # TODO: check if good enough values for:
-    # h/Nx, dt, Rmax, lmax, Kdim, CAP_loc, gamma_0
+    # h/Nx, dt, (Rmax), lmax, Kdim, 
+    # CAP_loc, gamma_0 senere
 
 
 if __name__ == "__main__":
