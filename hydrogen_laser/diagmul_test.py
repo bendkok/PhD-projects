@@ -14,17 +14,37 @@ import seaborn as sns
 from tqdm import tqdm
 
 
-arr = np.arange(1,6)
-mat = np.ones((5,10))
 
-print(arr, mat)
-print(arr[:,None]*mat)
-print(np.sum(arr[:,None]*mat,axis=0))
-out = np.zeros(10)
+pos_ind = range(8, 500)
+l=0
+eigen_vecs = np.zeros((6, 500, 500))
+CAP_locs = range(250,500)
+Gamma_vector = np.linspace(0, 1, 250)
+zeta_epsilon = np.ones((250, 500, 6))
+inte_dr = np.zeros((500, len(pos_ind)))
 
-for i in range(10):
-    out[i] = np.sum(arr*mat[:,i])
-print(out)
+for i in range(len(pos_ind)): 
+    inte_dr[:,i] = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[i],CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
+test = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
+
+print()
+
+
+
+
+
+
+# arr = np.arange(1,6)
+# mat = np.ones((5,10))
+
+# print(arr, mat)
+# print(arr[:,None]*mat)
+# print(np.sum(arr[:,None]*mat,axis=0))
+# out = np.zeros(10)
+
+# for i in range(10):
+#     out[i] = np.sum(arr*mat[:,i])
+# print(out)
 
 # sns.set_theme(style="dark") # nice plots
 
