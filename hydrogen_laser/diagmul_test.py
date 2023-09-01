@@ -14,30 +14,42 @@ import seaborn as sns
 from tqdm import tqdm
 
 
-sns.set_theme(style="dark") # nice plots
+arr = np.arange(1,6)
+mat = np.ones((5,10))
 
-x = np.linspace(0, 6*np.pi, 20)
-sine_func = np.sin(x)
+print(arr, mat)
+print(arr[:,None]*mat)
+print(np.sum(arr[:,None]*mat,axis=0))
+out = np.zeros(10)
 
-det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
+for i in range(10):
+    out[i] = np.sum(arr*mat[:,i])
+print(out)
+
+# sns.set_theme(style="dark") # nice plots
+
+# x = np.linspace(0, 6*np.pi, 20)
+# sine_func = np.sin(x)
+
+# det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
 
 
-spline = sc.interpolate.BSpline(x, sine_func, 1)
-det_sine0 = spline(det_x)
-spline = sc.interpolate.splrep(x, sine_func)
-det_sine1 = sc.interpolate.splev(det_x,spline)
-det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
-det_sine3 = sc.interpolate.CubicSpline(x, sine_func)(det_x)
+# spline = sc.interpolate.BSpline(x, sine_func, 1)
+# det_sine0 = spline(det_x)
+# spline = sc.interpolate.splrep(x, sine_func)
+# det_sine1 = sc.interpolate.splev(det_x,spline)
+# det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
+# det_sine3 = sc.interpolate.CubicSpline(x, sine_func)(det_x)
 
 
-plt.plot(det_x, det_sine0, label='BSpline')
-plt.plot(det_x, det_sine1, label='splrep')
-plt.plot(det_x, det_sine2, '--', label='InterpolatedUnivariateSpline')
-plt.plot(det_x, det_sine3, '--', label='CubicSpline')
-plt.plot(x, sine_func, 'o')
-plt.grid()
-plt.legend()
-plt.show()
+# plt.plot(det_x, det_sine0, label='BSpline')
+# plt.plot(det_x, det_sine1, label='splrep')
+# plt.plot(det_x, det_sine2, '--', label='InterpolatedUnivariateSpline')
+# plt.plot(det_x, det_sine3, '--', label='CubicSpline')
+# plt.plot(x, sine_func, 'o')
+# plt.grid()
+# plt.legend()
+# plt.show()
 
 """
 import numpy as np

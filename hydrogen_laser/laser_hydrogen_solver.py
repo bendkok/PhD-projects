@@ -53,6 +53,7 @@ class laser_hydrogen_solver:
                  calc_dPdepsilon    = False,                # whether to calculate dP/dε
                  calc_dP2depsdomegak= False,                # whether to calculate dP^2/dεdΩ_k
                  spline_n           = 1000,                 # dimension of the spline used for finding dP/dε
+                 max_epsilon        = 10,                   # 
                  ):
         """
         Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -126,6 +127,7 @@ class laser_hydrogen_solver:
         self.calc_dPdepsilon    = calc_dPdepsilon
         self.calc_dP2depsdomegak= calc_dP2depsdomegak
         self.spline_n           = spline_n
+        self.max_epsilon        = max_epsilon
 
         # initialise other things
         self.h_ = r_max/n                        # physical step length
@@ -1289,6 +1291,8 @@ class laser_hydrogen_solver:
                         
                     if self.calc_norm and self.calc_dPdomega:
                         print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-self.norm_over_time[-1]-self.dP_domega_norm)}.", '\n')
+                    if self.calc_norm and self.calc_dPdepsilon:
+                        print('\n' + f"Norm diff |Ψ| and dP/dε: {np.abs(1-self.norm_over_time[-1]-self.dP_depsilon_norm)}.", '\n')
                         
                 else:
                     # Here we use the split operator method approximations:
@@ -1404,7 +1408,7 @@ class laser_hydrogen_solver:
         
         min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
         # the used grid spans from the smalest to the largest of the positive values
-        self.epsilon_grid = np.linspace(np.max(min_ls), 5, self.spline_n)
+        self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
         self.dP_depsilon = np.zeros_like(self.epsilon_grid)
         
         pos_lenghts = sum([len(p) for p in pos_inds])
@@ -1429,8 +1433,10 @@ class laser_hydrogen_solver:
             
             for i, eps in enumerate(pos_ind): # , position=1, leave=False)):
                 inte_dr = np.zeros(self.zeta_epsilon.shape[1], dtype='complex') 
-                for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
-                    inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) # * self.h
+                # for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
+                #     inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_epsilon[:,r_,l]) 
+                # this is extremely close, but not exactly the same, not sure why
+                inte_dr = np.sum( (np.conjugate(eigen_vecs[l,eps,self.CAP_locs]) * self.Gamma_vector)[:,None] * self.zeta_epsilon[...,l], axis=0)
                 F_l_eps[i] = D_l_eps[i] * np.sum( inte_dr * eigen_vecs[l,eps] ) * self.h * self.h 
                 pbar.update()
             
@@ -1450,9 +1456,9 @@ class laser_hydrogen_solver:
         self.dP_depsilon_calculated = True
         
         print()
-        dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
-        print(f"Norm of dP/dε = {dP_depsilon_norm}.", "\n")
-        print(np.min(self.dP_depsilon))
+        self.dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
+        print(f"Norm of dP/dε = {self.dP_depsilon_norm}.", "\n")
+        # print(np.min(self.dP_depsilon))
         
         # dP_depsilon_norm = np.sum(self.dP_depsilon)*(self.epsilon_grid[1]-self.epsilon_grid[0]) 
         # print(f"Norm of dP/dε = {dP_depsilon_norm}.", "\n")
@@ -2124,7 +2130,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
 
 def load_zeta_epsilon():
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S28", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S29", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
                               use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
                               calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=100_000)
@@ -2152,9 +2158,9 @@ def main():
     #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S28", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S29", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon=5,
                               calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, calc_dP2depsdomegak=False, spline_n=100_000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
