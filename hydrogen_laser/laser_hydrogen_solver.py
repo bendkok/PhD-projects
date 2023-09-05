@@ -1177,6 +1177,7 @@ class laser_hydrogen_solver:
                         self.zeta_epsilon += self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
                     
                     def calc_zeta_eps_omegak():
+                        # TODO: try to optmize
                         # find ζ_l,l'(r,r';t=tn) 
                         # for r in range(len(self.CAP_locs)):
                         #     for r_ in range(len(self.r)):
@@ -1278,7 +1279,6 @@ class laser_hydrogen_solver:
                         self.zeta_omega *= self.dt
                         self.calculate_dPdomega()
                         
-                    
                     if self.calc_dPdepsilon:
                         # finds dP/dε
                         self.zeta_epsilon *= self.dt
@@ -1287,7 +1287,7 @@ class laser_hydrogen_solver:
                     if self.calc_dP2depsdomegak:
                         # finds dP/dε
                         self.zeta_eps_omegak *= self.dt
-                        self.calculate_dPdepsilon()
+                        self.calculate_dP2depsdomegak()
         
                         
                     if self.calc_norm and self.calc_dPdomega:
@@ -1478,9 +1478,7 @@ class laser_hydrogen_solver:
         
     
     def calculate_dP2depsdomegak(self):
-        """
-        WIP!
-        """
+        # TODO: add doc-string
         
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
         eigen_vals /= np.sqrt(self.h)
@@ -1499,6 +1497,7 @@ class laser_hydrogen_solver:
         pos_lenghts = sum([len(p) for p in pos_inds])
         # pbar = tqdm(total=pos_lenghts) # for the progress bar
         pbar = tqdm(total=(self.l_max+1)**2) # for the progress bar
+        # pbar = tqdm(total=(self.l_max+1)*pos_lenghts) # for the progress bar
         
         # pos_eps = eigen_vals[l,pos_inds]
         
@@ -1526,10 +1525,25 @@ class laser_hydrogen_solver:
                 # pbar = tqdm(total=len(pos_inds[l])) # *len(pos_inds[l_]))
                 # inte_dr = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,self.CAP_locs]) * self.Gamma_vector[:,None])[:,None,:] * self.zeta_epsilon[...,l,None], axis=0).T
                 # F_l_eps = D_l_eps * np.sum( inte_dr * eigen_vecs[l,pos_ind], axis=1) # * self.h * self.h 
-                for n, eps in enumerate(pos_inds[l]):
-                    eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector
-                    inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,None] * self.zeta_eps_omegak[:,:,l,l_], axis=0)
-                    F_l_eps[n,:] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][:]) * np.sum( inte_dr[None,:] * eigen_vecs[l_][pos_inds[l_][:]], axis=1)
+                
+                # this is so vectorized, I'm not enteierly sure what it does anymore...
+                # F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( np.sum( (eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector)[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
+                eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector
+                inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)
+                F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
+                pbar.update() 
+                
+                # for n in range(len(pos_inds[l])):
+                #     eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][n],self.CAP_locs] * self.Gamma_vector
+                #     inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,None] * self.zeta_eps_omegak[:,:,l,l_], axis=0)
+                #     F_l_eps[n,:] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][:]) * np.sum( inte_dr[None,:] * eigen_vecs[l_][pos_inds[l_][:]], axis=1)
+                #     pbar.update() 
+                # for n, eps in enumerate(pos_inds[l]):
+                #     eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector
+                #     inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,None] * self.zeta_eps_omegak[:,:,l,l_], axis=0)
+                #     F_l_eps[n,:] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][:]) * np.sum( inte_dr[None,:] * eigen_vecs[l_][pos_inds[l_][:]], axis=1)
+                    
+                    
                     # for n_ in range(pos_inds[l]):
                         # inte_dr = np.zeros(len(self.r), dtype='complex') 
                         # F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][pos_inds[l][n_]] )
@@ -1540,7 +1554,6 @@ class laser_hydrogen_solver:
                             # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
                             # inte_dr[r_] = np.sum( eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
                             # inte_dr[r_] = np.sum( eigen_vecs_conjugate_gamma * self.zeta_eps_omegak[:,r_,l,l_] )
-                pbar.update() 
                 
                 # F_l_eps *= self.h * self.h 
                 
@@ -1561,14 +1574,14 @@ class laser_hydrogen_solver:
         print()
         self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, self.epsilon_grid, axis=0) 
         self.dP2_depsilon_domegak_norm0 = np.trapz(self.dP2_depsilon_domegak, theta, axis=1) 
-        print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[0]}.")
-        print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[-1]}.")
-        print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm)}.")
+        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[0]}.")
+        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[-1]}.")
+        # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm)}.")
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm, theta) }.")
         print()
-        print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[0]}.")
-        print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[-1]}.")
-        print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm0)}.")
+        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[0]}.")
+        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[-1]}.")
+        # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm0)}.")
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, self.epsilon_grid) }.")
         print()
         
@@ -1731,8 +1744,26 @@ class laser_hydrogen_solver:
         if self.dP2_depsilon_domegak_calculated: 
             
             theta = np.linspace(0,np.pi,self.n)
-            
             X,Y   = np.meshgrid(self.epsilon_grid, theta)
+            
+            X0,Y0   = np.meshgrid(self.epsilon_grid, np.pi/2-theta)
+            X1,Y1   = np.meshgrid(self.epsilon_grid, np.pi/2+theta)
+            
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
+            # plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
+            plt.contourf(X0,Y0, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
+            plt.contourf(X1,Y1, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
+            plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.xlabel(r"$\epsilon$")
+            plt.ylabel(r"$\theta$")
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.savefig("report/phi2_diff_double.pdf") 
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak0.pdf")
+            plt.show()
+            
+            plt.axes(projection = None)
             plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
             plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
             plt.xlabel(r"$\epsilon$")
@@ -2024,6 +2055,7 @@ class laser_hydrogen_solver:
         print(f"Norm 1-|Ψ|^2 = {1-self.norm_over_time[-1]}.")
     
     
+    
     def save_dP_domega(self, savename="found_states"):
         """
         Save the found dP/dΩ to a file.
@@ -2122,6 +2154,56 @@ class laser_hydrogen_solver:
         print(f"Norm of dP/dε = {dP_depsilon_norm}.")
         
         
+    def save_dP2_depsilon_domegak(self, savename="found_states"):
+        """
+        Save the found dP/dΩ to a file.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.dP2_depsilon_domegak_calculated:
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            np.save(f"{self.save_dir}/{savename}_dP2_depsilon_domegak", self.dP2_depsilon_domegak)
+            np.savetxt(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.csv", self.dP2_depsilon_domegak, delimiter=',')
+            
+            np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
+            np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
+        else:
+            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+
+
+    def load_dP2_depsilon_domegak(self, savename="found_states"):
+        """
+        Load a found dP/dΩ from a file, and sets it into self.dP2_depsilon_domegak.
+        The loaded dP/dΩ needs to have been generated using the same grid.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        self.dP2_depsilon_domegak  = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.npy")
+        self.time_evolved = True
+        self.dP2_depsilon_domegak_calculated = True
+        self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
+        
+        dP2_depsilon_domegak_norm = np.trapz(self.dP2_depsilon_domegak, self.epsilon_grid) 
+        print()
+        print(f"Norm of dP/dε = {dP2_depsilon_domegak_norm}.")
+        
+        
     def save_variable(self, variable, savename):
         """
         Save a variable to a file.
@@ -2131,6 +2213,33 @@ class laser_hydrogen_solver:
         # if savename is None:
         #     savename = f'{variable=}'.split('=')[0]
         np.save(f"{self.save_dir}/{savename}", variable)
+        
+        
+    def save_zetas(self):
+        """
+        Save all foud zetas to a file.
+        """
+        
+        os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+        if self.time_evolved:
+            if self.calc_dPdomega:
+                np.save(f"{self.save_dir}/zeta_omega", self.zeta_omega)
+            if self.calc_dPdepsilon:
+                np.save(f"{self.save_dir}/zeta_epsilon", self.zeta_epsilon)
+            if self.calc_dP2depsdomegak:
+                np.save(f"{self.save_dir}/zeta_eps_omegak", self.zeta_eps_omegak)
+        else:
+            print("Need to evolve time before saving the ζ-values.")
+
+    def save_found_states_analysis(self, savename="found_states"):
+        """
+        Save all the postprosecing. 
+        """
+        
+        self.save_norm_over_time(savename)
+        self.save_dP_domega(savename)
+        self.save_dP_depsilon(savename)
+        self.save_dP2_depsilon_domegak(savename)
 
 
     def load_variable(self, savename='zeta_epsilon.npy'):
@@ -2220,12 +2329,21 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
     a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
     
 
+def load_zeta_omega():
+    
+    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
+    a.zeta_omega = a.load_variable("zeta_omega.npy")
+    a.calculate_dPdomega()
+    a.plot_dP_domega(do_save=False)
+
+
 def load_zeta_epsilon():
     
     a = laser_hydrogen_solver(save_dir="dP_domega_S28", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-                              calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=100_000)
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdepsilon=True, spline_n=100_000)
     a.zeta_epsilon = a.load_variable("zeta_epsilon.npy")
     a.calculate_dPdepsilon()
     a.plot_dP_depsilon(do_save=False)
@@ -2233,10 +2351,10 @@ def load_zeta_epsilon():
 
 def load_zeta_eps_omegak():
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S27", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 2,
-                              calc_dPdomega=False, calc_dPdepsilon=False, calc_norm=True, calc_dP2depsdomegak=True, spline_n=10_000)
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 2, 
+                              calc_dP2depsdomegak=True, spline_n=1_000)
     a.zeta_eps_omegak = a.load_variable("zeta_eps_omegak.npy")
     a.calculate_dP2depsdomegak()
     a.plot_dP2_depsilon_domegak(do_save=False)
@@ -2264,16 +2382,15 @@ def main():
     # a.plot_gs_res(do_save=True)
     a.save_ground_states()
 
-    a.A = a.single_laser_pulse
+    a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
-    a.save_variable(a.zeta_epsilon, 'zeta_epsilon')
-    # a.save_variable(a.zeta_eps_omegak, 'zeta_eps_omegak')
+
     a.plot_res(do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=True)
-    hyps = a.save_hyperparameters()
+
+    a.save_zetas()
     a.save_found_states()
-    a.save_norm_over_time()
-    a.save_dP_domega()
-    a.save_dP_depsilon()
+    a.save_found_states_analysis()
+    hyps = a.save_hyperparameters()
     
     total_end_time = time.time()
     
@@ -2296,7 +2413,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
     # load_run_program_and_plot("dP_domega_S19")
+    # load_zeta_omega()
     # load_zeta_epsilon()
-    # load_zeta_eps_omegak()
+    load_zeta_eps_omegak()
