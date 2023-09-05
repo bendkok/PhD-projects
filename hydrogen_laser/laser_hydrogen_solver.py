@@ -8,6 +8,7 @@ Created on Fri Jan 20 10:40:04 2023
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 from tqdm import tqdm # , trange 
 # from tqdm.auto import tqdm
 # from tqdm import tqdm_notebook as tqdm
@@ -1746,24 +1747,26 @@ class laser_hydrogen_solver:
             theta = np.linspace(0,np.pi,self.n)
             X,Y   = np.meshgrid(self.epsilon_grid, theta)
             
-            X0,Y0   = np.meshgrid(self.epsilon_grid, np.pi/2-theta)
-            X1,Y1   = np.meshgrid(self.epsilon_grid, np.pi/2+theta)
+            # X0,Y0   = np.meshgrid(self.epsilon_grid, np.pi/2-theta)
+            # X1,Y1   = np.meshgrid(self.epsilon_grid, np.pi/2+theta)
             
-            plt.axes(projection = 'polar', rlabel_position=-22.5)
-            # plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
-            plt.contourf(X0,Y0, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
-            plt.contourf(X1,Y1, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
-            plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            plt.xlabel(r"$\epsilon$")
-            plt.ylabel(r"$\theta$")
-            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # plt.savefig("report/phi2_diff_double.pdf") 
-            if do_save:
-                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak0.pdf")
-            plt.show()
+            # plt.axes(projection = 'polar', rlabel_position=-22.5)
+            # # plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
+            # plt.contourf(X0,Y0, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
+            # plt.contourf(X1,Y1, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
+            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.xlabel(r"$\epsilon$")
+            # plt.ylabel(r"$\theta$")
+            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # # plt.savefig("report/phi2_diff_double.pdf") 
+            # if do_save:
+            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            #     plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak0.pdf")
+            # plt.show()
+            # plt.axes(projection = None)
             
-            plt.axes(projection = None)
+            # print((self.dP2_depsilon_domegak<0).any())
+            
             plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
             plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
             plt.xlabel(r"$\epsilon$")
@@ -1773,6 +1776,19 @@ class laser_hydrogen_solver:
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak.pdf")
+            plt.show()
+            
+            
+            plt.contourf(X*np.sin(Y),X*np.cos(Y), self.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='linear', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+            plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+            plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.axis([0, .5, -1, 1])
+            # plt.savefig("report/phi2_diff_double.pdf") 
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak1.pdf")
             plt.show()
             
             # plt.plot(self.epsilon_grid, self.dP_depsilon, label="dP_depsilon")
@@ -2199,9 +2215,9 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_calculated = True
         self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
         
-        dP2_depsilon_domegak_norm = np.trapz(self.dP2_depsilon_domegak, self.epsilon_grid) 
-        print()
-        print(f"Norm of dP/dε = {dP2_depsilon_domegak_norm}.")
+        # dP2_depsilon_domegak_norm = np.trapz(self.dP2_depsilon_domegak, self.epsilon_grid) 
+        # print()
+        # print(f"Norm of dP/dε = {dP2_depsilon_domegak_norm}.")
         
         
     def save_variable(self, variable, savename):
@@ -2353,10 +2369,12 @@ def load_zeta_eps_omegak():
     
     a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 2, 
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 1, 
                               calc_dP2depsdomegak=True, spline_n=1_000)
     a.zeta_eps_omegak = a.load_variable("zeta_eps_omegak.npy")
     a.calculate_dP2depsdomegak()
+    a.save_dP2_depsilon_domegak()
+    # a.load_dP2_depsilon_domegak()
     a.plot_dP2_depsilon_domegak(do_save=False)
         
     
