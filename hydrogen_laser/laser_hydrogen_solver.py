@@ -1511,6 +1511,7 @@ class laser_hydrogen_solver:
             D_l_eps[l][-1]   = 1/(eigen_vals[l,pos_ind][-1]-eigen_vals[l,pos_ind][-2])
         
         theta = np.linspace(0, np.pi, self.n)
+        # theta = np.linspace(0, np.pi, 200)
         
         # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
         Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), theta) for l in range(self.l_max+1)]
@@ -1560,7 +1561,8 @@ class laser_hydrogen_solver:
                 
                 # TODO: add spline stuff
                 # should I interploate over l or l_?
-                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps))
+                # splined = sc.interpolate.interp2d(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], F_l_eps.T, kind='cubic')
+                splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]), values=np.real(F_l_eps), method='cubic')
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
                 splined = np.real(np.diag(splined)) # we only need the diagonal of the interpolated matrix
                 # splined = np.real(sc.interpolate.CubicSpline(eigen_vals[l,pos_inds], np.real(np.diag(F_l_eps)))(self.epsilon_grid))
@@ -1572,18 +1574,20 @@ class laser_hydrogen_solver:
         
         self.dP2_depsilon_domegak *= 2 * self.h * self.h 
         
+        # theta = np.linspace(0, np.pi, 200)
+        
         print()
-        self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, self.epsilon_grid, axis=0) 
-        self.dP2_depsilon_domegak_norm0 = np.trapz(self.dP2_depsilon_domegak, theta, axis=1) 
+        self.dP2_depsilon_domegak_norm  = np.trapz(2*np.pi*self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
+        self.dP2_depsilon_domegak_norm0 = np.trapz(self.dP2_depsilon_domegak*np.sin(theta)[None], x=theta, axis=1) 
         # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[0]}.")
         # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[-1]}.")
         # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm)}.")
-        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm, theta) }.")
+        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm*np.sin(theta), x=theta) }.")
         print()
         # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[0]}.")
         # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[-1]}.")
         # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm0)}.")
-        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, self.epsilon_grid) }.")
+        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, x=self.epsilon_grid) }.")
         print()
         
         sns.set_theme(style="dark") # nice plots
@@ -2357,9 +2361,9 @@ def load_zeta_omega():
 
 def load_zeta_epsilon():
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S28", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdepsilon=True, spline_n=100_000)
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdepsilon=True, max_epsilon = 2, spline_n=1_000)
     a.zeta_epsilon = a.load_variable("zeta_epsilon.npy")
     a.calculate_dPdepsilon()
     a.plot_dP_depsilon(do_save=False)
@@ -2369,7 +2373,7 @@ def load_zeta_eps_omegak():
     
     a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 1, 
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 2, 
                               calc_dP2depsdomegak=True, spline_n=1_000)
     a.zeta_eps_omegak = a.load_variable("zeta_eps_omegak.npy")
     a.calculate_dP2depsdomegak()
@@ -2436,3 +2440,4 @@ if __name__ == "__main__":
     # load_zeta_omega()
     # load_zeta_epsilon()
     load_zeta_eps_omegak()
+    # load_run_program_and_plot("dP_domega_S30")
