@@ -1495,6 +1495,8 @@ class laser_hydrogen_solver:
         self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
         self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.n))
         
+        # np.savetxt(f"{self.save_dir}/Fs/epsilon_grid.csv", self.epsilon_grid, delimiter=',')
+        
         pos_lenghts = sum([len(p) for p in pos_inds])
         # pbar = tqdm(total=pos_lenghts) # for the progress bar
         pbar = tqdm(total=(self.l_max+1)**2) # for the progress bar
@@ -1515,13 +1517,13 @@ class laser_hydrogen_solver:
         
         # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
         Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), theta) for l in range(self.l_max+1)]
-        # sigma_l = [np.angle(sc.special.gamma(l+1j+1j/np.sqrt(2*pos_inds[l]))) for l in range(self.l_max+1)] # TODO: ask what this is
-        sigma_l = [np.angle(sc.special.gamma(l+1j+1j/np.sqrt(2*self.epsilon_grid))) for l in range(self.l_max+1)] # TODO: ask what this is
+        # sigma_l = [np.angle(sc.special.gamma(l+1j+1j/np.sqrt(2*pos_inds[l]))) for l in range(self.l_max+1)] 
+        sigma_l = [np.angle(sc.special.gamma(l+1j+1j/np.sqrt(2*self.epsilon_grid))) for l in range(self.l_max+1)] 
         eigen_vecs_conjugate = np.conjugate(eigen_vecs)
         # eigen_vecs_conjugate_gamma = [eigen_vecs_conjugate[l][None,self.CAP_locs] * self.Gamma_vector for l in range(self.l_max+1)]
         for l in range(self.l_max+1): # goes through all the l's twice. # TODO: Can this be vetorized? 
             for l_ in range(self.l_max+1):
-                F_l_eps = np.zeros((pos_inds[l].shape[0],pos_inds[l_].shape[0]), dtype=complex)
+                # F_l_eps = np.zeros((pos_inds[l].shape[0],pos_inds[l_].shape[0]), dtype=complex)
                 # F_l_eps = np.zeros(pos_inds[l].shape[0], dtype=complex)
                 
                 # pbar = tqdm(total=len(pos_inds[l])) # *len(pos_inds[l_]))
@@ -1535,8 +1537,9 @@ class laser_hydrogen_solver:
                 F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
                 pbar.update() 
                 
-                if l in [0,1] and l_ in [0,1]:
-                    np.savetxt(f"{self.save_dir}/F_l{l}_l'{l_}_eps.csv", F_l_eps, delimiter=',')
+                # if l in [0,1] and l_ in [0,1]:
+                # np.savetxt(f"{self.save_dir}/Fs/F_l{l}_l'{l_}_eps.csv", F_l_eps, delimiter=',')
+                # eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]
                 
                 # for n in range(len(pos_inds[l])):
                 #     eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][n],self.CAP_locs] * self.Gamma_vector
@@ -1549,30 +1552,43 @@ class laser_hydrogen_solver:
                 #     F_l_eps[n,:] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][:]) * np.sum( inte_dr[None,:] * eigen_vecs[l_][pos_inds[l_][:]], axis=1)
                     
                     
-                    # for n_ in range(pos_inds[l]):
-                        # inte_dr = np.zeros(len(self.r), dtype='complex') 
-                        # F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][pos_inds[l][n_]] )
-                    # for n_, eps_ in enumerate(pos_inds[l]):
-                    #     # inte_dr = np.zeros(len(self.r), dtype='complex') 
-                    #     F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][eps_] ) # * self.h * self.h 
-                        # for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
-                            # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
-                            # inte_dr[r_] = np.sum( eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
-                            # inte_dr[r_] = np.sum( eigen_vecs_conjugate_gamma * self.zeta_eps_omegak[:,r_,l,l_] )
+                # for n_ in range(pos_inds[l]):
+                # inte_dr = np.zeros(len(self.r), dtype='complex') 
+                # F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][pos_inds[l][n_]] )
+                # for n_, eps_ in enumerate(pos_inds[l]):
+                #     # inte_dr = np.zeros(len(self.r), dtype='complex') 
+                #     F_l_eps[n,n_] = np.sqrt(D_l_eps[l][n]) * np.sqrt(D_l_eps[l_][n]) * np.sum( inte_dr * eigen_vecs[l_][eps_] ) # * self.h * self.h 
+                # for r_ in range(len(self.r)):     # TODO: can this be vectorized? 
+                # inte_dr[r_] = np.sum( np.conjugate(eigen_vecs[l][eps,self.CAP_locs]) * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
+                # inte_dr[r_] = np.sum( eigen_vecs_conjugate[l][eps,self.CAP_locs] * self.Gamma_vector * self.zeta_eps_omegak[:,r_,l,l_] )
+                # inte_dr[r_] = np.sum( eigen_vecs_conjugate_gamma * self.zeta_eps_omegak[:,r_,l,l_] )
                 
                 # F_l_eps *= self.h * self.h 
                 
                 # TODO: add spline stuff
                 # should I interploate over l or l_?
                 # splined = sc.interpolate.interp2d(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], F_l_eps.T, kind='cubic')
+                # values = np.meshgrid(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps), indexing='ij', sparse=True)
+                # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps)), values=values, method='cubic')
+                
                 # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]), values=np.real(F_l_eps), method='cubic')
-                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps))
+                # X,Y = np.meshgrid(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]])
+                # splined = sc.interpolate.RegularGridInterpolator((X, Y), values=F_l_eps, method='cubic')
+                splined = sc.interpolate.interp2d(eigen_vals[l_,pos_inds[l_]], eigen_vals[l,pos_inds[l]], F_l_eps, kind='cubic')
+                
+                # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]), values=F_l_eps, method='cubic')
+                
+                # splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps))
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
                 splined = np.real(np.diag(splined)) # we only need the diagonal of the interpolated matrix
                 # splined = np.real(sc.interpolate.CubicSpline(eigen_vals[l,pos_inds], np.real(np.diag(F_l_eps)))(self.epsilon_grid))
                 
+                # splined = np.diag(np.loadtxt(f"{self.save_dir}/splined/splined_{l}_{l_}.csv", delimiter=',', dtype=float))
+                
                 # the Y's are always real
                 self.dP2_depsilon_domegak += np.real( (Y[l]*Y[l_])[None,:] * (1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])) * splined )[:,None])
+    
+            # np.savetxt(f"{self.save_dir}/Fs/eps_l{l}.csv", eigen_vals[l,pos_inds[l]], delimiter=',')
         
         pbar.close()
         
@@ -2439,9 +2455,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
     # load_zeta_epsilon()
-    # load_zeta_eps_omegak()
+    load_zeta_eps_omegak()
     # load_run_program_and_plot("dP_domega_S30")
