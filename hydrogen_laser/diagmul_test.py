@@ -7,6 +7,225 @@ Created on Tue Jan 17 13:40:22 2023
 
 import numpy as np
 import scipy.sparse as sp
+import pandas as pd
+import matplotlib.pyplot as plt
+import scipy as sc
+import seaborn as sns
+from tqdm import tqdm
+
+
+
+pos_ind = range(8, 500)
+l=0
+eigen_vecs = np.zeros((6, 500, 500))
+CAP_locs = range(250,500)
+Gamma_vector = np.linspace(0, 1, 250)
+zeta_epsilon = np.ones((250, 500, 6))
+inte_dr = np.zeros((500, len(pos_ind)))
+
+for i in range(len(pos_ind)): 
+    inte_dr[:,i] = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[i],CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
+test = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
+
+print()
+
+
+
+
+
+
+# arr = np.arange(1,6)
+# mat = np.ones((5,10))
+
+# print(arr, mat)
+# print(arr[:,None]*mat)
+# print(np.sum(arr[:,None]*mat,axis=0))
+# out = np.zeros(10)
+
+# for i in range(10):
+#     out[i] = np.sum(arr*mat[:,i])
+# print(out)
+
+# sns.set_theme(style="dark") # nice plots
+
+# x = np.linspace(0, 6*np.pi, 20)
+# sine_func = np.sin(x)
+
+# det_x = np.linspace(1*np.pi, 3*np.pi, 2000)
+
+
+# spline = sc.interpolate.BSpline(x, sine_func, 1)
+# det_sine0 = spline(det_x)
+# spline = sc.interpolate.splrep(x, sine_func)
+# det_sine1 = sc.interpolate.splev(det_x,spline)
+# det_sine2 = sc.interpolate.InterpolatedUnivariateSpline(x, sine_func)(det_x)
+# det_sine3 = sc.interpolate.CubicSpline(x, sine_func)(det_x)
+
+
+# plt.plot(det_x, det_sine0, label='BSpline')
+# plt.plot(det_x, det_sine1, label='splrep')
+# plt.plot(det_x, det_sine2, '--', label='InterpolatedUnivariateSpline')
+# plt.plot(det_x, det_sine3, '--', label='CubicSpline')
+# plt.plot(x, sine_func, 'o')
+# plt.grid()
+# plt.legend()
+# plt.show()
+
+"""
+import numpy as np
+
+txt = "I like bananas from Guido van Rossum's garden. Or do I? I think I like them, maybe. Can you like them? bananas bananas"
+
+x = txt.replace("Guido van Rossum", "Bendik")
+
+text = txt.replace(',','').replace('.','').replace('?','').replace('!','')
+text = text.split()
+text0 = np.unique(text, return_counts=True)
+
+print(x)
+print(text)
+print(text0)
+print()
+
+text_dict = {}
+for t in range(len(text0[0])):
+	text_dict[text0[0][t]] = text0[1][t]
+print(text_dict)
+print()
+
+for t in text_dict:
+	if text_dict[t] >= 3:
+		print(t)
+"""
+
+ 
+# sum([(i if i%3 == 0 else 0) for i in range(1,1001)])
+# sum([i * (i%3==0 or i%5==0) for i in range(1,1001)])
+
+# even_numbers = []
+# limit = 4_000_000
+
+# num0 = 1
+# num1 = 2
+
+# while num1 < limit+1:
+#     if num1%2==0:
+#         even_numbers.append(num1)
+#     num0,num1 = (num1, num0+num1)
+
+# print(even_numbers)
+# print(sum(even_numbers))
+
+"""
+# target = 13195 
+target = 600_851_475_143
+prime_factors = [2]  if target%2==0 else []
+primes = []
+
+if not target%2==0:
+    # goes through all numbers up to the target
+    for n in tqdm(range(3, int(np.sqrt(target)+1),2)):
+        is_prime = True
+        # checks if the current number is prime
+        for p in primes:
+            if  n%p==0:
+                is_prime = False
+                break
+        if is_prime:
+            primes.append(n) # adds n to the list of primes
+            # checks if the current number is a prime factor
+            if target%n==0:
+                prime_factors.append(n)
+
+print()
+# print(primes)
+print(prime_factors)
+print(max(prime_factors))
+"""
+
+"""
+import math
+
+max_val = 999
+
+def find_max_palindrome(max_val):
+    for n0 in range(max_val+1,0,-1):
+        for n1 in range(max_val,n0-1,-1):
+            palindrome = True
+            nn = n0*n1
+            # print(n0,n1,nn)
+            val_list = [(nn//(10**i))%10 for i in range(math.ceil(math.log(nn, 10)), -1, -1)][bool(math.log(nn,10)%1):]
+            for v in range(int(len(val_list)/2)):
+                # print(val_list[v])
+                if val_list[v] != val_list[-v-1]:
+                    palindrome = False
+                    break
+            if palindrome:
+                return n0,n1,nn
+
+print(find_max_palindrome(max_val))
+"""
+
+"""
+target = 20
+
+all_prods = []
+for i in range(1, target+1):
+    tmp = i
+    remainders = []
+    # finds all non-unique prime factors for n
+    for n in range(2, i+1):
+        while tmp%n==0:
+            remainders.append(n)
+            tmp/=n
+        if n>=i:
+            break
+    # adds all found prime factors into all_prods if they aren't present already
+    for item in set(remainders):
+        all_prods.extend([item]*(remainders.count(item)-all_prods.count(item)))
+
+# we don't use numpy here because of overflow
+pro = 1 
+for i in all_prods:
+    pro*=i 
+
+print(f"Found prime factors: {', '.join(map(str, np.sort(all_prods)))}.\n")
+print(f"The smallest number that can be divided by each of the numbers from 1 to {target} without any remainder is: {pro}.\n")
+# print(f"{pro} divided by by each of the numbers from 1 to {target}: ")
+# print(f"{', '.join(map(str, [pro/i for i in range(1,target)]))}.\n")
+print(f"Is {pro} divisible by all the numbers from 1 to {target}?: {np.all([pro%i==0 for i in range(1,11)])}.")
+"""
+
+
+"""
+
+
+# data = pd.read_csv("sølve/NormVector.dat", sep=" ", header=None)
+
+# time = data.to_numpy()[:,0]
+# norm = data.to_numpy()[:,1]
+
+# plt.plot(time, norm, label="Norm")
+# plt.axvline(np.pi*100, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+# plt.grid()
+# plt.xlabel("Time (a.u.)")
+# plt.ylabel("Norm")
+# plt.legend()
+# plt.show()
+
+# print(norm[-1])
+
+
+# P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
+# # P = np.loadtxt("sølve/PsiMatrix.dat")
+# print(P_S)
+# print(P_S.shape)
+
+# P = P.to_numpy().astype(complex)
+# print(P)
+# print(P.shape)
+
+
 
 
 # P = np.arange(25).reshape((5,5))
@@ -221,88 +440,81 @@ import scipy.sparse as sp
 
 
 
-# from numpy.linalg import lstsq
-from scipy.linalg import orth
+# # from numpy.linalg import lstsq
+# from scipy.linalg import orth
 
-# random matrix
-M = np.random.rand(6, 3, 5)
+# # random matrix
+# M = np.random.rand(6, 3, 5)
 
-# print(M)
-# print(M.reshape(18,5))
+# # print(M)
+# # print(M.reshape(18,5))
 
-# get 5 orthogonal vectors in 10 dimensions in a matrix form
-O = orth(M.reshape(18,5))
+# # get 5 orthogonal vectors in 10 dimensions in a matrix form
+# O = orth(M.reshape(18,5))
 
-# print(O)
-
-
-
-def inner_product(psi1, psi2):
-    """
-    We calculate the inner product using the Riemann sum and Hadamard product.
-
-    Parameters
-    ----------
-    psi1 : (n,m) numpy array
-        A wavefunction.
-    psi2 : (n,m) numpy array
-        A wavefunction.
-
-    Returns
-    -------
-    (n,m) numpy array
-        The inner product.
-    """
-    return np.sum( np.conj(psi1) * psi2 ) 
+# # print(O)
 
 
-print([inner_product(col, col)  for col in O.T])
 
-for i in range(O.shape[1]):
-    O[:,i] = O[:,i] / inner_product(O[:,i], O[:,i])
+# def inner_product(psi1, psi2):
+#     """
+#     We calculate the inner product using the Riemann sum and Hadamard product.
 
-# print(O)
+#     Parameters
+#     ----------
+#     psi1 : (n,m) numpy array
+#         A wavefunction.
+#     psi2 : (n,m) numpy array
+#         A wavefunction.
+
+#     Returns
+#     -------
+#     (n,m) numpy array
+#         The inner product.
+#     """
+#     return np.sum( np.conj(psi1) * psi2 ) 
 
 
-def find_orth(O):
-    #https://stackoverflow.com/a/50661011/15147410
-    rand_vec = np.random.rand(O.shape[0], 1)
-    A = np.hstack((O, rand_vec))
-    b = np.zeros(O.shape[1] + 1)
-    b[-1] = 1
-    return np.linalg.lstsq(A.T, b)[0]
-
-
-res = find_orth(O)
-
-print(res)
-
-# print([inner_product(col, col)  for col in res.T])
 # print([inner_product(col, col)  for col in O.T])
 
-res = res / inner_product(res, res)
+# for i in range(O.shape[1]):
+#     O[:,i] = O[:,i] / inner_product(O[:,i], O[:,i])
 
-print()
-print(inner_product(res, res))
-print(res)
+# # print(O)
 
 
-if all(np.abs(np.dot(res, col)) < 10e-9 for col in O.T):
-    print("Success")
-else:
-    print("Failure")
+# def find_orth(O):
+#     #https://stackoverflow.com/a/50661011/15147410
+#     rand_vec = np.random.rand(O.shape[0], 1)
+#     A = np.hstack((O, rand_vec))
+#     b = np.zeros(O.shape[1] + 1)
+#     b[-1] = 1
+#     return np.linalg.lstsq(A.T, b)[0]
+
+
+# res = find_orth(O)
+
+# print(res)
+
+# # print([inner_product(col, col)  for col in res.T])
+# # print([inner_product(col, col)  for col in O.T])
+
+# res = res / inner_product(res, res)
+
+# print()
+# print(inner_product(res, res))
+# print(res)
+
+
+# if all(np.abs(np.dot(res, col)) < 10e-9 for col in O.T):
+#     print("Success")
+# else:
+#     print("Failure")
     
-if ( np.abs(inner_product(res, res) -1) < 10e-9 ):
-    print("Success")
-else:
-    print("Failure")
+# if ( np.abs(inner_product(res, res) -1) < 10e-9 ):
+#     print("Success")
+# else:
+#     print("Failure")
 
-def y(t):
-    return t
-
-
-
-
-
-
-
+# def y(t):
+#     return t
