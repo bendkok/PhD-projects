@@ -621,6 +621,13 @@ class laser_hydrogen_solver:
             eigen_vals[L] = np.real(e_vals_L)[inds]
             eigen_vecs[L] = e_vecs_L.T[inds]
             
+            # TODO: add test for x_0 < 0: if so multiply by -1
+            for n in range(self.n):
+                if eigen_vecs[L,n,0] < 0:
+                    eigen_vecs[L,n] *= -1
+                # if eigen_vecs[L,0,n] < 0:
+                #     eigen_vecs[L,:,n] *= -1
+            
             if np.any(np.abs(np.imag(e_vals_L)>0)):
                 print(f"Imaginary eigenvalues for L={L}!")
             
@@ -1538,7 +1545,8 @@ class laser_hydrogen_solver:
                 pbar.update() 
                 
                 # if l in [0,1] and l_ in [0,1]:
-                # np.savetxt(f"{self.save_dir}/Fs/F_l{l}_l'{l_}_eps.csv", F_l_eps, delimiter=',')
+                # np.savetxt(f"{self.save_dir}/Fs/F_l{l}_l'{l_}_eps_real.csv", np.real(F_l_eps), delimiter=',')
+                # np.savetxt(f"{self.save_dir}/Fs/F_l{l}_l'{l_}_eps_imag.csv", np.imag(F_l_eps), delimiter=',')
                 # eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]
                 
                 # for n in range(len(pos_inds[l])):
@@ -1598,7 +1606,7 @@ class laser_hydrogen_solver:
         
         print()
         self.dP2_depsilon_domegak_norm  = np.trapz(2*np.pi*self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
-        self.dP2_depsilon_domegak_norm0 = np.trapz(self.dP2_depsilon_domegak*np.sin(theta)[None], x=theta, axis=1) 
+        self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(theta)[None], x=theta, axis=1) 
         # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[0]}.")
         # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[-1]}.")
         # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm)}.")
@@ -1630,7 +1638,7 @@ class laser_hydrogen_solver:
     def plot_norm(self, do_save=True):
         
         if self.norm_calculated: 
-            plt.a(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm")
+            # plt.a(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm")
             plt.axvline(self.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
             plt.grid()
             plt.xlabel("Time (a.u.)")
@@ -2458,6 +2466,6 @@ if __name__ == "__main__":
     # main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
-    # load_zeta_epsilon()
+    load_zeta_epsilon()
     load_zeta_eps_omegak()
     # load_run_program_and_plot("dP_domega_S30")
