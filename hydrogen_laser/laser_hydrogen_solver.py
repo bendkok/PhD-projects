@@ -54,7 +54,7 @@ class laser_hydrogen_solver:
                  calc_dPdepsilon    = False,                # whether to calculate dP/dε
                  calc_dP2depsdomegak= False,                # whether to calculate dP^2/dεdΩ_k
                  spline_n           = 1000,                 # dimension of the spline used for finding dP/dε
-                 max_epsilon        = 10,                   # 
+                 max_epsilon        = 2,                    # 
                  ):
         """
         Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -1542,7 +1542,6 @@ class laser_hydrogen_solver:
                 eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector
                 inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)
                 F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
-                pbar.update() 
                 
                 # if l in [0,1] and l_ in [0,1]:
                 # np.savetxt(f"{self.save_dir}/Fs/F_l{l}_l'{l_}_eps_real.csv", np.real(F_l_eps), delimiter=',')
@@ -1582,12 +1581,18 @@ class laser_hydrogen_solver:
                 # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]), values=np.real(F_l_eps), method='cubic')
                 # X,Y = np.meshgrid(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]])
                 # splined = sc.interpolate.RegularGridInterpolator((X, Y), values=F_l_eps, method='cubic')
-                splined = sc.interpolate.interp2d(eigen_vals[l_,pos_inds[l_]], eigen_vals[l,pos_inds[l]], F_l_eps, kind='cubic')
-                
                 # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]), values=F_l_eps, method='cubic')
+                # splined = sc.interpolate.interp2d(eigen_vals[l_,pos_inds[l_]], eigen_vals[l,pos_inds[l]], F_l_eps, kind='cubic') # TODO: change spline type
+                
+                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], F_l_eps) # , method='cubic')
+                
+                # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l_,pos_inds[l_]], eigen_vals[l,pos_inds[l]], F_l_eps), method='cubic') # TODO: change spline type
+                # splined = sc.interpolate.RegularGridInterpolator((eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]]), F_l_eps, method='cubic')
                 
                 # splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps))
+                # XX,YY = np.meshgrid(self.epsilon_grid, self.epsilon_grid)
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
+                # splined = splined((XX,YY))
                 splined = np.real(np.diag(splined)) # we only need the diagonal of the interpolated matrix
                 # splined = np.real(sc.interpolate.CubicSpline(eigen_vals[l,pos_inds], np.real(np.diag(F_l_eps)))(self.epsilon_grid))
                 
@@ -1595,7 +1600,9 @@ class laser_hydrogen_solver:
                 
                 # the Y's are always real
                 self.dP2_depsilon_domegak += np.real( (Y[l]*Y[l_])[None,:] * (1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])) * splined )[:,None])
-    
+                
+                pbar.update() 
+                
             # np.savetxt(f"{self.save_dir}/Fs/eps_l{l}.csv", eigen_vals[l,pos_inds[l]], delimiter=',')
         
         pbar.close()
@@ -1607,30 +1614,10 @@ class laser_hydrogen_solver:
         print()
         self.dP2_depsilon_domegak_norm  = np.trapz(2*np.pi*self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
         self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(theta)[None], x=theta, axis=1) 
-        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[0]}.")
-        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm[-1]}.")
-        # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm)}.")
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm*np.sin(theta), x=theta) }.")
-        print()
-        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[0]}.")
-        # print(f"Norm of dP^2/dεdΩ_k = {self.dP2_depsilon_domegak_norm0[-1]}.")
-        # print(f"Norm of dP^2/dεdΩ_k = {np.min(self.dP2_depsilon_domegak_norm0)}.")
+        # print()
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, x=self.epsilon_grid) }.")
         print()
-        
-        sns.set_theme(style="dark") # nice plots
-        plt.plot(theta, self.dP2_depsilon_domegak_norm)
-        plt.grid()
-        plt.show()
-
-        plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
-        plt.grid()
-        plt.show()
-        
-        plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
-        plt.grid()
-        plt.yscale('log')
-        plt.show()
         
         self.dP2_depsilon_domegak_calculated = True
         
@@ -1779,25 +1766,34 @@ class laser_hydrogen_solver:
             theta = np.linspace(0,np.pi,self.n)
             X,Y   = np.meshgrid(self.epsilon_grid, theta)
             
-            # X0,Y0   = np.meshgrid(self.epsilon_grid, np.pi/2-theta)
-            # X1,Y1   = np.meshgrid(self.epsilon_grid, np.pi/2+theta)
+            sns.set_theme(style="dark") # nice plots
+            plt.plot(theta, self.dP2_depsilon_domegak_norm)
+            plt.grid()
+            plt.xlabel(r"$\theta$")
+            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th.pdf")
+            plt.show()
+
+            plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
+            plt.grid()
+            plt.xlabel(r"$\epsilon$")
+            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps.pdf")
+            plt.show()
             
-            # plt.axes(projection = 'polar', rlabel_position=-22.5)
-            # # plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
-            # plt.contourf(X0,Y0, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
-            # plt.contourf(X1,Y1, self.dP2_depsilon_domegak.T, levels=15, alpha=1., antialiased=True)
-            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # plt.xlabel(r"$\epsilon$")
-            # plt.ylabel(r"$\theta$")
-            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # # plt.savefig("report/phi2_diff_double.pdf") 
-            # if do_save:
-            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak0.pdf")
-            # plt.show()
-            # plt.axes(projection = None)
-            
-            # print((self.dP2_depsilon_domegak<0).any())
+            plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
+            plt.grid()
+            plt.yscale('log')
+            plt.xlabel(r"$\epsilon$")
+            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps0.pdf")
+            plt.show()
             
             plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
             plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
@@ -1822,25 +1818,8 @@ class laser_hydrogen_solver:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak1.pdf")
             plt.show()
-            
-            # plt.plot(self.epsilon_grid, self.dP_depsilon, label="dP_depsilon")
-            # plt.grid()
-            # plt.xlabel("ε")
-            # plt.ylabel(r"$dP/d\epsilon$")
-            # if do_save:
-            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon.pdf")
-            # plt.show()
-            
-            # plt.plot(self.epsilon_grid, self.dP_depsilon, label="dP_depsilon")
-            # plt.grid()
-            # plt.xlabel("ε")
-            # plt.ylabel(r"$dP/d\epsilon$")
-            # plt.yscale('log')
-            # if do_save:
-            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_log.pdf")
-            # plt.show()
+
+
         else:
             print("Need to calculate dP^2/dεdΩ_k berfore plotting it.")
     
@@ -2348,7 +2327,20 @@ class laser_hydrogen_solver:
         return hyperparameters
         
 
-def load_run_program_and_plot(save_dir="dP_domega_S4"):
+def load_run_program_and_plot(save_dir="dP_domega_S31"):
+    """
+    Loads a program which has been run, and makes plots of the results.
+
+    Parameters
+    ----------
+    save_dir : string, optional
+        The directory where the run program was saved. The default is "dP_domega_S31".
+
+    Returns
+    -------
+    None.
+
+    """
     
     # loads the hyperparameters
     hyp = np.load(f'{save_dir}/hyperparameters.npy',allow_pickle='TRUE').item()
@@ -2359,7 +2351,6 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
                               nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
                               CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
                               calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
-    
     a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
     
     # loads run data
@@ -2369,6 +2360,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
     a.load_norm_over_time()
     dP_domega_norm = a.load_dP_domega()
     a.load_dP_depsilon()
+    a.load_dP2_depsilon_domegak()
     
     print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
     
@@ -2377,36 +2369,114 @@ def load_run_program_and_plot(save_dir="dP_domega_S4"):
     a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
     
 
-def load_zeta_omega():
+def load_zeta_omega(save_dir="dP_domega_S30"):
+    """
+    Loads ζ_l,l'(r), calculates dP/dΩ, then plots the results.
+
+    Parameters
+    ----------
+    save_dir : string, optional
+        The directory where the run program was saved. The default is "dP_domega_S30".
+
+    Returns
+    -------
+    None.
+
+    """
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
+    
+    # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
+    
+    # loads the hyperparameters
+    hyp = np.load(f'{save_dir}/hyperparameters.npy',allow_pickle='TRUE').item()
+    
+    # sets up a class with the relevant hyperparameters
+    a = laser_hydrogen_solver(save_dir=save_dir, fd_method=hyp["fd_method"], gs_fd_method=hyp["gs_fd_method"], nt=hyp["nt"], 
+                              T=hyp["T"], n=hyp["n"], r_max=hyp["r_max"], E0=hyp["E0"], Ncycle=hyp["Ncycle"], w=hyp["w"], cep=hyp["cep"], 
+                              nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
+                              CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
+                              calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
+    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    
+    # loads the relevant parameter
     a.zeta_omega = a.load_variable("zeta_omega.npy")
     a.calculate_dPdomega()
     a.plot_dP_domega(do_save=False)
 
 
-def load_zeta_epsilon():
+def load_zeta_epsilon(save_dir="dP_domega_S30"):
+    """
+    Loads ζ_l(r,r''), calculates dP/dε, then plots the results.
+
+    Parameters
+    ----------
+    save_dir : string, optional
+        The directory where the run program was saved. The default is "dP_domega_S30".
+
+    Returns
+    -------
+    None.
+
+    """
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdepsilon=True, max_epsilon = 2, spline_n=1_000)
+    
+    # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
+    
+    # loads the hyperparameters
+    hyp = np.load(f'{save_dir}/hyperparameters.npy',allow_pickle='TRUE').item()
+    
+    # sets up a class with the relevant hyperparameters
+    a = laser_hydrogen_solver(save_dir=save_dir, fd_method=hyp["fd_method"], gs_fd_method=hyp["gs_fd_method"], nt=hyp["nt"], 
+                              T=hyp["T"], n=hyp["n"], r_max=hyp["r_max"], E0=hyp["E0"], Ncycle=hyp["Ncycle"], w=hyp["w"], cep=hyp["cep"], 
+                              nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
+                              CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
+                              calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
+    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    
+    # loads the relevant parameter
     a.zeta_epsilon = a.load_variable("zeta_epsilon.npy")
     a.calculate_dPdepsilon()
     a.plot_dP_depsilon(do_save=False)
     
 
-def load_zeta_eps_omegak():
+def load_zeta_eps_omegak(save_dir="dP_domega_S30"):
+    """
+    Loads ζ_l,l'(r,r'), calculates dP^2/dεdΩ_k, then plots the results.
+
+    Parameters
+    ----------
+    save_dir : string, optional
+        The directory where the run program was saved. The default is "dP_domega_S30".
+
+    Returns
+    -------
+    None.
+
+    """
     
-    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon = 2, 
-                              calc_dP2depsdomegak=True, spline_n=1_000)
+    # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
+    
+    # loads the hyperparameters
+    hyp = np.load(f'{save_dir}/hyperparameters.npy',allow_pickle='TRUE').item()
+    
+    # sets up a class with the relevant hyperparameters
+    a = laser_hydrogen_solver(save_dir=save_dir, fd_method=hyp["fd_method"], gs_fd_method=hyp["gs_fd_method"], nt=hyp["nt"], 
+                              T=hyp["T"], n=hyp["n"], r_max=hyp["r_max"], E0=hyp["E0"], Ncycle=hyp["Ncycle"], w=hyp["w"], cep=hyp["cep"], 
+                              nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
+                              CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
+                              calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
+    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    
+    # loads the relevant parameter
     a.zeta_eps_omegak = a.load_variable("zeta_eps_omegak.npy")
     a.calculate_dP2depsdomegak()
     a.save_dP2_depsilon_domegak()
-    # a.load_dP2_depsilon_domegak()
     a.plot_dP2_depsilon_domegak(do_save=False)
         
     
@@ -2418,9 +2488,9 @@ def main():
     #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S30", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-                              T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon=5,
+    a = laser_hydrogen_solver(save_dir="dP_domega_S31", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, max_epsilon=2,
                               calc_dPdomega=True, calc_dPdepsilon=True, calc_norm=True, calc_dP2depsdomegak=True, spline_n=1_000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
@@ -2466,6 +2536,6 @@ if __name__ == "__main__":
     # main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
-    load_zeta_epsilon()
+    # load_zeta_epsilon()
     load_zeta_eps_omegak()
     # load_run_program_and_plot("dP_domega_S30")
