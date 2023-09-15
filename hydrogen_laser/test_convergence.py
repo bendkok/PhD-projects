@@ -18,14 +18,14 @@ if __name__ == "__main__":
     
     total_start_time = time.time()
     
-    init_vars  = [  0.05, 500, 5, 10] # dt, n, l_max, Kdim
-    found_vars = [  0.05, 500, 5, 10] # dt, n, l_max, Kdim
+    init_vars  = [  0.025, 600, 5, 10] # dt, n, l_max, Kdim
+    found_vars = [  0.025, 600, 5, 10] # dt, n, l_max, Kdim
     change     = [     2, 100, 1,  2] # dt, n, l_max, Kdim
     names      = ['dt', 'n', 'l_max', 'Kdim']
     
     np.savetxt("found_vars", found_vars)
     
-    change_limit = 1e-4
+    change_limit = 1e-5
     
     for v in range(0, len(init_vars)):
         print(f'Testing {names[v]}.')
@@ -47,6 +47,7 @@ if __name__ == "__main__":
         a.calculate_time_evolution()
         
         j = 0
+        switch = True
             
         while not converged:
             
@@ -96,15 +97,24 @@ if __name__ == "__main__":
                     found_vars[v] *= change[v]
                 else:
                     found_vars[v] -= change[v]
-                if v > 0:
+                if v == 1 or v==3:
                     print(f"Need to go to next value for {names[v-1]}.") 
-                    found_vars[v] += change[v]
-                    # go back to the previous values
+                    # found_vars[v] += change[v]
                     if v == 1:
                         found_vars[v-1] /= change[v-1]
                     else:
-                        found_vars[v-1] += change[v-1]
+                        found_vars[1] += change[1]
                     # print(f'{names[v-1]} = {found_vars[v-1]}:','\n') 
+                elif v == 2:
+                    if switch:
+                        print(f"Going to next value for {names[0]}.")
+                        found_vars[0] /= change[0]
+                        switch = False
+                    else:
+                        print(f"Going to next value for {names[1]}.")
+                        found_vars[1] += change[1]
+                        switch = True
+                
             else: # if not converged, go to next line
                 a = b
             j+=1    
