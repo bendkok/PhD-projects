@@ -87,7 +87,7 @@ if __name__ == "__main__":
     change     = [     2, 100, 1,  2] # dt, n, l_max, Kdim
     names      = ['dt', 'n', 'l_max', 'Kdim']
     
-    test_norms = [True, True, True, False] # norm, dPdomega, dPdepsilon, dP2depsdomegak
+    test_norms = [True, True, True, True] # norm, dPdomega, dPdepsilon, dP2depsdomegak
     
     # np.savetxt("found_vars", found_vars)
     
