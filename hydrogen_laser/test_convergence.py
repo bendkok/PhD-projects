@@ -87,7 +87,7 @@ if __name__ == "__main__":
     change     = [     2, 100, 1,  2] # dt, n, l_max, Kdim
     names      = ['dt', 'n', 'l_max', 'Kdim']
     
-    test_norms = [True, True, True, True] # norm, dPdomega, dPdepsilon, dP2depsdomegak
+    test_norms = [True, True, False, True] # norm, dPdomega, dPdepsilon, dP2depsdomegak
     
     # np.savetxt("found_vars", found_vars)
     
@@ -142,15 +142,17 @@ if __name__ == "__main__":
             
             diff_norm  = np.abs(a.norm_over_time[-1]-b.norm_over_time[-1])/np.abs(1-a.norm_over_time[-1])
             diff_omega = np.abs(a.dP_domega_norm-b.dP_domega_norm)/np.abs(a.dP_domega_norm)
-            diff_eps   = np.abs(a.dP_depsilon_norm-b.dP_depsilon_norm)/np.abs(a.dP_depsilon_norm)
+            # diff_eps   = np.abs(a.dP_depsilon_norm-b.dP_depsilon_norm)/np.abs(a.dP_depsilon_norm)
             diff_omeps = np.abs(a.dP2_depsilon_domegak_normed-b.dP2_depsilon_domegak_normed)/np.abs(a.dP2_depsilon_domegak_normed)
             
-            print('\n', f"{names[v], j}: {diff_norm, diff_omega, diff_eps, diff_omeps}.", '\n')
+            # print('\n', f"{names[v], j}: {diff_norm, diff_omega, diff_eps, diff_omeps}.", '\n')
+            print('\n', f"{names[v], j}: {diff_norm, diff_omega, diff_omeps}.", '\n')
             # print('\n', f"{names[v], j}: {diff_norm, diff_omega, diff_eps}.", '\n')
             # print('\n', f"{names[v], j}: {diff_norm}.", '\n')
             
             # checks if they have converged
-            if np.all(np.array([diff_norm, diff_omega, diff_eps, diff_omeps]) < change_limit):
+            if np.all(np.array([diff_norm, diff_omega, diff_omeps]) < change_limit):
+            # if np.all(np.array([diff_norm, diff_omega, diff_eps, diff_omeps]) < change_limit):
             # if np.all(np.array([diff_norm, diff_omega, diff_eps]) < change_limit):
             # if diff_norm < change_limit:
                 converged = True 
@@ -162,11 +164,13 @@ if __name__ == "__main__":
             elif j > 15: # to stop infinite loop
                 converged = True
                 # print('\n', f'NOT CONVERGED. j = {j}. diff = {diff_norm}','\n')
-                print('\n', f'NOT CONVERGED. j = {j}. diff = {[diff_norm,diff_omega,diff_eps]}','\n')
+                # print('\n', f'NOT CONVERGED. j = {j}. diff = {[diff_norm,diff_omega,diff_eps]}','\n')
+                print('\n', f'NOT CONVERGED. j = {j}. diff = {[diff_norm,diff_omega,diff_omeps]}','\n')
                 # print('\n', f'NOT CONVERGED. j = {j}. diff = {[diff_norm,diff_omega,diff_eps,diff_omeps]}','\n')
             # elif diff_norm > 1 or 1-b.norm_over_time[-1] < 0: # check for overflow
             # elif np.any(np.array([diff_norm,diff_omega,diff_eps]))>1 or np.any(np.array([1-b.norm_over_time[-1],b.dP_domega_norm,b.dP_depsilon_norm,b]))<0: # check for overflow
-            elif np.any(np.array([diff_norm,diff_omega,diff_eps,diff_omeps])>1) or np.any(np.array([1-b.norm_over_time[-1],b.dP_domega_norm,b.dP_depsilon_norm,b.dP2_depsilon_domegak_normed]) < 0): # check for overflow
+            elif np.any(np.array([diff_norm,diff_omega,diff_omeps])>1) or np.any(np.array([1-b.norm_over_time[-1],b.dP_domega_norm,b.dP2_depsilon_domegak_normed]) < 0): # check for overflow
+            # elif np.any(np.array([diff_norm,diff_omega,diff_eps,diff_omeps])>1) or np.any(np.array([1-b.norm_over_time[-1],b.dP_domega_norm,b.dP_depsilon_norm,b.dP2_depsilon_domegak_normed]) < 0): # check for overflow
                 # go back to the previous values
                 if v == 0:
                     found_vars[v] *= change[v]
