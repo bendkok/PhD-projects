@@ -145,8 +145,8 @@ if __name__ == "__main__":
             diff_eps   = np.abs(a.dP_depsilon_norm-b.dP_depsilon_norm)/np.abs(a.dP_depsilon_norm)
             diff_omeps = np.abs(a.dP2_depsilon_domegak_normed-b.dP2_depsilon_domegak_normed)/np.abs(a.dP2_depsilon_domegak_normed)
             
-            print('\n', f"{v, j}: {diff_norm, diff_omega, diff_eps, diff_omeps}.", '\n')
-            # print('\n', f"{v, j}: {diff_norm, diff_omega, diff_eps}.", '\n')
+            print('\n', f"{names[v], j}: {diff_norm, diff_omega, diff_eps, diff_omeps}.", '\n')
+            # print('\n', f"{names[v], j}: {diff_norm, diff_omega, diff_eps}.", '\n')
             # print('\n', f"{names[v], j}: {diff_norm}.", '\n')
             
             # checks if they have converged
