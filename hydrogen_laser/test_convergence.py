@@ -37,8 +37,8 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1):
         plt.show()
 
     if test_norms[2]:
-        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label="dP_depsilon")
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label="dP_depsilon")
+        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label="Case a")
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label="Case b")
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -46,8 +46,8 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1):
         plt.legend()
         plt.show()
         
-        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label="dP_depsilon")
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label="dP_depsilon")
+        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label="Case a")
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label="Case b")
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -57,31 +57,31 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1):
         plt.show()
         
     if test_norms[3]:
-        plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm)
-        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm)
+        plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm, label="Case a")
+        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, label="Case b")
         plt.grid()
         plt.xlabel(r"$\theta$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-        plt.title(r"Comparing $dP/d\Omega$ with cartesian coordinates.")
+        plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates.")
         plt.legend()
         plt.show()
 
-        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0)
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0)
+        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label="Case a")
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label="Case b")
         plt.grid()
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-        plt.title(r"Comparing $dP/d\epsilon$ with linear scale.")
+        plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
         plt.legend()
         plt.show()
         
-        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0)
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0)
+        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label="Case a")
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label="Case b")
         plt.grid()
         plt.yscale('log')
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-        plt.title(r"Comparing $dP/d\epsilon$ with linear scale.")
+        plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
         plt.legend()
         plt.show()
 
@@ -95,12 +95,12 @@ def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True
     
     print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.', '\n')
     
-    dt = float(input("New dt: "))
-    n = int(input("New n: "))
-    l_max = int(input("New l_max: "))
-    Kdim = int(input("New Kdim: "))
+    # dt = float(input("New dt: "))
+    # n = int(input("New n: "))
+    # l_max = int(input("New l_max: "))
+    # Kdim = int(input("New Kdim: "))
     
-    new_vars = [dt,n,l_max,Kdim]
+    new_vars = [0.1,500,3,10] # [dt,n,l_max,Kdim]
     
     
     # create comparison 
@@ -153,6 +153,7 @@ def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True
                 found_done = True
                 
             elif done == 'k':
+                print(f'Found variables: {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.'+'\n')
                 dt = float(input("New dt: "))
                 n = int(input("New n: "))
                 l_max = int(input("New l_max: "))
@@ -161,6 +162,7 @@ def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True
                 found_done = True
                 
             elif done == 'n':
+                print(f'New variables: {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.'+'\n')
                 found_vars = new_vars
                 dt = float(input("New dt: "))
                 n = int(input("New n: "))
