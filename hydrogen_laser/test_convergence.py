@@ -22,11 +22,22 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1):
         plt.grid()
         plt.xlabel("Time (a.u.)")
         plt.ylabel("Norm")
-        plt.title(r"Comparing norm over time.")
+        plt.title(r"Comparing norm ($|\Psi|$) over time.")
         plt.legend()
         plt.show()
     
     if test_norms[1]:
+        plt.axes(projection = 'polar', rlabel_position=-22.5)
+        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label="Case a")
+        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label="Case b")
+        plt.grid()
+        plt.xlabel("φ")
+        plt.ylabel(r"$dP/d\Omega$")
+        plt.title(r"Comparing $dP/d\Omega$ with polar projection.")
+        plt.legend()
+        plt.show()
+        
+        plt.axes(projection = None)
         plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label="Case a")
         plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label="Case b")
         plt.grid()
