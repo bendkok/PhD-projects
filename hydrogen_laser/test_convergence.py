@@ -16,8 +16,8 @@ from laser_hydrogen_solver import laser_hydrogen_solver
 def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=False):
     
     if test_norms[0]:
-        plt.plot(np.append(case_a.time_vector,case_a.time_vector1), case_a.norm_over_time[:-1], label=str(*found_vars0))
-        plt.plot(np.append(case_b.time_vector,case_b.time_vector1), case_b.norm_over_time[:-1], label=str(*found_vars1))
+        plt.plot(np.append(case_a.time_vector,case_a.time_vector1), case_a.norm_over_time[:-1], label=str(found_vars0))
+        plt.plot(np.append(case_b.time_vector,case_b.time_vector1), case_b.norm_over_time[:-1], label=str(found_vars1))
         plt.axvline(case_a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
         plt.grid()
         plt.xlabel("Time (a.u.)")
@@ -25,48 +25,50 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.title(r"Comparing norm ($|\Psi|$) over time.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/norm_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_norm.pdf")
         plt.show()
     
     if test_norms[1]:
         plt.axes(projection = 'polar', rlabel_position=-22.5)
-        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(*found_vars0))
-        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(*found_vars1))
+        plt.plot(np.pi/2-np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(found_vars0))
+        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(found_vars1))
+        plt.plot(np.pi/2+np.linspace(0, np.pi, case_a.n), case_a.dP_domega)
+        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.n), case_b.dP_domega)
         plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
         plt.title(r"Comparing $dP/d\Omega$ with polar projection.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/om_pol_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_om_pol.pdf")
         plt.show()
         
         plt.axes(projection = None)
-        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(*found_vars0))
-        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(*found_vars1))
+        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(found_vars0))
+        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(found_vars1))
         plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
         plt.title(r"Comparing $dP/d\Omega$ with cartesian coordinates.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/om_lin_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_om_lin.pdf")
         plt.show()
 
     if test_norms[2]:
-        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(*found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(*found_vars1))
+        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(found_vars1))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
         plt.title(r"Comparing $dP/d\epsilon$ with linear scale.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/eps_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_eps.pdf")
         plt.show()
         
-        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(*found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(*found_vars1))
+        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(found_vars1))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -74,34 +76,34 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.title(r"Comparing $dP/d\epsilon$ with log scale.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/eps_log_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_eps_log.pdf")
         plt.show()
         
     if test_norms[3]:
-        plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm, label=str(*found_vars0))
-        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, label=str(*found_vars1))
+        plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm, label=str(found_vars0))
+        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, label=str(found_vars1))
         plt.grid()
         plt.xlabel(r"$\theta$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
         plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/dP2_om_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_dP2_om.pdf")
         plt.show()
 
-        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(*found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(*found_vars1))
+        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(found_vars1))
         plt.grid()
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
         plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/dP2_eps_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_dP2_eps.pdf")
         plt.show()
         
-        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(*found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(*found_vars1))
+        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(found_vars1))
         plt.grid()
         plt.yscale('log')
         plt.xlabel(r"$\epsilon$")
@@ -109,11 +111,11 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
         plt.legend()
         if do_save:
-            plt.savefig(f"comp/dP2_eps_log_norm_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
+            plt.savefig(f"comp/c_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}_dP2_eps_log.pdf")
         plt.show()
 
 
-def compare_plots(init_vars=[6300,500,4,10], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
+def compare_plots(init_vars=[6300*2,500,4,10], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
     
     names = ['dt', 'n', 'l_max', 'Kdim']
     
@@ -128,7 +130,7 @@ def compare_plots(init_vars=[6300,500,4,10], change=[2,150,1,2], test_norms=[Tru
     # Kdim = int(input("New Kdim: "))
     
     # new_vars = [0.05,700,3,10] # [dt,n,l_max,Kdim]
-    new_vars = [6300,650,4,10] # [Nt,n,l_max,Kdim]
+    new_vars = [6300*2,650,4,10] # [Nt,n,l_max,Kdim]
     
     
     # create comparison 
