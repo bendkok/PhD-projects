@@ -13,91 +13,107 @@ import time
 from laser_hydrogen_solver import laser_hydrogen_solver
 
 
-def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1):
+def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=False):
     
     if test_norms[0]:
-        plt.plot(np.append(case_a.time_vector,case_a.time_vector1), case_a.norm_over_time[:-1], label="Case a")
-        plt.plot(np.append(case_b.time_vector,case_b.time_vector1), case_b.norm_over_time[:-1], label="Case b")
+        plt.plot(np.append(case_a.time_vector,case_a.time_vector1), case_a.norm_over_time[:-1], label=str(*found_vars0))
+        plt.plot(np.append(case_b.time_vector,case_b.time_vector1), case_b.norm_over_time[:-1], label=str(*found_vars1))
         plt.axvline(case_a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
         plt.grid()
         plt.xlabel("Time (a.u.)")
         plt.ylabel("Norm")
         plt.title(r"Comparing norm ($|\Psi|$) over time.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/norm_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
     
     if test_norms[1]:
         plt.axes(projection = 'polar', rlabel_position=-22.5)
-        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label="Case a")
-        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label="Case b")
+        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(*found_vars0))
+        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(*found_vars1))
         plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
         plt.title(r"Comparing $dP/d\Omega$ with polar projection.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/om_pol_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
         
         plt.axes(projection = None)
-        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label="Case a")
-        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label="Case b")
+        plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(*found_vars0))
+        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(*found_vars1))
         plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
         plt.title(r"Comparing $dP/d\Omega$ with cartesian coordinates.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/om_lin_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
 
     if test_norms[2]:
-        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label="Case a")
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label="Case b")
+        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(*found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(*found_vars1))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
         plt.title(r"Comparing $dP/d\epsilon$ with linear scale.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/eps_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
         
-        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label="Case a")
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label="Case b")
+        plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(*found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(*found_vars1))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
         plt.yscale('log')
         plt.title(r"Comparing $dP/d\epsilon$ with log scale.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/eps_log_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
         
     if test_norms[3]:
-        plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm, label="Case a")
-        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, label="Case b")
+        plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm, label=str(*found_vars0))
+        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, label=str(*found_vars1))
         plt.grid()
         plt.xlabel(r"$\theta$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
         plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/dP2_om_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
 
-        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label="Case a")
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label="Case b")
+        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(*found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(*found_vars1))
         plt.grid()
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
         plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/dP2_eps_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
         
-        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label="Case a")
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label="Case b")
+        plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(*found_vars0))
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(*found_vars1))
         plt.grid()
         plt.yscale('log')
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
         plt.title(r"Comparing $\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
         plt.legend()
+        if do_save:
+            plt.savefig(f"comp/dP2_eps_log_norm_{found_vars0[0]}_{found_vars0[1]}_{found_vars0[2]}_{found_vars0[3]}_{found_vars1[0]}_{found_vars1[1]}_{found_vars1[2]}_{found_vars1[3]}.pdf")
         plt.show()
 
 
-def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True,True,True,True]):
+def compare_plots(init_vars=[6300,500,4,10], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
     
     names = ['dt', 'n', 'l_max', 'Kdim']
     
@@ -111,14 +127,15 @@ def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True
     # l_max = int(input("New l_max: "))
     # Kdim = int(input("New Kdim: "))
     
-    new_vars = [0.1,500,3,10] # [dt,n,l_max,Kdim]
+    # new_vars = [0.05,700,3,10] # [dt,n,l_max,Kdim]
+    new_vars = [6300,650,4,10] # [Nt,n,l_max,Kdim]
     
     
     # create comparison 
-    a = laser_hydrogen_solver(n=found_vars[1], dt=found_vars[0], l_max=found_vars[2], 
+    a = laser_hydrogen_solver(n=found_vars[1], nt=found_vars[0], l_max=found_vars[2], 
                               save_dir=f"var_test/p_{found_vars}", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric",
                               T=1, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=1e-3, 
-                              CAP_R_proportion=.5, max_epsilon=2, spline_n=1_000, 
+                              CAP_R_proportion=.5, max_epsilon=5, spline_n=10_000, 
                               calc_norm=test_norms[0], calc_dPdomega=test_norms[1], calc_dPdepsilon=test_norms[2], calc_dP2depsdomegak=test_norms[3])
     a.set_time_propagator(a.Lanczos, k=found_vars[3])
     
@@ -127,13 +144,16 @@ def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True
     a.calculate_time_evolution()
     
     comparing = True
+    j=0
     
     while comparing:
         
-        b = laser_hydrogen_solver(n=new_vars[1], dt=new_vars[0], l_max=new_vars[2], 
+        print(f'Comparing variables: {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.', '\n')
+        
+        b = laser_hydrogen_solver(n=new_vars[1], nt=new_vars[0], l_max=new_vars[2], 
                                   save_dir=f"var_test/p_{found_vars}", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric",
                                   T=1, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=1e-3, 
-                                  CAP_R_proportion=.5, max_epsilon=2, spline_n=1_000,
+                                  CAP_R_proportion=.5, max_epsilon=5, spline_n=10_000,
                                   # calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True)
                                   calc_norm=test_norms[0], calc_dPdomega=test_norms[1], calc_dPdepsilon=test_norms[2], calc_dP2depsdomegak=test_norms[3])
         b.set_time_propagator(b.Lanczos, k=new_vars[3])
@@ -142,48 +162,66 @@ def compare_plots(init_vars=[0.1,400,3,10], change=[2,100,1,2], test_norms=[True
         b.A = b.single_laser_pulse    
         b.calculate_time_evolution()
         
-        plot_comp(case_a=a, case_b=b, test_norms=test_norms, found_vars0=found_vars, found_vars1=new_vars)
+        plot_comp(case_a=a, case_b=b, test_norms=test_norms, found_vars0=found_vars, found_vars1=new_vars, do_save=True)
         
         diff_norm  = np.abs(a.norm_over_time[-1]-b.norm_over_time[-1])/np.abs(1-a.norm_over_time[-1])
         diff_omega = np.abs(a.dP_domega_norm-b.dP_domega_norm)/np.abs(a.dP_domega_norm)
         diff_eps   = np.abs(a.dP_depsilon_norm-b.dP_depsilon_norm)/np.abs(a.dP_depsilon_norm)
-        diff_omeps = np.abs(a.dP2_depsilon_domegak_normed-b.dP2_depsilon_domegak_normed)/np.abs(a.dP2_depsilon_domegak_normed)
+        # diff_omeps = np.abs(a.dP2_depsilon_domegak_normed-b.dP2_depsilon_domegak_normed)/np.abs(a.dP2_depsilon_domegak_normed)
         
-        print('\n', f"Found diffs: {diff_norm, diff_omega, diff_eps, diff_omeps}.", '\n')
+        # print('\n', f"Found diffs: {diff_norm, diff_omega, diff_eps, diff_omeps}.", '\n')
+        print('\n', f"Found diffs: {diff_norm, diff_omega, diff_eps}.", '\n')
         
-        found_done = False
         
-        while not found_done:
-            done = input("Done? ")
+        if np.all(np.array([diff_norm, diff_omega]) < change_limit):
+            comparing = False
+            print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
+            print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
+            print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
+        elif j >= 8:
+            comparing = False
+            print("NOT CONVERGED!", f" j = {j}.")
+            print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
+            print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
+            print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
+        else:
+            found_vars = new_vars
+            new_vars[1] += change[1]
             
-            if done == 'y':
-                print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
-                print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
-                print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
-                comparing = False
-                found_done = True
+        
+        # found_done = False
+        
+        # while not found_done:
+        #     done = input("Done? ")
+            
+        #     if done == 'y':
+        #         print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
+        #         print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
+        #         print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
+        #         comparing = False
+        #         found_done = True
                 
-            elif done == 'k':
-                print(f'Found variables: {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.'+'\n')
-                dt = float(input("New dt: "))
-                n = int(input("New n: "))
-                l_max = int(input("New l_max: "))
-                Kdim = int(input("New Kdim: "))
-                new_vars = [dt,n,l_max,Kdim]
-                found_done = True
+        #     elif done == 'k':
+        #         print(f'Found variables: {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.'+'\n')
+        #         dt = float(input("New dt: "))
+        #         n = int(input("New n: "))
+        #         l_max = int(input("New l_max: "))
+        #         Kdim = int(input("New Kdim: "))
+        #         new_vars = [dt,n,l_max,Kdim]
+        #         found_done = True
                 
-            elif done == 'n':
-                print(f'New variables: {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.'+'\n')
-                found_vars = new_vars
-                dt = float(input("New dt: "))
-                n = int(input("New n: "))
-                l_max = int(input("New l_max: "))
-                Kdim = int(input("New Kdim: "))
-                new_vars = [dt,n,l_max,Kdim]
-                found_done = True
+        #     elif done == 'n':
+        #         print(f'New variables: {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.'+'\n')
+        #         found_vars = new_vars
+        #         dt = float(input("New dt: "))
+        #         n = int(input("New n: "))
+        #         l_max = int(input("New l_max: "))
+        #         Kdim = int(input("New Kdim: "))
+        #         new_vars = [dt,n,l_max,Kdim]
+        #         found_done = True
                 
-            else:
-                print("Try again.")
+        #     else:
+        #         print("Try again.")
     
 
 def main():
