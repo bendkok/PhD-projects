@@ -1277,7 +1277,7 @@ class laser_hydrogen_solver:
                     # we can compare the different norms if several have been calculated
                     if self.compare_norms:
                         calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak]
-                        vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_domega_norm', 'self.dP2_depsilon_domegak_normed']
+                        vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed']
                         # names = [r"$|\Psi|$", r"$dP/d\epsilon$", r"$dP/d\epsilon$", r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"]
                         names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k']
                         
