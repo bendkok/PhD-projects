@@ -131,7 +131,6 @@ class laser_hydrogen_solver:
         self.compare_norms      = compare_norms
 
         # initialise other things
-        self.h_ = r_max/n                        
         self.P  = np.zeros((n, l_max+1))        # we represent the wave function as a matrix
         self.P0 = np.zeros((n, 1)) + .1         # initial guess for the ground state of the wave function as a matrix
 

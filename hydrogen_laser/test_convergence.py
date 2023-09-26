@@ -9,11 +9,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import time
+import seaborn as sns
 
 from laser_hydrogen_solver import laser_hydrogen_solver
 
 
 def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=False):
+    
+    sns.set_theme(style="dark") # nice plots
     
     if test_norms[0]:
         plt.plot(np.append(case_a.time_vector,case_a.time_vector1), case_a.norm_over_time[:-1], label=str(found_vars0))
@@ -115,7 +118,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.show()
 
 
-def compare_plots(init_vars=[6300*2,500,4,10], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
+def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
     
     names = ['dt', 'n', 'l_max', 'Kdim']
     
@@ -130,14 +133,14 @@ def compare_plots(init_vars=[6300*2,500,4,10], change=[2,150,1,2], test_norms=[T
     # Kdim = int(input("New Kdim: "))
     
     # new_vars = [0.05,700,3,10] # [dt,n,l_max,Kdim]
-    new_vars = [6300*2,650,4,10] # [Nt,n,l_max,Kdim]
+    new_vars = [6300*2,800,4,10] # [Nt,n,l_max,Kdim]
     
     
     # create comparison 
     a = laser_hydrogen_solver(n=found_vars[1], nt=found_vars[0], l_max=found_vars[2], 
                               save_dir=f"var_test/p_{found_vars}", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric",
                               T=1, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=1e-3, 
-                              CAP_R_proportion=.5, max_epsilon=5, spline_n=10_000, 
+                              CAP_R_proportion=.5, max_epsilon=5, spline_n=1_000, 
                               calc_norm=test_norms[0], calc_dPdomega=test_norms[1], calc_dPdepsilon=test_norms[2], calc_dP2depsdomegak=test_norms[3])
     a.set_time_propagator(a.Lanczos, k=found_vars[3])
     
@@ -150,12 +153,13 @@ def compare_plots(init_vars=[6300*2,500,4,10], change=[2,150,1,2], test_norms=[T
     
     while comparing:
         
+        print()
         print(f'Comparing variables: {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.', '\n')
         
         b = laser_hydrogen_solver(n=new_vars[1], nt=new_vars[0], l_max=new_vars[2], 
                                   save_dir=f"var_test/p_{found_vars}", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric",
                                   T=1, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=1e-3, 
-                                  CAP_R_proportion=.5, max_epsilon=5, spline_n=10_000,
+                                  CAP_R_proportion=.5, max_epsilon=5, spline_n=1_000,
                                   # calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True)
                                   calc_norm=test_norms[0], calc_dPdomega=test_norms[1], calc_dPdepsilon=test_norms[2], calc_dP2depsdomegak=test_norms[3])
         b.set_time_propagator(b.Lanczos, k=new_vars[3])
@@ -175,18 +179,19 @@ def compare_plots(init_vars=[6300*2,500,4,10], change=[2,150,1,2], test_norms=[T
         print('\n', f"Found diffs: {diff_norm, diff_omega, diff_eps}.", '\n')
         
         
-        if np.all(np.array([diff_norm, diff_omega]) < change_limit):
+        if np.all(np.array([diff_norm, diff_omega, diff_eps]) < change_limit):
             comparing = False
             print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
             print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
             print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
-        elif j >= 8:
+        elif j >= 8 or np.any(np.array([diff_norm, diff_omega, diff_eps]) > 3):
             comparing = False
             print("NOT CONVERGED!", f" j = {j}.")
             print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
             print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
             print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
         else:
+            a = b
             found_vars = new_vars
             new_vars[1] += change[1]
             
