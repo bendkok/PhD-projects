@@ -180,6 +180,8 @@ class laser_hydrogen_solver:
         self.make_time_vector_imag()
         self.make_time_vector()
 
+        self.found_orth = 0
+
         # the default timproegator is RK4, but Lanczos also be specified later
         self.set_time_propagator(self.RK4, k=None)
         
@@ -786,6 +788,8 @@ class laser_hydrogen_solver:
 
         """
         
+        # print("Needed to use find_orth()")
+        self.found_orth += 1
         M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] ) # reshapes the input
         rand_vec = np.random.rand(M.shape[0], 1) # generates a random vector of the correct shape
         A = np.hstack((M, rand_vec)) 
@@ -797,7 +801,7 @@ class laser_hydrogen_solver:
         return res / np.sqrt(self.inner_product(res, res) ) # normalises the result
 
 
-    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=3e-3):
+    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-8):
         """
         Calculate the Lanczos propagator for one timestep.
 
@@ -883,7 +887,7 @@ class laser_hydrogen_solver:
         for j in range(1,k):
 
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm
-            V[:,:,j]  = w / beta[j-1] # if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
+            V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
             # TODO: Implement stopping criterion of np.abs(beta[j-1]) > tol
             # TODO: look closer here. Decide which dividebyzero check, if any, is to be used
 
@@ -1382,7 +1386,7 @@ class laser_hydrogen_solver:
     def calculate_dPdepsilon(self):
         
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian() 
-        eigen_vals /= np.sqrt(self.h)
+        # eigen_vals /= np.sqrt(self.h)
         eigen_vecs /= np.sqrt(self.h)
         
         print("\nCalculating dP/dε:")
@@ -1432,7 +1436,7 @@ class laser_hydrogen_solver:
         # TODO: add doc-string
         
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
-        eigen_vals /= np.sqrt(self.h)
+        # eigen_vals /= np.sqrt(self.h)
         eigen_vecs /= np.sqrt(self.h)
         
         print("Calculating dP^2/dεdΩ_k:")
@@ -2318,6 +2322,7 @@ def main():
     a.save_found_states()
     a.save_found_states_analysis()
     a.save_hyperparameters()
+    
     
     total_end_time = time.time()
     
