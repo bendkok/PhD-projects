@@ -20,7 +20,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
     
     if test_norms[0]:
         plt.plot(np.append(case_a.time_vector,case_a.time_vector1), case_a.norm_over_time[:-1], label=str(found_vars0))
-        plt.plot(np.append(case_b.time_vector,case_b.time_vector1), case_b.norm_over_time[:-1], label=str(found_vars1))
+        plt.plot(np.append(case_b.time_vector,case_b.time_vector1), case_b.norm_over_time[:-1], '--', label=str(found_vars1))
         plt.axvline(case_a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
         plt.grid()
         plt.xlabel("Time (a.u.)")
@@ -34,9 +34,9 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
     if test_norms[1]:
         plt.axes(projection = 'polar', rlabel_position=-22.5)
         plt.plot(np.pi/2-np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(found_vars0))
-        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(found_vars1))
+        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.n), case_b.dP_domega, '--', label=str(found_vars1))
         plt.plot(np.pi/2+np.linspace(0, np.pi, case_a.n), case_a.dP_domega)
-        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.n), case_b.dP_domega)
+        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.n), case_b.dP_domega, '--')
         plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
@@ -48,7 +48,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         
         plt.axes(projection = None)
         plt.plot(np.linspace(0, np.pi, case_a.n), case_a.dP_domega, label=str(found_vars0))
-        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, label=str(found_vars1))
+        plt.plot(np.linspace(0, np.pi, case_b.n), case_b.dP_domega, '--', label=str(found_vars1))
         plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
@@ -60,7 +60,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
 
     if test_norms[2]:
         plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(found_vars1))
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, '--', label=str(found_vars1))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -71,7 +71,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.show()
         
         plt.plot(case_a.epsilon_grid, case_a.dP_depsilon, label=str(found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, label=str(found_vars1))
+        plt.plot(case_b.epsilon_grid, case_b.dP_depsilon, '--', label=str(found_vars1))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -84,7 +84,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         
     if test_norms[3]:
         plt.plot(case_a.theta_grid, case_a.dP2_depsilon_domegak_norm, label=str(found_vars0))
-        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, label=str(found_vars1))
+        plt.plot(case_b.theta_grid, case_b.dP2_depsilon_domegak_norm, '--', label=str(found_vars1))
         plt.grid()
         plt.xlabel(r"$\theta$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
@@ -95,7 +95,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.show()
 
         plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(found_vars1))
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, '--', label=str(found_vars1))
         plt.grid()
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
@@ -106,7 +106,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.show()
         
         plt.plot(case_a.epsilon_grid, case_a.dP2_depsilon_domegak_norm0, label=str(found_vars0))
-        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, label=str(found_vars1))
+        plt.plot(case_b.epsilon_grid, case_b.dP2_depsilon_domegak_norm0, '--', label=str(found_vars1))
         plt.grid()
         plt.yscale('log')
         plt.xlabel(r"$\epsilon$")
@@ -118,7 +118,7 @@ def plot_comp(case_a, case_b, test_norms, found_vars0, found_vars1, do_save=Fals
         plt.show()
 
 
-def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
+def compare_plots(init_vars=[6300,500,3,15], change=[2,150,1,2], test_norms=[True,True,True,False]): # init_vars=[0.05,600,3,10]
     
     names = ['dt', 'n', 'l_max', 'Kdim']
     
@@ -133,7 +133,7 @@ def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[T
     # Kdim = int(input("New Kdim: "))
     
     # new_vars = [0.05,700,3,10] # [dt,n,l_max,Kdim]
-    new_vars = [6300*2,800,4,10] # [Nt,n,l_max,Kdim]
+    new_vars = [6300,650,3,15] # [Nt,n,l_max,Kdim]
     
     
     # create comparison 
@@ -148,6 +148,8 @@ def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[T
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
     
+    print(f"found_orth = {a.found_orth}.")
+    
     comparing = True
     j=0
     
@@ -159,7 +161,7 @@ def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[T
         b = laser_hydrogen_solver(n=new_vars[1], nt=new_vars[0], l_max=new_vars[2], 
                                   save_dir=f"var_test/p_{found_vars}", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric",
                                   T=1, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=1e-3, 
-                                  CAP_R_proportion=.5, max_epsilon=5, spline_n=1_000,
+                                  CAP_R_proportion=.5, max_epsilon=3, spline_n=1_000,
                                   # calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True)
                                   calc_norm=test_norms[0], calc_dPdomega=test_norms[1], calc_dPdepsilon=test_norms[2], calc_dP2depsdomegak=test_norms[3])
         b.set_time_propagator(b.Lanczos, k=new_vars[3])
@@ -167,6 +169,8 @@ def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[T
         b.calculate_ground_state_imag_time()
         b.A = b.single_laser_pulse    
         b.calculate_time_evolution()
+        
+        print(f"found_orth = {b.found_orth}.")
         
         plot_comp(case_a=a, case_b=b, test_norms=test_norms, found_vars0=found_vars, found_vars1=new_vars, do_save=True)
         
@@ -184,7 +188,7 @@ def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[T
             print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
             print(f'Found variables:   {names[0]}={found_vars[0]}, {names[1]}={found_vars[1]}, {names[2]}={found_vars[2]}, {names[3]}={found_vars[3]}.')
             print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
-        elif j >= 8 or np.any(np.array([diff_norm, diff_omega, diff_eps]) > 3):
+        elif j >= 8 or np.any(np.array([diff_norm, diff_omega, diff_eps]) > 2):
             comparing = False
             print("NOT CONVERGED!", f" j = {j}.")
             print(f'Innital variables: {names[0]}={init_vars[0]}, {names[1]}={init_vars[1]}, {names[2]}={init_vars[2]}, {names[3]}={init_vars[3]}.')
@@ -192,8 +196,8 @@ def compare_plots(init_vars=[6300*2,650,4,10], change=[2,150,1,2], test_norms=[T
             print(f'New variables:     {names[0]}={new_vars[0]}, {names[1]}={new_vars[1]}, {names[2]}={new_vars[2]}, {names[3]}={new_vars[3]}.')
         else:
             a = b
-            found_vars = new_vars
-            new_vars[1] += change[1]
+            found_vars[1] = new_vars[1]
+            new_vars[1]  += change[1]
             
         
         # found_done = False
