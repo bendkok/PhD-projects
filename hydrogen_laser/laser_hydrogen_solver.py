@@ -1475,7 +1475,7 @@ class laser_hydrogen_solver:
                 inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)
                 F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
                 
-                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], F_l_eps) 
+                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps)) 
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
                 splined = np.real(np.diag(splined)) # we only need the diagonal of the interpolated matrix
                 
@@ -1489,9 +1489,9 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak *= 2 * self.h * self.h 
         
         print()
-        self.dP2_depsilon_domegak_norm  = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid), x=self.epsilon_grid, axis=0) 
+        self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
         self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
-        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm, x=self.theta_grid) }.")
+        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm*2*np.pi*np.sin(self.theta_grid), x=self.theta_grid) }.")
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, x=self.epsilon_grid) }.")
         print()
         
@@ -1582,19 +1582,34 @@ class laser_hydrogen_solver:
             
             sns.set_theme(style="dark") # nice plots
             
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
+            
+            plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
+            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
+            plt.title(r"$dP/d\Omega$ with polar projection.")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th_polar.pdf")
+            plt.show()
+            
+            plt.axes(projection = None)
             plt.plot(self.theta_grid, self.dP2_depsilon_domegak_norm)
             plt.grid()
             plt.xlabel(r"$\theta$")
-            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.ylabel(r"$dP/d\Omega_k$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th.pdf")
             plt.show()
 
+
             plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
             plt.grid()
             plt.xlabel(r"$\epsilon$")
-            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps.pdf")
@@ -1604,7 +1619,9 @@ class laser_hydrogen_solver:
             plt.grid()
             plt.yscale('log')
             plt.xlabel(r"$\epsilon$")
-            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with log scale.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps0.pdf")
@@ -2299,14 +2316,13 @@ def main():
     #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
     #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S34", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", dt=0.05, # int(1*6283.185307179585), 
-                              T=1, n=750, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=6, max_epsilon=2,
+    a = laser_hydrogen_solver(save_dir="dP_domega_S35", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=6, max_epsilon=3,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
     # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
     #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
     #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
-    
     a.set_time_propagator(a.Lanczos, k=15)
 
     a.calculate_ground_state_imag_time()
@@ -2316,7 +2332,7 @@ def main():
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
 
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
 
     a.save_zetas()
     a.save_found_states()
@@ -2341,6 +2357,12 @@ def main():
     # h/Nx, dt, (Rmax), lmax, Kdim, 
     # CAP_loc, gamma_0 senere
 
+# TODO: 
+    # fix double integral omh plot
+    # try running l_max=5,6,7,8,9 with more nt or K_dim
+    # with good l_max:
+        # try increasing the other variables one step after finding good l_max
+    # try with different CAPs
 
 if __name__ == "__main__":
     main()
