@@ -15,20 +15,31 @@ from tqdm import tqdm
 
 
 
-pos_ind = range(8, 500)
-l=0
-eigen_vecs = np.zeros((6, 500, 500))
-CAP_locs = range(250,500)
-Gamma_vector = np.linspace(0, 1, 250)
-zeta_epsilon = np.ones((250, 500, 6))
-inte_dr = np.zeros((500, len(pos_ind)))
+# pos_ind = range(8, 500)
+# l=0
+# eigen_vecs = np.zeros((6, 500, 500))
+# CAP_locs = range(250,500)
+# Gamma_vector = np.linspace(0, 1, 250)
+# zeta_epsilon = np.ones((250, 500, 6))
+# inte_dr = np.zeros((500, len(pos_ind)))
 
-for i in range(len(pos_ind)): 
-    inte_dr[:,i] = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[i],CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
-test = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
+# for i in range(len(pos_ind)): 
+#     inte_dr[:,i] = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[i],CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
+# test = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,CAP_locs]) * Gamma_vector)[:,None] * zeta_epsilon[...,l], axis=0)
 
-print()
+# print()
 
+sns.set_theme(style="dark") # nice plots
+
+x = np.linspace(0, 12*np.pi, 500)
+y = np.cos(x) + .99
+
+plt.plot(x, y)
+plt.grid()
+plt.xlabel(r"$x$")
+plt.ylabel(r"$\sin(x)+0.99$")
+plt.yscale('log')
+plt.show()
 
 
 
