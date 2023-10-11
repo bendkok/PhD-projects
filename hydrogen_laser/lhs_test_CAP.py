@@ -10,7 +10,7 @@ import time
 from laser_hydrogen_solver import laser_hydrogen_solver
 
 
-def test_CAP(save_name, CAP_onset=.5, r_max=100, n=500, gamma_0=1e-3, T=1, test_vars=[True,True,False,False]):
+def test_CAP(save_name, CAP_onset=.5, CAP_onset_str="50", r_max=100, n=500, gamma_0=1e-3, T=1, test_vars=[True,True,False,False]):
     
     a = laser_hydrogen_solver(save_dir=save_name, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=T, n=n, r_max=r_max, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
@@ -24,8 +24,11 @@ def test_CAP(save_name, CAP_onset=.5, r_max=100, n=500, gamma_0=1e-3, T=1, test_
 
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
-
-    a.plot_res(do_save=True, plot_norm=test_vars[0], plot_dP_domega=test_vars[1], plot_dP_depsilon=test_vars[2], plot_dP2_depsilon_domegak=test_vars[3])
+    
+    # extra_title  = "\n"+f"CAP onset = {CAP_onset_str}a.u."
+    extra_titles = f" CAP onset = {CAP_onset_str}a.u."
+    a.plot_res(do_save=True, plot_norm=test_vars[0], plot_dP_domega=test_vars[1], plot_dP_depsilon=test_vars[2], plot_dP2_depsilon_domegak=test_vars[3],
+               reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
 
     a.save_zetas()
     a.save_found_states()
@@ -48,22 +51,25 @@ if __name__ == "__main__":
     print("Testing dP/dΩ close.")
     for c in range(len(CAPs_dPdom_close[0])):
         CAP_onset = CAPs_dPdom_close[0][c]/CAPs_dPdom_close[1]
-        print("\n\nCAP onset = "+str(CAPs_dPdom_close[0][c])+"a.u.:")
-        test_CAP(CAPs_dPdom_close[3]+str(CAPs_dPdom_close[0][c]), CAP_onset=CAP_onset, r_max=CAPs_dPdom_close[1], n=500, test_vars=CAPs_dPdom_close[2])
+        CAP_onset_str = str(CAPs_dPdom_close[0][c])
+        print("\n\nCAP onset = "+CAP_onset_str+"a.u.:")
+        test_CAP(CAPs_dPdom_close[3]+str(CAPs_dPdom_close[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, r_max=CAPs_dPdom_close[1], n=500, test_vars=CAPs_dPdom_close[2])
     
     
     print("\nTesting dP/dΩ far.")
     for c in range(len(CAPs_dPdom_far[0])):
         CAP_onset = CAPs_dPdom_far[0][c]/CAPs_dPdom_far[1]
+        CAP_onset_str = str(CAPs_dPdom_far[0][c])
         print("\n\nCAP onset = "+str(CAPs_dPdom_far[0][c])+"a.u.:")
-        test_CAP(CAPs_dPdom_far[3]+str(CAPs_dPdom_far[0][c]), CAP_onset=CAP_onset, r_max=CAPs_dPdom_far[1], n=1000, T=3, test_vars=CAPs_dPdom_far[2])
+        test_CAP(CAPs_dPdom_far[3]+str(CAPs_dPdom_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, r_max=CAPs_dPdom_far[1], n=1000, T=3, test_vars=CAPs_dPdom_far[2])
     
     
     print("\nTesting dP^2/dεdΩ_k.")
     for c in range(len(CAPs_dP2_dep_omk[0])):
         CAP_onset = CAPs_dP2_dep_omk[0][c]/CAPs_dP2_dep_omk[1]
+        CAP_onset_str = str(CAPs_dP2_dep_omk[0][c])
         print("\n\nCAP onset = "+str(CAPs_dP2_dep_omk[0][c])+"a.u.:")
-        test_CAP(CAPs_dP2_dep_omk[3]+str(CAPs_dP2_dep_omk[0][c]), CAP_onset=CAP_onset, r_max=CAPs_dP2_dep_omk[1], n=500, test_vars=CAPs_dP2_dep_omk[2])    
+        test_CAP(CAPs_dP2_dep_omk[3]+str(CAPs_dP2_dep_omk[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, r_max=CAPs_dP2_dep_omk[1], n=500, test_vars=CAPs_dP2_dep_omk[2])    
         
     
     total_end_time = time.time()

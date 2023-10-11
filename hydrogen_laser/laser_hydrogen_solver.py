@@ -1105,7 +1105,7 @@ class laser_hydrogen_solver:
             # plt.yscale("log")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/gs_found.pdf")
+                plt.savefig(f"{self.save_dir}/gs_found.pdf", bbox_inches='tight')
             plt.show()
 
             plt.plot(self.time_vector_imag, np.abs(np.array(self.eps0) + .5) )
@@ -1114,7 +1114,7 @@ class laser_hydrogen_solver:
             plt.ylabel("Ground state energy error")
             plt.grid()
             if do_save:
-                plt.savefig(f"{self.save_dir}/gs_error.pdf")
+                plt.savefig(f"{self.save_dir}/gs_error.pdf", bbox_inches='tight')
             plt.show()
             
             plt.plot(self.time_vector_imag, self.N0s, label="N")
@@ -1125,7 +1125,7 @@ class laser_hydrogen_solver:
             plt.grid()
             plt.legend()
             if do_save:
-                plt.savefig(f"{self.save_dir}/gs_norm.pdf")
+                plt.savefig(f"{self.save_dir}/gs_norm.pdf", bbox_inches='tight')
             plt.show()
 
         else:
@@ -1500,7 +1500,7 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_calculated = True
         
         
-    def plot_norm(self, do_save=True):
+    def plot_norm(self, do_save=True, extra_title=""):
         
         if self.norm_calculated: 
             
@@ -1512,9 +1512,10 @@ class laser_hydrogen_solver:
             plt.xlabel("Time (a.u.)")
             plt.ylabel("Norm")
             plt.legend()
+            plt.title(r"Norm of $\Psi$ as a function of time."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_norm.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_norm.pdf", bbox_inches='tight')
             plt.show()
             
         else:
@@ -1522,7 +1523,7 @@ class laser_hydrogen_solver:
     
     
     
-    def plot_dP_domega(self, do_save=True):
+    def plot_dP_domega(self, do_save=True, extra_title=""):
         
         if self.dP_domega_calculated: 
             
@@ -1531,10 +1532,10 @@ class laser_hydrogen_solver:
             plt.axes(projection = 'polar', rlabel_position=-22.5)
             plt.plot(np.pi/2-self.theta_grid, self.dP_domega, label="dP_domega")
             plt.plot(np.pi/2+self.theta_grid, self.dP_domega, label="dP_domega")
-            plt.title(r"$dP/d\Omega$ with polar projection.")
+            plt.title(r"$dP/d\Omega$ with polar projection."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_polar.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_domega_polar.pdf", bbox_inches='tight')
             plt.show()
             
             plt.axes(projection = None)
@@ -1543,17 +1544,17 @@ class laser_hydrogen_solver:
             plt.xlabel("φ")
             # plt.ylabel(r"$dP/d\theta$")
             plt.ylabel(r"$dP/d\Omega$")
-            plt.title(r"$dP/d\Omega$ with cartesian coordinates.")
+            plt.title(r"$dP/d\Omega$ with cartesian coordinates."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP_domega.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_domega.pdf", bbox_inches='tight')
             plt.show()
             
         else:
             print("Need to calculate dP/dΩ berfore plotting it.")
     
     
-    def plot_dP_depsilon(self, do_save):
+    def plot_dP_depsilon(self, do_save=True, extra_title=""):
         
         if self.dP_depsilon_calculated: 
             
@@ -1563,27 +1564,27 @@ class laser_hydrogen_solver:
             plt.grid()
             plt.xlabel("ε")
             plt.ylabel(r"$dP/d\epsilon$")
-            plt.title(r"$dP/d\epsilon$ with linear scale.")
+            plt.title(r"$dP/d\epsilon$ with linear scale."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon.pdf", bbox_inches='tight')
             plt.show()
             
             plt.plot(self.epsilon_grid, self.dP_depsilon, label="dP_depsilon")
             plt.grid()
             plt.xlabel("ε")
             plt.ylabel(r"$dP/d\epsilon$")
-            plt.title(r"$dP/d\epsilon$ with log scale.")
+            plt.title(r"$dP/d\epsilon$ with log scale."+extra_title)
             plt.yscale('log')
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_log.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_log.pdf", bbox_inches='tight')
             plt.show()
         else:
             print("Need to calculate dP/dε berfore plotting it.")
             
             
-    def plot_dP2_depsilon_domegak(self, do_save):
+    def plot_dP2_depsilon_domegak(self, do_save=True, extra_title=""):
         
         if self.dP2_depsilon_domegak_calculated: 
 
@@ -1595,10 +1596,10 @@ class laser_hydrogen_solver:
             plt.axes(projection = 'polar', rlabel_position=-22.5)
             plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
             plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
-            plt.title(r"$dP/d\Omega$ with polar projection.")
+            plt.title(r"$dP/d\Omega$ with polar projection."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th_polar.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th_polar.pdf", bbox_inches='tight')
             plt.show()
             
             plt.axes(projection = None)
@@ -1606,10 +1607,10 @@ class laser_hydrogen_solver:
             plt.grid()
             plt.xlabel(r"$\theta$")
             plt.ylabel(r"$dP/d\Omega_k$")
-            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates.")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th.pdf", bbox_inches='tight')
             plt.show()
 
 
@@ -1618,10 +1619,10 @@ class laser_hydrogen_solver:
             plt.xlabel(r"$\epsilon$")
             # plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
             plt.ylabel(r"$dP/d\epsilon$")
-            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps.pdf", bbox_inches='tight')
             plt.show()
             
             plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
@@ -1630,21 +1631,21 @@ class laser_hydrogen_solver:
             plt.xlabel(r"$\epsilon$")
             # plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
             plt.ylabel(r"$dP/d\epsilon$")
-            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with log scale.")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with log scale."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps0.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps0.pdf", bbox_inches='tight')
             plt.show()
             
             plt.contourf(X,Y, self.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
             plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
             plt.xlabel(r"$\epsilon$")
             plt.ylabel(r"$\theta$")
-            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # plt.savefig("report/phi2_diff_double.pdf") 
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+            # plt.savefig("report/phi2_diff_double.pdf", bbox_inches='tight') 
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak.pdf", bbox_inches='tight')
             plt.show()
             
             
@@ -1652,12 +1653,12 @@ class laser_hydrogen_solver:
             plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
             plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
             plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
-            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
             # plt.axis([0, .5, -1, 1])
-            # plt.savefig("report/phi2_diff_double.pdf") 
+            # plt.savefig("report/phi2_diff_double.pdf", bbox_inches='tight') 
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak1.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak1.pdf", bbox_inches='tight')
             plt.show()
 
 
@@ -1666,7 +1667,7 @@ class laser_hydrogen_solver:
     
     
 
-    def plot_res(self, do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=False, plot_dP2_depsilon_domegak=False):
+    def plot_res(self, do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=False, plot_dP2_depsilon_domegak=False, reg_extra_title="", extra_titles=["","","",""]):
         """
         Create nice plots of the found wave functions. Also calls functions to plot the results from the post-analysis.
 
@@ -1682,19 +1683,6 @@ class laser_hydrogen_solver:
             Whether to plot dP/dε. The default is False.
         plot_dP2_depsilon_domegak : boolean, optional
             Whether to plot dP^2/dεdΩ_k. The default is False.
-
-        Returns
-        -------
-        None.
-
-        """
-        """
-        Create nice plots of the found wave functions. Also calls functions to plot the results from the post-analysis.
-
-        Parameters
-        ----------
-        do_save : boolean, optional
-            Whether to save the plots. The default is True.
 
         Returns
         -------
@@ -1729,7 +1717,7 @@ class laser_hydrogen_solver:
                 # plt.legend()
                 plt.legend(loc='upper right')
                 title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
+                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."+reg_extra_title
                 plt.title(title)
                 plt.xlabel("r (a.u.)")
                 plt.ylabel("Wave function")
@@ -1738,7 +1726,7 @@ class laser_hydrogen_solver:
                 # plt.yscale("log")
                 if do_save:
                     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                    plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
+                    plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf", bbox_inches='tight')
                 plt.show()
                 
             # makes a plot of the final state of each l-channel
@@ -1750,7 +1738,7 @@ class laser_hydrogen_solver:
             plt.legend(loc='upper right')
             
             title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-            title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."
+            title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."+reg_extra_title
             plt.title(title)
             plt.xlabel("r (a.u.)")
             plt.ylabel("Wave function")
@@ -1759,21 +1747,21 @@ class laser_hydrogen_solver:
             # plt.yscale("log")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf")
+                plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf", bbox_inches='tight')
             plt.show()
             
             # calls functions to plot the results from the post-analysis            
             if plot_norm:
-                self.plot_norm(do_save)
+                self.plot_norm(do_save, extra_title=extra_titles[0])
             
             if plot_dP_domega:
-                self.plot_dP_domega(do_save)
+                self.plot_dP_domega(do_save, extra_title=extra_titles[1])
             
             if plot_dP_depsilon:
-                self.plot_dP_depsilon(do_save)
+                self.plot_dP_depsilon(do_save, extra_title=extra_titles[2])
                 
             if plot_dP2_depsilon_domegak:
-                self.plot_dP2_depsilon_domegak(do_save)
+                self.plot_dP2_depsilon_domegak(do_save, extra_title=extra_titles[3])
 
         else:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
