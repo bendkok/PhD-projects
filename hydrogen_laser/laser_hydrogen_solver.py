@@ -180,6 +180,8 @@ class laser_hydrogen_solver:
         self.make_time_vector_imag()
         self.make_time_vector()
 
+        self.found_orth = 0
+
         # the default timproegator is RK4, but Lanczos also be specified later
         self.set_time_propagator(self.RK4, k=None)
         
@@ -786,6 +788,8 @@ class laser_hydrogen_solver:
 
         """
         
+        # print("Needed to use find_orth()")
+        self.found_orth += 1
         M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] ) # reshapes the input
         rand_vec = np.random.rand(M.shape[0], 1) # generates a random vector of the correct shape
         A = np.hstack((M, rand_vec)) 
@@ -797,7 +801,7 @@ class laser_hydrogen_solver:
         return res / np.sqrt(self.inner_product(res, res) ) # normalises the result
 
 
-    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=3e-3):
+    def Lanczos(self, P, Hamiltonian, tn, dt, dt2=None, dt6=None, k=20, tol=1e-8):
         """
         Calculate the Lanczos propagator for one timestep.
 
@@ -883,7 +887,7 @@ class laser_hydrogen_solver:
         for j in range(1,k):
 
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm
-            V[:,:,j]  = w / beta[j-1] # if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
+            V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
             # TODO: Implement stopping criterion of np.abs(beta[j-1]) > tol
             # TODO: look closer here. Decide which dividebyzero check, if any, is to be used
 
@@ -1382,7 +1386,7 @@ class laser_hydrogen_solver:
     def calculate_dPdepsilon(self):
         
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian() 
-        eigen_vals /= np.sqrt(self.h)
+        # eigen_vals /= np.sqrt(self.h)
         eigen_vecs /= np.sqrt(self.h)
         
         print("\nCalculating dP/dε:")
@@ -1432,7 +1436,7 @@ class laser_hydrogen_solver:
         # TODO: add doc-string
         
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
-        eigen_vals /= np.sqrt(self.h)
+        # eigen_vals /= np.sqrt(self.h)
         eigen_vecs /= np.sqrt(self.h)
         
         print("Calculating dP^2/dεdΩ_k:")
@@ -1471,7 +1475,7 @@ class laser_hydrogen_solver:
                 inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)
                 F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
                 
-                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], F_l_eps) 
+                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps)) 
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
                 splined = np.real(np.diag(splined)) # we only need the diagonal of the interpolated matrix
                 
@@ -1485,9 +1489,9 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak *= 2 * self.h * self.h 
         
         print()
-        self.dP2_depsilon_domegak_norm  = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid), x=self.epsilon_grid, axis=0) 
+        self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
         self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
-        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm, x=self.theta_grid) }.")
+        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm*2*np.pi*np.sin(self.theta_grid), x=self.theta_grid) }.")
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, x=self.epsilon_grid) }.")
         print()
         
@@ -1499,6 +1503,9 @@ class laser_hydrogen_solver:
     def plot_norm(self, do_save=True):
         
         if self.norm_calculated: 
+            
+            sns.set_theme(style="dark") # nice plots
+            
             plt.plot(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm")
             plt.axvline(self.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
             plt.grid()
@@ -1518,8 +1525,10 @@ class laser_hydrogen_solver:
     def plot_dP_domega(self, do_save=True):
         
         if self.dP_domega_calculated: 
-            plt.axes(projection = 'polar', rlabel_position=-22.5)
             
+            sns.set_theme(style="dark") # nice plots
+            
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
             plt.plot(np.pi/2-self.theta_grid, self.dP_domega, label="dP_domega")
             plt.plot(np.pi/2+self.theta_grid, self.dP_domega, label="dP_domega")
             plt.title(r"$dP/d\Omega$ with polar projection.")
@@ -1547,10 +1556,14 @@ class laser_hydrogen_solver:
     def plot_dP_depsilon(self, do_save):
         
         if self.dP_depsilon_calculated: 
+            
+            sns.set_theme(style="dark") # nice plots
+            
             plt.plot(self.epsilon_grid, self.dP_depsilon, label="dP_depsilon")
             plt.grid()
             plt.xlabel("ε")
             plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$dP/d\epsilon$ with linear scale.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon.pdf")
@@ -1560,6 +1573,7 @@ class laser_hydrogen_solver:
             plt.grid()
             plt.xlabel("ε")
             plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$dP/d\epsilon$ with log scale.")
             plt.yscale('log')
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
@@ -1572,25 +1586,39 @@ class laser_hydrogen_solver:
     def plot_dP2_depsilon_domegak(self, do_save):
         
         if self.dP2_depsilon_domegak_calculated: 
+
+            sns.set_theme(style="dark") # nice plots
             
             self.theta_grid = np.linspace(0,np.pi,self.n)
             X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
-            sns.set_theme(style="dark") # nice plots
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
+            plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
+            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
+            plt.title(r"$dP/d\Omega$ with polar projection.")
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th_polar.pdf")
+            plt.show()
             
+            plt.axes(projection = None)
             plt.plot(self.theta_grid, self.dP2_depsilon_domegak_norm)
             plt.grid()
             plt.xlabel(r"$\theta$")
-            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.ylabel(r"$dP/d\Omega_k$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian coordinates.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_th.pdf")
             plt.show()
 
+
             plt.plot(self.epsilon_grid, self.dP2_depsilon_domegak_norm0)
             plt.grid()
             plt.xlabel(r"$\epsilon$")
-            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps.pdf")
@@ -1600,7 +1628,9 @@ class laser_hydrogen_solver:
             plt.grid()
             plt.yscale('log')
             plt.xlabel(r"$\epsilon$")
-            plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with log scale.")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_norm_eps0.pdf")
@@ -1638,7 +1668,28 @@ class laser_hydrogen_solver:
 
     def plot_res(self, do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=False, plot_dP2_depsilon_domegak=False):
         """
-        Create nice plots of the found wave functions.
+        Create nice plots of the found wave functions. Also calls functions to plot the results from the post-analysis.
+
+        Parameters
+        ----------
+        do_save : boolean, optional
+            Whether to save the plots. The default is True.
+        plot_norm : boolean, optional
+            Whether to plot the norm. The default is False.
+        plot_dP_domega : boolean, optional
+            Whether to plot dP/dΩ. The default is False.
+        plot_dP_depsilon : boolean, optional
+            Whether to plot dP/dε. The default is False.
+        plot_dP2_depsilon_domegak : boolean, optional
+            Whether to plot dP^2/dεdΩ_k. The default is False.
+
+        Returns
+        -------
+        None.
+
+        """
+        """
+        Create nice plots of the found wave functions. Also calls functions to plot the results from the post-analysis.
 
         Parameters
         ----------
@@ -1652,79 +1703,31 @@ class laser_hydrogen_solver:
         """
         
         sns.set_theme(style="dark") # nice plots
-        # TODO: add CAP
-        # TODO: plot after pulse
-        if self.time_evolved:
-
-            self.plot_idx  = np.round(np.linspace(0, len(self.save_idx) - 1, self.n_plots)).astype(int)
-            self.plot_idx_ = np.round(np.linspace(len(self.save_idx), len(self.save_idx) + len(self.save_idx_) - 2, self.n_plots)).astype(int)
-            # print(self.plot_idx)
+        if self.time_evolved: # chekcs that there is something to plot 
             
-            self.plot_idx1 = np.round(np.linspace(0, len(self.save_idx) + len(self.save_idx_) - 2, self.n_plots)).astype(int)
+            self.plot_idx  = np.round(np.linspace(0, len(self.save_idx) - 1, self.n_plots)).astype(int) # index of plots during the laser pulse
+            self.plot_idx_ = np.round(np.linspace(len(self.save_idx), len(self.save_idx) + len(self.save_idx_) - 2, self.n_plots)).astype(int) # index of plots after the laser pulse
             
-            """
-            for ln in range(self.l_max+1):
-                plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
-                # print(len(self.Ps))
-                # print(self.time_vector)
-                for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                    # print(i, self.save_idx[i])
-                    plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector [self.save_idx [i]-1]))
-                # for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                #     # print(i, self.save_idx[i])
-                #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
-                plt.legend()
-                title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
-                plt.title(title)
-                plt.xlabel("r (a.u.)")
-                plt.ylabel("Wave function")
-                plt.grid()
-                # plt.xscale("log")
-                # plt.yscale("log")
-                if do_save:
-                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                    plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
-                plt.show()
-            
-            for ln in range(self.l_max+1):
-                plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
-                # print(len(self.Ps))
-                # print(self.time_vector)
-                # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                #     # print(i, self.save_idx[i])
-                #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector [self.save_idx [i]-1]))
-                for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                    # print(i, self.save_idx[i])
-                    plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
-                plt.legend()
-                title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-                title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
-                plt.title(title)
-                plt.xlabel("r (a.u.)")
-                plt.ylabel("Wave function")
-                plt.grid()
-                # plt.xscale("log")
-                # plt.yscale("log")
-                if do_save:
-                    os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-                    plt.savefig(f"{self.save_dir}/time_evolved_{ln}_1.pdf")
-                plt.show()
-            """
+            # index of plots during and after the laser pulse
+            self.plot_idx1 = np.round(np.linspace(0, len(self.save_idx) + len(self.save_idx_) - 2, self.n_plots)).astype(int) 
             
             si = np.append(self.save_idx,self.save_idx_[1:]+self.save_idx[-1])
             tv = np.append(self.time_vector, self.time_vector1)
+            
+            # makes one plot for each l-channel
             for ln in range(self.l_max+1):
-                plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" )
-                # print(len(self.Ps))
-                # print(self.time_vector)
-                for i in self.plot_idx1[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                    # print(i, self.save_idx[i])
+                plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="GS" ) # adds the ground state
+                max_vals = np.zeros(len(self.plot_idx1[1:])+1) # array to help scale the CAP
+                max_vals[0] = np.max(np.abs(self.Ps[0][:,ln]))
+                
+                # adds all the timesteps we want
+                for j,i in enumerate(self.plot_idx1[1:]): 
                     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(tv[si[i]-1]))
-                # for i in self.plot_idx_: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                #     # print(i, self.save_idx[i])
-                #     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(self.time_vector1[self.save_idx_[i-len(self.save_idx)]-1]))
-                plt.legend()
+                    max_vals[j+1] = np.max(np.abs(self.Ps[i][:,ln]))
+                # plots the CAP
+                plt.plot(self.r[self.CAP_locs], self.Gamma_vector*np.max(max_vals)/np.max(self.Gamma_vector), 'k--', label="CAP", zorder=1)
+                # plt.legend()
+                plt.legend(loc='upper right')
                 title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
                 title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."
                 plt.title(title)
@@ -1738,14 +1741,14 @@ class laser_hydrogen_solver:
                     plt.savefig(f"{self.save_dir}/time_evolved_{ln}.pdf")
                 plt.show()
                 
+            # makes a plot of the final state of each l-channel
             for ln in range(self.l_max+1):
-                # plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
-                # print(len(self.Ps))
-                # print(self.time_vector)
-                # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                # print(i, self.save_idx[i])
                 plt.plot(self.r, np.abs(self.Ps[-1][:,ln]), label="l = {}".format(ln))
-            plt.legend()
+            # adds the CAP, scaled
+            plt.plot(self.r[self.CAP_locs], self.Gamma_vector*np.max(np.max(np.abs(self.Ps[-1])))/np.max(self.Gamma_vector), 'k--', label="CAP", zorder=1)
+            # plt.legend()
+            plt.legend(loc='upper right')
+            
             title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
             title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."
             plt.title(title)
@@ -1759,31 +1762,7 @@ class laser_hydrogen_solver:
                 plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf")
             plt.show()
             
-            # P_S = pd.read_csv("sølve/PsiMatrix.dat", sep=" ", header=None).to_numpy().astype(complex)
-            
-            # s_r = np.linspace(self.h, self.r_max, len(P_S))
-            
-            # for ln in range(self.l_max+1):
-                # plt.plot(self.r, np.abs(self.Ps[0][:,ln]), "--", label="Ground state" )
-                # print(len(self.Ps))
-                # print(self.time_vector)
-                # for i in self.plot_idx[1:]: # range(1,len(self.Ps))[::int(len(self.Ps)/self.n_plots)]:
-                # print(i, self.save_idx[i])
-                # plt.plot(s_r, np.abs(P_S[:,ln]), label="l = {}".format(ln))
-            # plt.legend()
-            # title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
-            # title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+ r", $L_{max} =$" + f"{self.l_max}."
-            # plt.title("Sølve")
-            # plt.xlabel("r (a.u.)")
-            # plt.ylabel("Wave function")
-            # plt.grid()
-            # plt.xscale("log")
-            # plt.yscale("log")
-            # if do_save:
-            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{self.save_dir}/time_evolved_ls.pdf")
-            plt.show()
-            
+            # calls functions to plot the results from the post-analysis            
             if plot_norm:
                 self.plot_norm(do_save)
             
@@ -1795,11 +1774,7 @@ class laser_hydrogen_solver:
                 
             if plot_dP2_depsilon_domegak:
                 self.plot_dP2_depsilon_domegak(do_save)
-            
-            # if plot_norm and plot_dP_domega:
-            #     print(f"Norm diff |Ψ| and dP/dΩ Sølve: {np.abs(1-s_f_norm-s_dPdo_norm)}.")
-            
-            
+
         else:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
 
@@ -1866,7 +1841,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_norm_over_time", self.norm_over_time)
             np.savetxt(f"{self.save_dir}/{savename}_norm_over_time.csv", self.norm_over_time, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+            print("Warning: calculate_time_evolution() needs to be run before save_norm_over_time().")
 
 
     def load_norm_over_time(self, savename="found_states_norm_over_time.npy"):
@@ -1913,7 +1888,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_dP_domega", self.dP_domega)
             np.savetxt(f"{self.save_dir}/{savename}_dP_domega.csv", self.dP_domega, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+            print("Warning: calculate_time_evolution() needs to be run before save_dP_domega().")
 
 
     def load_dP_domega(self, savename="found_states_dP_domega.npy"):
@@ -1964,7 +1939,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
             np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+            print("Warning: calculate_time_evolution() needs to be run before save_dP_depsilon().")
 
 
     def load_dP_depsilon(self, savename="found_states"):
@@ -2014,7 +1989,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
             np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
+            print("Warning: calculate_time_evolution() needs to be run before save_dP2_depsilon_domegak().")
 
 
     def load_dP2_depsilon_domegak(self, savename="found_states"):
@@ -2032,24 +2007,19 @@ class laser_hydrogen_solver:
         None.
 
         """
-        self.dP2_depsilon_domegak  = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.npy")
+        self.dP2_depsilon_domegak       = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.npy")
+        self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
+        self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
         self.time_evolved = True
         self.dP2_depsilon_domegak_calculated = True
         self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
-        
-        # dP2_depsilon_domegak_norm = np.trapz(self.dP2_depsilon_domegak, self.epsilon_grid) 
-        # print()
-        # print(f"Norm of dP/dε = {dP2_depsilon_domegak_norm}.")
         
         
     def save_variable(self, variable, savename):
         """
         Save a variable to a file.
         """
-        
         os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
-        # if savename is None:
-        #     savename = f'{variable=}'.split('=')[0]
         np.save(f"{self.save_dir}/{savename}", variable)
         
         
@@ -2057,7 +2027,6 @@ class laser_hydrogen_solver:
         """
         Save all foud zetas to a file.
         """
-        
         os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
         if self.time_evolved:
             if self.calc_dPdomega:
@@ -2069,11 +2038,11 @@ class laser_hydrogen_solver:
         else:
             print("Need to evolve time before saving the ζ-values.")
 
+
     def save_found_states_analysis(self, savename="found_states"):
         """
         Save all the postprosecing. 
         """
-        
         self.save_norm_over_time(savename)
         self.save_dP_domega(savename)
         self.save_dP_depsilon(savename)
@@ -2134,7 +2103,6 @@ class laser_hydrogen_solver:
                 f.write('%s:%s\n' % (key, value))
         
         np.save(f'{self.save_dir}/hyperparameters.npy', hyperparameters)
-        
         return hyperparameters
         
 
@@ -2177,7 +2145,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31"):
     
     # plots stuff
     a.plot_gs_res(do_save=False)
-    a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
     
 
 def load_zeta_omega(save_dir="dP_domega_S30"):
@@ -2194,11 +2162,6 @@ def load_zeta_omega(save_dir="dP_domega_S30"):
     None.
 
     """
-    
-    
-    # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
     
     # loads the hyperparameters
     hyp = np.load(f'{save_dir}/hyperparameters.npy',allow_pickle='TRUE').item()
@@ -2231,11 +2194,6 @@ def load_zeta_epsilon(save_dir="dP_domega_S30"):
     None.
 
     """
-    
-    
-    # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt=6283, dt=0.05, # int(1*6283.185307179585), 
-    #                           T=0.9549296585513721, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, calc_dPdomega=True)
     
     # loads the hyperparameters
     hyp = np.load(f'{save_dir}/hyperparameters.npy',allow_pickle='TRUE').item()
@@ -2291,18 +2249,15 @@ def main():
 
     total_start_time = time.time()
 
-    # a = laser_hydrogen_solver(save_dir="dP_domega_S16", fd_method="3-point", gs_fd_method="5-point_asymmetric", nt=6283.185307179585, 
-    #                           T=0.9549296585513721-.9, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, 
-    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5, 
-    #                           calc_dPdomega=False, calc_dPdepsilon=True, calc_norm=False, spline_n=1000)
-    a = laser_hydrogen_solver(save_dir="dP_domega_S34", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", dt=0.05, # int(1*6283.185307179585), 
-                              T=1, n=750, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=6, max_epsilon=2,
+    # a = laser_hydrogen_solver(save_dir="test_CAP", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(2000), 
+    #                           T=1, n=100, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+    #                           calc_norm=False, calc_dPdomega=False, calc_dPdepsilon=False, calc_dP2depsdomegak=False, spline_n=1_000)
+    # a.set_time_propagator(a.Lanczos, k=10)
+    a = laser_hydrogen_solver(save_dir="good_para1", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
-    # a = laser_hydrogen_solver(save_dir="dP_domega_S0", fd_method="5-point_asymmetric", E0=.1, nt=6283.185307179585, T=0.9549296585513721, n=500, 
-    #                           r_max=100, Ncycle=10, nt_imag=5_000, T_imag=20, use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=5,
-    #                           calc_dPdomega=True, calc_dPdepsilon=False, calc_norm=True, spline_n=1000, w=.2, cep=0) 
-    
     a.set_time_propagator(a.Lanczos, k=15)
 
     a.calculate_ground_state_imag_time()
@@ -2312,12 +2267,13 @@ def main():
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
 
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
 
     a.save_zetas()
     a.save_found_states()
     a.save_found_states_analysis()
     a.save_hyperparameters()
+    
     
     total_end_time = time.time()
     
@@ -2327,15 +2283,37 @@ def main():
     total_time_hou = total_time_min//60
     total_time_min = total_time_min % 60
     total_time_mil = (total_time-int(total_time))*1000
+    
     print()
     print("Total runtime: {:.4f} s.".format(total_time))
     print("Total runtime: {:02d}h:{:02d}m:{:02d}s:{:02d}ms.".format(int(total_time_hou),int(total_time_min),int(total_time_sec),int(total_time_mil)))
     
 
-# TODO: check if good enough values for:
-    # h/Nx, dt, (Rmax), lmax, Kdim, 
-    # CAP_loc, gamma_0 senere
-
+# TODO: 
+    # check if good enough values for:
+        # CAP_loc, gamma_0 senere
+    # fix double integral omh plot
+    # try with different CAPs
+    # add animation
+    # fix plots
+    # test dP/dom with closer CAP
+        # keep CAP-size = 50au
+        # use l_max=8
+        # start CAP=5au,10au,15au,20au,25au,30au,...,50au
+        # with r_max=200, CAP=50au,60au,...,150au
+        # no dP^2
+    # test dP/deps with closer CAP
+        # should be same
+    # test dP^2 with closer CAP
+        # 30au?
+    
+    
+# DONE:
+    # try running l_max=5,6,7,8,9 with more nt or K_dim
+    # with good l_max:
+        # try increasing the other variables one step after finding good l_max
+    # h/Nx, dt, (Rmax), lmax, Kdim,    
+    
 
 if __name__ == "__main__":
     main()
@@ -2343,4 +2321,4 @@ if __name__ == "__main__":
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
-    # load_run_program_and_plot("dP_domega_S30")
+    # load_run_program_and_plot("good_para0")
