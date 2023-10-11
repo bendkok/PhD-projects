@@ -1829,7 +1829,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_norm_over_time", self.norm_over_time)
             np.savetxt(f"{self.save_dir}/{savename}_norm_over_time.csv", self.norm_over_time, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_norm_over_time().")
+            print("Warning: calculate_time_evolution() needs to be run with calc_norm=True before save_norm_over_time().")
 
 
     def load_norm_over_time(self, savename="found_states_norm_over_time.npy"):
@@ -1876,7 +1876,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_dP_domega", self.dP_domega)
             np.savetxt(f"{self.save_dir}/{savename}_dP_domega.csv", self.dP_domega, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_dP_domega().")
+            print("Warning: calculate_time_evolution() needs to be run with calc_dPdomega=True before save_dP_domega().")
 
 
     def load_dP_domega(self, savename="found_states_dP_domega.npy"):
@@ -1927,7 +1927,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
             np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_dP_depsilon().")
+            print("Warning: calculate_time_evolution() needs to be run with calc_dPdepsilon=True before save_dP_depsilon().")
 
 
     def load_dP_depsilon(self, savename="found_states"):
@@ -1977,7 +1977,7 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
             np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
         else:
-            print("Warning: calculate_time_evolution() needs to be run before save_dP2_depsilon_domegak().")
+            print("Warning: calculate_time_evolution() needs to be run with calc_dP2depsdomegak=True before save_dP2_depsilon_domegak().")
 
 
     def load_dP2_depsilon_domegak(self, savename="found_states"):
@@ -2031,10 +2031,14 @@ class laser_hydrogen_solver:
         """
         Save all the postprosecing. 
         """
-        self.save_norm_over_time(savename)
-        self.save_dP_domega(savename)
-        self.save_dP_depsilon(savename)
-        self.save_dP2_depsilon_domegak(savename)
+        if self.calc_norm:    
+            self.save_norm_over_time(savename)
+        if self.calc_dPdomega:
+            self.save_dP_domega(savename)
+        if self.calc_dPdepsilon:
+            self.save_dP_depsilon(savename)
+        if self.calc_dP2depsdomegak:
+            self.save_dP2_depsilon_domegak(savename)
 
 
     def load_variable(self, savename='zeta_epsilon.npy'):
