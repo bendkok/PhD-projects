@@ -1862,6 +1862,68 @@ class laser_hydrogen_solver:
                 # makes the plot window stay up until it is closed
                 plt.ioff()
                 plt.show()
+                
+            for l in range(self.l_max+1):
+                plt.ion() # allows for animation
+                
+                # here we are creating sub plots
+                figure0, ax0 = plt.subplots(figsize=(12, 8))
+                # make the plots look a bit nicer
+                # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
+                ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0]))*1.1, bottom=-0.01) # TODO: check if it should be squared
+                plt.xlabel(r"$r$")
+                ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|$")
+                plt.grid()
+                # ax0.set_yscale('symlog') # TODO: decide if to keep
+                
+                if self.use_CAP:
+                    CAP_array = np.zeros_like(self.r)
+                    CAP_array[self.CAP_locs] = self.Gamma_vector
+                    
+                    ax_p = ax0.twinx()
+                    # align_yaxis(ax0, ax_p, np.max(CAP_array))
+                    ax_p.set_ylim(top=np.max(CAP_array), bottom=-0.01)
+                    ax_p.set_ylabel("CAP")
+                    
+                    line_V, = ax_p.plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)
+                    
+                # plot the initial wave functions
+                line = ax0.plot(self.r, np.abs(self.Ps[0][:,l]), label=f"l={l}")[0]
+                
+                # ask matplotlib for the plotted objects and their labels
+                if self.use_CAP:
+                    lines, labels = ax0.get_legend_handles_labels()
+                    lines2, labels2 = ax_p.get_legend_handles_labels()
+                    ax0.legend(lines + lines2, labels + labels2, loc=1)
+            
+                    ax0.set_zorder(ax_p.get_zorder()+1) # put ax in front of ax_p
+                    ax0.patch.set_visible(False)  # hide the 'canvas'
+                    ax_p.patch.set_visible(True) # show the 'canvas'
+                else:
+                    ax0.legend()
+                
+                # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
+                times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
+                
+                # goes through all the time steps
+                for t in tqdm(range(len(times))):
+                    line.set_ydata(np.abs(self.Ps[t][:,l]))
+        
+                    plt.title("t = {:.2f}. Frame = {}.".format(times[t], t))
+        
+                    # drawing updated values
+                    figure0.canvas.draw()
+        
+                    # This will run the GUI event
+                    # loop until all UI events
+                    # currently waiting have been processed
+                    figure0.canvas.flush_events()
+                
+                
+                if keep_up:
+                    # makes the plot window stay up until it is closed
+                    plt.ioff()
+                    plt.show()
             
             # TODO: add saving
             
