@@ -10,7 +10,7 @@ import time
 from laser_hydrogen_solver import laser_hydrogen_solver
 
 
-def test_CAP(save_name, CAP_onset=.5, CAP_onset_str="50", r_max=100, n=500, gamma_0=1e-3, T=1, test_vars=[True,True,False,False]):
+def test_CAP(save_name, CAP_onset=.5, CAP_onset_str="50", r_max=100, n=500, gamma_0=1e-4, T=1, test_vars=[True,True,False,False]):
     
     a = laser_hydrogen_solver(save_dir=save_name, fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=T, n=n, r_max=r_max, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
