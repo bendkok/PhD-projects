@@ -1804,16 +1804,18 @@ class laser_hydrogen_solver:
         if self.time_evolved: # chekcs that there is something to plot 
             sns.set_theme(style="dark") # nice plots
             
+            
             plt.ion() # allows for animation
             # here we are creating sub plots
             figure, ax0 = plt.subplots(figsize=(12, 8))
             # make the plots look a bit nicer
             # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
             ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1, bottom=-0.01) # TODO: check if it should be squared
+            # ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1) # TODO: check if it should be squared
             plt.xlabel(r"$r$")
             ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$")
             plt.grid()
-            ax0.set_yscale('symlog') # TODO: decide if to keep
+            # ax0.set_yscale('symlog') # TODO: decide if to keep
             
             if self.use_CAP:
                 CAP_array = np.zeros_like(self.r)
@@ -1828,6 +1830,8 @@ class laser_hydrogen_solver:
                 
             # plot the initial wave functions
             lines = [(ax0.plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
+            # ax0.set_yscale('log') # TODO: decide if to keep
+            ax0.set_yscale('symlog') # TODO: decide if to keep
             
             # ask matplotlib for the plotted objects and their labels
             if self.use_CAP:
@@ -1935,13 +1939,13 @@ class laser_hydrogen_solver:
             # make the plots look a bit nicer
             # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
             # top = np.max(np.abs(np.array(self.Ps)[:,:,:]))
-            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a]))*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
+            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*4e-2) for a in range(len(axes))] # TODO: check if it should be squared
+            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
             plt.xlabel(r"$r$")
             [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in range(len(axes))]
             # ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|$")
             # plt.grid()
             [axes[a].grid() for a in range(len(axes))]
-            [axes[a].set_yscale('symlog') for a in range(len(axes))]
             # ax0.set_yscale('symlog') # TODO: decide if to keep
             
             if self.use_CAP:
@@ -1958,7 +1962,9 @@ class laser_hydrogen_solver:
                 
             # plot the initial wave functions
             lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
-            
+            # [axes[a].set_yscale('log') for a in range(len(axes))]
+            # [axes[a].set_yscale('symlog') for a in range(len(axes))]
+
             # ask matplotlib for the plotted objects and their labels
             if self.use_CAP:
                 la = [axes[a].get_legend_handles_labels() for a in range(len(axes))]
@@ -2387,8 +2393,8 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False):
     print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
     
     # plots stuff
-    # a.plot_gs_res(do_save=False)
-    # a.plot_res(do_save=False, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
+    # a.plot_gs_res(do_save=True)
+    # a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
     
     if animate:
         a.make_aimation(keep_up=True)
@@ -2500,9 +2506,9 @@ def main():
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
     #                           calc_norm=False, calc_dPdomega=False, calc_dPdepsilon=False, calc_dP2depsdomegak=False, spline_n=1_000)
     # a.set_time_propagator(a.Lanczos, k=10)
-    a = laser_hydrogen_solver(save_dir="good_para2", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+    a = laser_hydrogen_solver(save_dir="good_para4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+                              use_CAP=True, gamma_0=3e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
     a.set_time_propagator(a.Lanczos, k=15)
 
@@ -2540,6 +2546,8 @@ def main():
     # check if good enough values for:
         # CAP_loc, gamma_0 senere
     # try gamma_0 /10
+        # too high for some, too low for others
+        # might need l-specific gamma_0
     # fix double integral omh plot
     # try with different CAPs
     # add animation
@@ -2565,9 +2573,9 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    # main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
-    # load_run_program_and_plot("good_para1", True)
+    load_run_program_and_plot("good_para3", True)
