@@ -1779,38 +1779,39 @@ class laser_hydrogen_solver:
     def make_aimation(self, do_save=True, keep_up=True, extra_title=""):
         # Function which creates animations of the wave function as it changes with time. 
         
-        def align_yaxis(ax1, ax2, scale_1=1, scale_2=1):
-            y_lims = np.array([ax.get_ylim() for ax in [ax1, ax2]])
-            y_lims[0,1] *= scale_1
-            y_lims[1,1] *= scale_2
+        # def align_yaxis(ax1, ax2, scale_1=1, scale_2=1):
+        #     y_lims = np.array([ax.get_ylim() for ax in [ax1, ax2]])
+        #     y_lims[0,1] *= scale_1
+        #     y_lims[1,1] *= scale_2
         
-            # force 0 to appear on both axes, comment if don't need
-            y_lims[:, 0] = y_lims[:, 0].clip(None, 0)
-            y_lims[:, 1] = y_lims[:, 1].clip(0, None)
+        #     # force 0 to appear on both axes, comment if don't need
+        #     y_lims[:, 0] = y_lims[:, 0].clip(None, 0)
+        #     y_lims[:, 1] = y_lims[:, 1].clip(0, None)
         
-            # normalize both axes
-            y_mags = (y_lims[:,1] - y_lims[:,0]).reshape(len(y_lims),1)
-            y_lims_normalized = y_lims / y_mags
+        #     # normalize both axes
+        #     y_mags = (y_lims[:,1] - y_lims[:,0]).reshape(len(y_lims),1)
+        #     y_lims_normalized = y_lims / y_mags
         
-            # find combined range
-            y_new_lims_normalized = np.array([np.min(y_lims_normalized), np.max(y_lims_normalized)])
+        #     # find combined range
+        #     y_new_lims_normalized = np.array([np.min(y_lims_normalized), np.max(y_lims_normalized)])
         
-            # denormalise combined range to get new axes
-            new_lim1, new_lim2 = y_new_lims_normalized * y_mags
-            ax1.set_ylim(new_lim1)
-            ax2.set_ylim(new_lim2)
+        #     # denormalise combined range to get new axes
+        #     new_lim1, new_lim2 = y_new_lims_normalized * y_mags
+        #     ax1.set_ylim(new_lim1)
+        #     ax2.set_ylim(new_lim2)
             
         
         if self.time_evolved: # chekcs that there is something to plot 
             sns.set_theme(style="dark") # nice plots
             
-            
-            plt.ion() # allows for animation
+            """
+            # self.use_CAP = False
+            # plt.ion() # allows for animation
             # here we are creating sub plots
             figure, ax0 = plt.subplots(figsize=(12, 8))
             # make the plots look a bit nicer
             # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
-            ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1, bottom=-0.01) # TODO: check if it should be squared
+            # ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1, bottom=-0.01) # TODO: check if it should be squared
             # ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1) # TODO: check if it should be squared
             plt.xlabel(r"$r$")
             ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$")
@@ -1829,15 +1830,15 @@ class laser_hydrogen_solver:
                 line_V, = ax_p.plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)
                 
             # plot the initial wave functions
-            lines = [(ax0.plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
-            # ax0.set_yscale('log') # TODO: decide if to keep
-            ax0.set_yscale('symlog') # TODO: decide if to keep
+            lines0 = [(ax0.plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
+            ax0.set_yscale('log') # TODO: decide if to keep
+            # ax0.set_yscale('symlog') # TODO: decide if to keep
             
             # ask matplotlib for the plotted objects and their labels
             if self.use_CAP:
-                lines, labels = ax0.get_legend_handles_labels()
+                lines0, labels = ax0.get_legend_handles_labels()
                 lines2, labels2 = ax_p.get_legend_handles_labels()
-                ax0.legend(lines + lines2, labels + labels2, loc=1)
+                ax0.legend(lines0 + lines2, labels + labels2, loc=1)
         
                 ax0.set_zorder(ax_p.get_zorder()+1) # put ax in front of ax_p
                 ax0.patch.set_visible(False)  # hide the 'canvas'
@@ -1847,138 +1848,92 @@ class laser_hydrogen_solver:
             
             # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
             times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
+            time_text0 = ax0.text(.4, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=ax0.transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
             
             # goes through all the time steps
-            for t in tqdm(range(len(times))):
-                [lines[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
-    
-                plt.title("t = {:.2f}. Frame = {}.".format(times[t], t))
-    
-                # drawing updated values
-                figure.canvas.draw()
-    
-                # This will run the GUI event
-                # loop until all UI events
-                # currently waiting have been processed
-                figure.canvas.flush_events()
+            def animate0(t):
             
-            if keep_up:
-                # makes the plot window stay up until it is closed
-                plt.ioff()
-                plt.show()
-            
-                
-            # for l in range(self.l_max+1):
-            #     plt.ion() # allows for animation
-                
-            #     # here we are creating sub plots
-            #     figure0, ax0 = plt.subplots(figsize=(12, 8))
-            #     # make the plots look a bit nicer
-            #     # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
-            #     ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0]))*1.1, bottom=-0.01) # TODO: check if it should be squared
-            #     plt.xlabel(r"$r$")
-            #     ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|$")
-            #     plt.grid()
-            #     # ax0.set_yscale('symlog') # TODO: decide if to keep
-                
-            #     if self.use_CAP:
-            #         CAP_array = np.zeros_like(self.r)
-            #         CAP_array[self.CAP_locs] = self.Gamma_vector
-                    
-            #         ax_p = ax0.twinx()
-            #         # align_yaxis(ax0, ax_p, np.max(CAP_array))
-            #         ax_p.set_ylim(top=np.max(CAP_array), bottom=-0.01)
-            #         ax_p.set_ylabel("CAP")
-                    
-            #         line_V, = ax_p.plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)
-                    
-            #     # plot the initial wave functions
-            #     line = ax0.plot(self.r, np.abs(self.Ps[0][:,l]), label=f"l={l}")[0]
-                
-            #     # ask matplotlib for the plotted objects and their labels
-            #     if self.use_CAP:
-            #         lines, labels = ax0.get_legend_handles_labels()
-            #         lines2, labels2 = ax_p.get_legend_handles_labels()
-            #         ax0.legend(lines + lines2, labels + labels2, loc=1)
-            
-            #         ax0.set_zorder(ax_p.get_zorder()+1) # put ax in front of ax_p
-            #         ax0.patch.set_visible(False)  # hide the 'canvas'
-            #         ax_p.patch.set_visible(True) # show the 'canvas'
-            #     else:
-            #         ax0.legend()
-                
-            #     # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
-            #     times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
-                
-            #     # goes through all the time steps
-            #     for t in tqdm(range(len(times))):
-            #         line.set_ydata(np.abs(self.Ps[t][:,l]))
+                #     [lines[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
         
-            #         plt.title("t = {:.2f}. Frame = {}.".format(times[t], t))
-        
-            #         # drawing updated values
-            #         figure0.canvas.draw()
-        
-            #         # This will run the GUI event
-            #         # loop until all UI events
-            #         # currently waiting have been processed
-            #         figure0.canvas.flush_events()
+                #     return lines + [time_text,]
                 
+                # # goes through all the time steps
+                # for t in tqdm(range(len(times))):
+                [lines0[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
+                time_text0.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))
+    
+                # plt.title("t = {:.2f}. Frame = {}.".format(times[t], t))
+    
+                # # drawing updated values
+                # figure.canvas.draw()
+    
+                # # This will run the GUI event
+                # # loop until all UI events
+                # # currently waiting have been processed
+                # figure.canvas.flush_events()
                 
-            #     if keep_up:
-            #         # makes the plot window stay up until it is closed
-            #         plt.ioff()
-            #         plt.show()
+                return lines0 + [time_text0,]
+            
+            ani = animation.FuncAnimation(figure, animate0, range(1, len(times)), 
+                                          interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
             
             
-            # plt.ion() # allows for animation
+            # if keep_up:
+            #     # makes the plot window stay up until it is closed
+            #     plt.ioff()
+            #     plt.show()
+            """
+                
             
             # here we are creating sub plots
-            figure0, ax = plt.subplots(3, 3, figsize=(15, 9.5), layout='constrained')
+            figure0, ax = plt.subplots(3, 3, figsize=(15, 9.5), sharex=True, layout='constrained')
             axes = ax.ravel()
+            
             # make the plots look a bit nicer
-            # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
-            # top = np.max(np.abs(np.array(self.Ps)[:,:,:]))
-            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*4e-2) for a in range(len(axes))] # TODO: check if it should be squared
-            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
-            plt.xlabel(r"$r$")
-            [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in range(len(axes))]
-            # ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|$")
-            # plt.grid()
+            [axes[a].set_xlabel(r"$r$") for a in range(len(axes)-3,len(axes))]
+            [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in [0,3,6]] # range(len(axes))]
             [axes[a].grid() for a in range(len(axes))]
-            # ax0.set_yscale('symlog') # TODO: decide if to keep
+            
+            [axes[a].tick_params(axis='x', colors='red') for a in range(len(axes))]
+            [axes[a].xaxis.label.set_color('red') for a in range(len(axes))]
+            
+            [axes[a].spines['left'].set_color('#4c72b0') for a in range(len(axes))]
+            [axes[a].tick_params(axis='y', colors='#4c72b0') for a in range(len(axes))]
+            [axes[a].yaxis.label.set_color('#4c72b0') for a in range(len(axes))]
             
             if self.use_CAP:
                 CAP_array = np.zeros_like(self.r)
                 CAP_array[self.CAP_locs] = self.Gamma_vector
                 
                 ax_ps = [axes[a].twinx() for a in range(len(axes))]
-                # align_yaxis(ax0, ax_p, np.max(CAP_array))
-                [ax_ps[a].set_ylim(top=np.max(CAP_array), bottom=-np.max(CAP_array)*2e-2) for a in range(len(ax_ps))]
-                [ax_ps[a].set_ylabel("CAP") for a in range(len(ax_ps))]
+                # [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
+                [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
+                [ax_ps[a].set_ylabel("CAP") for a in [2,5,8]] # range(len(ax_ps))]
                 
-                # line_Vs = [ax_ps[a].plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
                 [ax_ps[a].plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
+                for ax_p in ax_ps:
+                    ax_ps[0].get_shared_y_axes().join(ax_ps[0], ax_p)
+                ax_ps[0].autoscale()
+                for ax in [0,1,3,4,6,7]:
+                    ax_ps[ax].yaxis.set_tick_params(labelright=False)
+                    
+                [ax_ps[a].spines['right'].set_color('#55a868') for a in range(len(axes))]
+                [ax_ps[a].tick_params(axis='y', colors='#55a868') for a in range(len(axes))]
+                [ax_ps[a].yaxis.label.set_color('#55a868') for a in range(len(axes))]
                 
             # plot the initial wave functions
             lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
             # [axes[a].set_yscale('log') for a in range(len(axes))]
-            # [axes[a].set_yscale('symlog') for a in range(len(axes))]
+            [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-4) for a in range(len(axes))]
+            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
+            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-5) for a in range(len(axes))] # TODO: check if it should be squared
 
             # ask matplotlib for the plotted objects and their labels
             if self.use_CAP:
                 la = [axes[a].get_legend_handles_labels() for a in range(len(axes))]
-                # lines = la[:,0]; labels = la[:,1]
-                # lines0, labels = axes[0].get_legend_handles_labels()
                 lp = [ax_ps[a].get_legend_handles_labels() for a in range(len(ax_ps))]
-                # lines2 = lp[:,0]; labels2 = lp[:,1]
-                # lines2, labels2 = ax_ps[0].get_legend_handles_labels()
-                # axes[0].legend(lines0 + lines2, labels + labels2, loc=1)
                 [axes[a].legend(la[a][0] + lp[a][0], la[a][1] + lp[a][1], loc=1) for a in range(len(axes))]
         
-                # axes[0].set_zorder(ax_ps[0].get_zorder()+1) # put ax in front of ax_p
-                # axes[0].patch.set_visible(False)  # hide the 'canvas'
-                # ax_ps[0].patch.set_visible(True) # show the 'canvas'
                 [axes[a].set_zorder(ax_ps[0].get_zorder()+1) for a in range(len(axes))] # put ax in front of ax_p
                 [axes[a].patch.set_visible(False) for a in range(len(axes))]  # hide the 'canvas'
                 [ax_ps[a].patch.set_visible(True) for a in range(len(axes))] # show the 'canvas'
@@ -1987,33 +1942,19 @@ class laser_hydrogen_solver:
             
             # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
             times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
-            time_text = axes[1].text(.07, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=axes[1].transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
+            time_text = axes[1].text(.3, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=axes[1].transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
             
             # goes through all the time steps
             def animate(t):
             
-                # for t in tqdm(range(len(times))):
                 [lines[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
                 time_text.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))
-                # axes[1].title.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))
-                
-                # drawing updated values
-                # figure0.canvas.draw()
-    
-                # This will run the GUI event
-                # loop until all UI events
-                # currently waiting have been processed
-                # figure0.canvas.flush_events()
     
                 return lines + [time_text,]
             
             ani = animation.FuncAnimation(figure0, animate, range(1, len(times)), 
                                           interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
             
-            # if keep_up:
-            #     # makes the plot window stay up until it is closed
-            #     plt.ioff()
-            #     plt.show()
             # TODO: add saving
             # TODO: make for abitrary l_max
             
@@ -2506,9 +2447,9 @@ def main():
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
     #                           calc_norm=False, calc_dPdomega=False, calc_dPdepsilon=False, calc_dP2depsdomegak=False, spline_n=1_000)
     # a.set_time_propagator(a.Lanczos, k=10)
-    a = laser_hydrogen_solver(save_dir="good_para4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+    a = laser_hydrogen_solver(save_dir="good_para5", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=3e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+                              use_CAP=True, gamma_0=2e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
     a.set_time_propagator(a.Lanczos, k=15)
 
@@ -2578,4 +2519,4 @@ if __name__ == "__main__":
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
-    load_run_program_and_plot("good_para3", True)
+    load_run_program_and_plot("good_para4", True)
