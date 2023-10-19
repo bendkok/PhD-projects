@@ -1802,7 +1802,7 @@ class laser_hydrogen_solver:
             
         
         if self.time_evolved: # chekcs that there is something to plot 
-            sns.set_theme(style="dark") # nice plots
+            sns.set_theme(style="dark", rc={'xtick.bottom': True,'ytick.left': True}) # nice plots
             
             """
             # self.use_CAP = False
@@ -1890,10 +1890,11 @@ class laser_hydrogen_solver:
             axes = ax.ravel()
             
             # make the plots look a bit nicer
-            [axes[a].set_xlabel(r"$r$") for a in range(len(axes)-3,len(axes))]
+            [axes[a].set_xlabel(r"$r$ $(a.u.)$") for a in range(len(axes)-3,len(axes))]
             [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in [0,3,6]] # range(len(axes))]
             [axes[a].grid() for a in range(len(axes))]
             
+            [axes[a].spines['bottom'].set_color('red') for a in range(len(axes))]
             [axes[a].tick_params(axis='x', colors='red') for a in range(len(axes))]
             [axes[a].xaxis.label.set_color('red') for a in range(len(axes))]
             
@@ -1908,35 +1909,43 @@ class laser_hydrogen_solver:
                 ax_ps = [axes[a].twinx() for a in range(len(axes))]
                 # [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
                 [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
-                [ax_ps[a].set_ylabel("CAP") for a in [2,5,8]] # range(len(ax_ps))]
+                [ax_ps[a].set_ylabel(r"CAP $(a.u.)$") for a in [2,5,8]] # range(len(ax_ps))]
                 
-                [ax_ps[a].plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
+                [ax_ps[a].plot(self.r, CAP_array, '--', color='#55a868', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
                 for ax_p in ax_ps:
                     ax_ps[0].get_shared_y_axes().join(ax_ps[0], ax_p)
                 ax_ps[0].autoscale()
                 for ax in [0,1,3,4,6,7]:
                     ax_ps[ax].yaxis.set_tick_params(labelright=False)
                     
-                [ax_ps[a].spines['right'].set_color('#55a868') for a in range(len(axes))]
-                [ax_ps[a].tick_params(axis='y', colors='#55a868') for a in range(len(axes))]
-                [ax_ps[a].yaxis.label.set_color('#55a868') for a in range(len(axes))]
-                
             # plot the initial wave functions
             lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
             # [axes[a].set_yscale('log') for a in range(len(axes))]
             [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-4) for a in range(len(axes))]
             # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
             [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-5) for a in range(len(axes))] # TODO: check if it should be squared
+            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
 
             # ask matplotlib for the plotted objects and their labels
             if self.use_CAP:
+                # sns.despine(right=False)
+                
                 la = [axes[a].get_legend_handles_labels() for a in range(len(axes))]
                 lp = [ax_ps[a].get_legend_handles_labels() for a in range(len(ax_ps))]
                 [axes[a].legend(la[a][0] + lp[a][0], la[a][1] + lp[a][1], loc=1) for a in range(len(axes))]
         
-                [axes[a].set_zorder(ax_ps[0].get_zorder()+1) for a in range(len(axes))] # put ax in front of ax_p
+                [axes[a].set_zorder(ax_ps[a].get_zorder()+1) for a in range(len(axes))] # put ax in front of ax_p
                 [axes[a].patch.set_visible(False) for a in range(len(axes))]  # hide the 'canvas'
                 [ax_ps[a].patch.set_visible(True) for a in range(len(axes))] # show the 'canvas'
+                
+                # [ax_ps[a].spines['right'].set_zorder(axes[a].get_zorder()+1) for a in range(len(axes))]
+                [axes[a].spines['right'].set_color('#55a868') for a in range(len(axes))]
+                # [axes[a].spines['right'].set_linewidth(3) for a in range(len(axes))]
+                [ax_ps[a].tick_params(axis='y', colors='#55a868') for a in range(len(axes))]
+                [ax_ps[a].yaxis.label.set_color('#55a868') for a in range(len(axes))]
+                
+                # sns.despine(ax=axes[0], right=False, left=False)
+                # sns.despine(ax=ax_ps[0], left=False, right=False)
             else:
                 [axes[a].legend() for a in range(len(axes))]
             
@@ -2447,9 +2456,9 @@ def main():
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
     #                           calc_norm=False, calc_dPdomega=False, calc_dPdepsilon=False, calc_dP2depsdomegak=False, spline_n=1_000)
     # a.set_time_propagator(a.Lanczos, k=10)
-    a = laser_hydrogen_solver(save_dir="good_para5", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+    a = laser_hydrogen_solver(save_dir="good_para6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=2e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+                              use_CAP=True, gamma_0=1.5e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
     a.set_time_propagator(a.Lanczos, k=15)
 
@@ -2514,9 +2523,9 @@ def main():
     
 
 if __name__ == "__main__":
-    # main()
+    main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
-    load_run_program_and_plot("good_para4", True)
+    # load_run_program_and_plot("good_para5", True)
