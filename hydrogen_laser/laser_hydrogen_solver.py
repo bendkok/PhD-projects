@@ -192,7 +192,7 @@ class laser_hydrogen_solver:
 
     def make_time_vector(self):
         """
-        Make the regular time vector. 
+        Make the regular time vectors. 
 
         Returns
         -------
@@ -216,7 +216,7 @@ class laser_hydrogen_solver:
 
     def make_time_vector_imag(self):
         """
-        Make the imaginary time vector for calculating the ground state. 
+        Make the imaginary time vectors for calculating the ground state. 
 
         Returns
         -------
@@ -369,7 +369,7 @@ class laser_hydrogen_solver:
             self.CAP_R_proportion = .5
         self.CAP_R = self.CAP_R_proportion*self.r_max  # we set the R variable in the CAP to be a percentage of r_max
         
-        if Gamma_function == "polynomial_Gamma_CAP":
+        if Gamma_function == "polynomial_Gamma_CAP": # TODO: add custom method
             self.Gamma_function = self.polynomial_Gamma_CAP # currently the only option
         else:
             print("Invalid Gamma function entered! Using 'polynomial_Gamma_CAP' instead")
@@ -661,8 +661,8 @@ class laser_hydrogen_solver:
             
             # Symbol explanation:    
             """
-            self.V  = 1/self.r        # from the Coulomb potential
-            self.Vs = 1/self.r**2     # from the centrifugal term
+            self.V    = 1/self.r      # from the Coulomb potential
+            self.Vs   = 1/self.r**2   # from the centrifugal term
             self.D2_2 = -.5*self.D2   # the differeniated double derivative
             """
             
@@ -730,7 +730,6 @@ class laser_hydrogen_solver:
         -------
         (self.n, l_max) numpy array
             The new estimate for the matrix.
-
         """
 
         k1 = func(tn, P)
@@ -789,7 +788,6 @@ class laser_hydrogen_solver:
 
         """
         
-        # print("Needed to use find_orth()")
         self.found_orth += 1
         M = O.reshape( O.shape[0]*O.shape[1], O.shape[2] ) # reshapes the input
         rand_vec = np.random.rand(M.shape[0], 1) # generates a random vector of the correct shape
@@ -896,7 +894,6 @@ class laser_hydrogen_solver:
             alpha[j] = self.inner_product(w, V[:,:,j])
             w  = w - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
 
-
         T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
         P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # Not sure if this is the fastest # TODO: wy did this work again?
         P_new = V[:,:,:].dot(P_k)[:,:,0]
@@ -918,6 +915,7 @@ class laser_hydrogen_solver:
             Krylov subspace.
         h: (n + 1) x n array, A on basis Q. It is upper Hessenberg.
         """
+        # TODO: either actually implement, or remove
         eps = 1e-12
         h = np.zeros((n+1,n))
         Q = np.zeros((A.shape[0],n+1))
@@ -986,7 +984,7 @@ class laser_hydrogen_solver:
 
         self.P0s  = [self.P0] # a list to store some of the P0 results. We only keep n_saves values
         self.eps0 = []        # a list to store the estimated local energy
-        self.N0s  = [] # [self.inner_product(self.P0, self.P0)]
+        self.N0s  = []        # [self.inner_product(self.P0, self.P0)]
 
         self.save_idx_imag = np.round(np.linspace(0, len(self.time_vector_imag) - 1, self.n_saves_imag)).astype(int)
         
@@ -1056,20 +1054,17 @@ class laser_hydrogen_solver:
         None.
 
         """
-
+        # loads data
         self.P0s  = np.load(f"{self.save_dir}/{savename}.npy")
         self.eps0 = np.load(f"{self.save_dir}/{savename}_eps0.npy")
-        self.N0s  = np.exp( self.eps0 / self.energy_constant )
         
+        # updates relevant arrays
+        self.N0s  = np.exp( self.eps0 / self.energy_constant )
         self.P [:,0] = self.P0s[-1,:,0]
         self.P0[:,0] = self.P0s[-1,:,0]
 
-        # N = si.simpson( np.insert( np.abs(self.P0.flatten())**2,0,0), np.insert(self.r,0,0))
-        # eps0 = np.log(N) * -.5 / self.dt_imag
-
         print( f"\nAnalytical ground state energy: {self.eps0[-1]} au.")
 
-        # self.P0s = np.load(f"{self.save_dir}/{savename}")
         self.ground_state_found = True
 
 
@@ -1092,16 +1087,14 @@ class laser_hydrogen_solver:
 
         if self.ground_state_found:
 
-            plt.plot(self.r, np.abs(self.P0s[0] [:,0])**2, "--")         # initial value
-            # plt.plot(self.r, np.abs(self.P  [:,0])**2)                  # final estimate
-            plt.plot(self.r, np.abs(self.P0s[-1][:,0])**2)               # final estimate
+            plt.plot(self.r, np.abs(self.P0s[0][:,0])**2, "--")         # initial value
+            plt.plot(self.r, np.abs(self.P0s[-1][:,0])**2)              # final estimate
             plt.plot(self.r, np.abs(2*self.r*np.exp(-self.r))**2, "--") # analytical
             plt.legend(["P0 initial", "P0 estimate", "P0 analytical"])
             plt.xlim(left=-.1, right=12)
             plt.xlabel("r (a.u.)")
             plt.ylabel("Wave function")
             plt.grid()
-            # plt.yscale("log")
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/gs_found.pdf", bbox_inches='tight')
@@ -1118,7 +1111,6 @@ class laser_hydrogen_solver:
             
             plt.plot(self.time_vector_imag, self.N0s, label="N")
             # plt.plot(self.time_vector_imag, np.sqrt(self.N0s), label="√N")
-            # plt.yscale("log")
             plt.xlabel("τ (s)")
             plt.ylabel("Norm of ground state")
             plt.grid()
@@ -1877,7 +1869,7 @@ class laser_hydrogen_solver:
                                           interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
             if do_save:
                 plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
-                writervideo = animation.FFMpegWriter(fps=30) # ,bitrate=30000)
+                writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
                 ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_single.mp4", writer=writervideo, ) # dpi=500, 
                 
             plt.show()
@@ -1892,9 +1884,9 @@ class laser_hydrogen_solver:
             [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in [0,3,6]] # range(len(axes))]
             [axes[a].grid() for a in range(len(axes))]
             
-            [axes[a].spines['bottom'].set_color('red') for a in range(len(axes))]
-            [axes[a].tick_params(axis='x', colors='red') for a in range(len(axes))]
-            [axes[a].xaxis.label.set_color('red') for a in range(len(axes))]
+            [axes[a].spines['bottom'].set_color('orangered') for a in range(len(axes))] # red
+            [axes[a].tick_params(axis='x', colors='orangered') for a in range(len(axes))]
+            [axes[a].xaxis.label.set_color('orangered') for a in range(len(axes))]
             
             [axes[a].spines['left'].set_color('#4c72b0') for a in range(len(axes))]
             [axes[a].tick_params(axis='y', colors='#4c72b0') for a in range(len(axes))]
@@ -1919,9 +1911,9 @@ class laser_hydrogen_solver:
             # plot the initial wave functions
             lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
             # [axes[a].set_yscale('log') for a in range(len(axes))]
-            # [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-4) for a in range(len(axes))]
+            # [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-6) for a in range(len(axes))]
             # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
-            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-5) for a in range(len(axes))] # TODO: check if it should be squared
+            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-7) for a in range(len(axes))] # TODO: check if it should be squared
             [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
 
             # ask matplotlib for the plotted objects and their labels
@@ -1963,7 +1955,7 @@ class laser_hydrogen_solver:
                                           interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
             if do_save:
                 plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
-                writervideo = animation.FFMpegWriter(fps=30) # ,bitrate=30000)
+                writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
                 ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_multi.mp4", writer=writervideo, ) # dpi=500, 
             
             # TODO: add saving
@@ -2015,8 +2007,8 @@ class laser_hydrogen_solver:
         self.Ps = np.load(f"{self.save_dir}/{savename}")
         self.time_evolved = True
         
-        self.save_idx  = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) # which WFs to save
-        self.save_idx_ = np.round(np.linspace(0, self.nt*self.T, int(self.n_saves*self.T))).astype(int) # which WFs to save
+        self.save_idx  = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) # which WFs were saved
+        self.save_idx_ = np.round(np.linspace(0, self.nt*self.T, int(self.n_saves*self.T))).astype(int) # which WFs were saved
         
     
     def save_norm_over_time(self, savename="found_states"):
@@ -2298,7 +2290,6 @@ class laser_hydrogen_solver:
             "CAP_R_proportion":    self.CAP_R_proportion,
         }
         
-        # print(hyperparameters)
         with open(f"{self.save_dir}/hyperparameters.txt", 'w') as f: 
             for key, value in hyperparameters.items(): 
                 f.write('%s:%s\n' % (key, value))
@@ -2349,7 +2340,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False):
     # a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
     
     if animate:
-        a.make_aimation(keep_up=True)
+        a.make_aimation(keep_up=True, do_save=True)
     
 
 def load_zeta_omega(save_dir="dP_domega_S30"):
