@@ -1776,7 +1776,7 @@ class laser_hydrogen_solver:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
     
     
-    def make_aimation(self, do_save=True, keep_up=True, extra_title=""):
+    def make_aimation(self, do_save=False, keep_up=True, extra_title=""):
         # Function which creates animations of the wave function as it changes with time. 
         
         # def align_yaxis(ax1, ax2, scale_1=1, scale_2=1):
@@ -1804,7 +1804,6 @@ class laser_hydrogen_solver:
         if self.time_evolved: # chekcs that there is something to plot 
             sns.set_theme(style="dark", rc={'xtick.bottom': True,'ytick.left': True}) # nice plots
             
-            """
             # self.use_CAP = False
             # plt.ion() # allows for animation
             # here we are creating sub plots
@@ -1876,13 +1875,12 @@ class laser_hydrogen_solver:
             
             ani = animation.FuncAnimation(figure, animate0, range(1, len(times)), 
                                           interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
-            
-            
-            # if keep_up:
-            #     # makes the plot window stay up until it is closed
-            #     plt.ioff()
-            #     plt.show()
-            """
+            if do_save:
+                plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
+                writervideo = animation.FFMpegWriter(fps=30) # ,bitrate=30000)
+                ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_single.mp4", writer=writervideo, ) # dpi=500, 
+                
+            plt.show()
                 
             
             # here we are creating sub plots
@@ -1921,10 +1919,10 @@ class laser_hydrogen_solver:
             # plot the initial wave functions
             lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
             # [axes[a].set_yscale('log') for a in range(len(axes))]
-            [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-4) for a in range(len(axes))]
+            # [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-4) for a in range(len(axes))]
             # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
-            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-5) for a in range(len(axes))] # TODO: check if it should be squared
-            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
+            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-5) for a in range(len(axes))] # TODO: check if it should be squared
+            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
 
             # ask matplotlib for the plotted objects and their labels
             if self.use_CAP:
@@ -1963,6 +1961,10 @@ class laser_hydrogen_solver:
             
             ani = animation.FuncAnimation(figure0, animate, range(1, len(times)), 
                                           interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
+            if do_save:
+                plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
+                writervideo = animation.FFMpegWriter(fps=30) # ,bitrate=30000)
+                ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_multi.mp4", writer=writervideo, ) # dpi=500, 
             
             # TODO: add saving
             # TODO: make for abitrary l_max
@@ -2456,9 +2458,9 @@ def main():
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
     #                           calc_norm=False, calc_dPdomega=False, calc_dPdepsilon=False, calc_dP2depsdomegak=False, spline_n=1_000)
     # a.set_time_propagator(a.Lanczos, k=10)
-    a = laser_hydrogen_solver(save_dir="good_para6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+    a = laser_hydrogen_solver(save_dir="good_para7", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1.5e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
     a.set_time_propagator(a.Lanczos, k=15)
 
@@ -2498,8 +2500,18 @@ def main():
     # try gamma_0 /10
         # too high for some, too low for others
         # might need l-specific gamma_0
+    # implement l-specific gamma_0 
+        # gamma_0=1.75e-4 might be good for all
     # fix double integral omh plot
     # try with different CAPs
+    
+    
+# DONE:
+    # try running l_max=5,6,7,8,9 with more nt or K_dim
+    # with good l_max:
+        # try increasing the other variables one step after finding good l_max
+    # h/Nx, dt, (Rmax), lmax, Kdim,    
+    # fix plots
     # add animation
         # fix scale + axis
     # test dP/dom with closer CAP
@@ -2513,19 +2525,11 @@ def main():
     # test dP^2 with closer CAP
         # 30au?
     
-    
-# DONE:
-    # try running l_max=5,6,7,8,9 with more nt or K_dim
-    # with good l_max:
-        # try increasing the other variables one step after finding good l_max
-    # h/Nx, dt, (Rmax), lmax, Kdim,    
-    # fix plots
-    
 
 if __name__ == "__main__":
-    main()
+    # main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
-    # load_run_program_and_plot("good_para5", True)
+    load_run_program_and_plot("good_para7", True)
