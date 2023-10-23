@@ -26,7 +26,7 @@ def test_CAP(save_name, CAP_onset=.5, CAP_onset_str="50", r_max=100, n=500, gamm
     a.calculate_time_evolution()
     
     # extra_title  = "\n"+f"CAP onset = {CAP_onset_str}a.u."
-    extra_titles = "\n"+f"CAP onset = {CAP_onset_str}a.u., r_max={r_max}a.u, gamma_0={gamma_0}."
+    extra_titles = "\n"+f"CAP onset = {CAP_onset_str}a.u., r_max={r_max}a.u, γ_0={gamma_0}."
     a.plot_res(do_save=True, plot_norm=test_vars[0], plot_dP_domega=test_vars[1], plot_dP_depsilon=test_vars[2], plot_dP2_depsilon_domegak=test_vars[3],
                reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
 
@@ -44,8 +44,9 @@ if __name__ == "__main__":
     
     CAPs_dPdom_close = [[5,10,20,30,40,50],  100, [True,True,False,False], f"test_CAPS_{gamma_0}/CAPs_dPdom_close_"]
     CAPs_dPdom_far   = [[50,75,100,125,150], 200, [True,True,False,False], f"test_CAPS_{gamma_0}/CAPs_dPdom_far_"  ]
-    CAPs_dP2_dep_omk = [[20,25,30,35,45,50], 100, [True,False,False,True], f"test_CAPS_{gamma_0}/CAPs_dP2_dep_omk_"]
+    CAPs_dP2_dep_omk = [[20,25,30,35,40,45,50], 100, [True,False,False,True], f"test_CAPS_{gamma_0}/CAPs_dP2_dep_omk_"]
     CAPs_dP2_dep_omk_close = [[5,10,15,20,25], 50, [True,False,False,True], f"test_CAPS_{gamma_0}/CAPs_dP2_dep_omk_close_"]
+    # CAPs_dP2_dep_omk = [[40], 100, [True,False,False,True], f"test_CAPS_{gamma_0}/CAPs_dP2_dep_omk_"]
     # CAPs_dPdom_close = [[5,10,20,30,40,50],  100, [False,False,False,False], "test_CAPS/CAPs_dPdom_close_"]
     # CAPs_dPdom_far   = [[50,75,100,125,150], 200, [False,False,False,False], "test_CAPS/CAPs_dPdom_far_"  ]
     # CAPs_dP2_dep_omk = [[20,25,30,35,45,50], 100, [False,False,False,False], "test_CAPS/CAPs_dP2_dep_omk_"]
