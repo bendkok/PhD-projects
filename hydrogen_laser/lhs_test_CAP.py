@@ -45,7 +45,7 @@ if __name__ == "__main__":
     
     print(f"l_max = {l_max}.")
     
-    # CAPs_dPdom_close = [[5,10,20,30,40,50],  100, [True,True,False,False], f"test_CAPS_{gamma_0}/CAPs_dPdom_close_"]
+    # CAPs_dPdom_close = [[5,10,20,30,40,50],  100, [True,True,False,False], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dPdom_close_"]
     CAPs_dPdom_far   = [[50,75,100,125,150], 200, [True,True,False,False], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dPdom_far_"  ]
     CAPs_dPdom_farther = [[150,175,200,225,250], 300, [True,True,False,False], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dPdom_farther_"  ]
     # CAPs_dP2_dep_omk_close = [[5,10,15,20,25], 50, [True,False,False,True], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dP2_dep_omk_close_"]
@@ -63,19 +63,19 @@ if __name__ == "__main__":
     #     print("\n\nCAP onset = "+CAP_onset_str+f"a.u., r_max={CAPs_dPdom_close[1]}:")
     #     test_CAP(CAPs_dPdom_close[3]+str(CAPs_dPdom_close[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_close[1], n=500, test_vars=CAPs_dPdom_close[2])
     
-    print("\nTesting dP/dΩ far.")
-    for c in range(len(CAPs_dPdom_far[0])):
-        CAP_onset = CAPs_dPdom_far[0][c]/CAPs_dPdom_far[1]
-        CAP_onset_str = str(CAPs_dPdom_far[0][c])
-        print("\n\nCAP onset = "+str(CAPs_dPdom_far[0][c])+f"a.u., r_max={CAPs_dPdom_far[1]}:")
-        test_CAP(CAPs_dPdom_far[3]+str(CAPs_dPdom_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_far[1], n=1000, T=3, test_vars=CAPs_dPdom_far[2])
+    # print("\nTesting dP/dΩ far.")
+    # for c in range(len(CAPs_dPdom_far[0])):
+    #     CAP_onset = CAPs_dPdom_far[0][c]/CAPs_dPdom_far[1]
+    #     CAP_onset_str = str(CAPs_dPdom_far[0][c])
+    #     print("\n\nCAP onset = "+str(CAPs_dPdom_far[0][c])+f"a.u., r_max={CAPs_dPdom_far[1]}:")
+    #     test_CAP(CAPs_dPdom_far[3]+str(CAPs_dPdom_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_far[1], n=1000, T=3, test_vars=CAPs_dPdom_far[2])
         
     print("\nTesting dP/dΩ farther.")
     for c in range(len(CAPs_dPdom_farther[0])):
         CAP_onset = CAPs_dPdom_farther[0][c]/CAPs_dPdom_farther[1]
         CAP_onset_str = str(CAPs_dPdom_farther[0][c])
         print("\n\nCAP onset = "+str(CAPs_dPdom_farther[0][c])+f"a.u., r_max={CAPs_dPdom_farther[1]}:")
-        test_CAP(CAPs_dPdom_farther[3]+str(CAPs_dPdom_farther[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_farther[1], n=1000, T=3, test_vars=CAPs_dPdom_farther[2])
+        test_CAP(CAPs_dPdom_farther[3]+str(CAPs_dPdom_farther[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_farther[1], n=CAPs_dPdom_farther[1]*5, T=5, test_vars=CAPs_dPdom_farther[2])
     
     # print("\nTesting dP^2/dεdΩ_k close.")
     # for c in range(len(CAPs_dP2_dep_omk_close[0])):
@@ -84,22 +84,30 @@ if __name__ == "__main__":
     #     print("\n\nCAP onset = "+str(CAPs_dP2_dep_omk_close[0][c])+f"a.u., r_max={CAPs_dP2_dep_omk_close[1]}:")
     #     test_CAP(CAPs_dP2_dep_omk_close[3]+str(CAPs_dP2_dep_omk_close[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk_close[1], n=CAPs_dP2_dep_omk_close[1]*5, test_vars=CAPs_dP2_dep_omk_close[2])    
     
-    print("\nTesting dP^2/dεdΩ_k mid.")
-    for c in range(len(CAPs_dP2_dep_omk[0])):
-        CAP_onset = CAPs_dP2_dep_omk[0][c]/CAPs_dP2_dep_omk[1]
-        CAP_onset_str = str(CAPs_dP2_dep_omk[0][c])
-        print("\n\nCAP onset = "+str(CAPs_dP2_dep_omk[0][c])+f"a.u., r_max={CAPs_dP2_dep_omk[1]}:")
-        test_CAP(CAPs_dP2_dep_omk[3]+str(CAPs_dP2_dep_omk[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk[1], n=CAPs_dP2_dep_omk[1]*5, test_vars=CAPs_dP2_dep_omk[2])    
+    # print("\nTesting dP^2/dεdΩ_k mid.")
+    # for c in range(len(CAPs_dP2_dep_omk[0])):
+    #     CAP_onset = CAPs_dP2_dep_omk[0][c]/CAPs_dP2_dep_omk[1]
+    #     CAP_onset_str = str(CAPs_dP2_dep_omk[0][c])
+    #     print("\n\nCAP onset = "+str(CAPs_dP2_dep_omk[0][c])+f"a.u., r_max={CAPs_dP2_dep_omk[1]}:")
+    #     test_CAP(CAPs_dP2_dep_omk[3]+str(CAPs_dP2_dep_omk[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk[1], n=CAPs_dP2_dep_omk[1]*5, test_vars=CAPs_dP2_dep_omk[2])    
     
     print("\nTesting dP^2/dεdΩ_k far.")
     for c in range(len(CAPs_dP2_dep_omk_far[0])):
         CAP_onset = CAPs_dP2_dep_omk_far[0][c]/CAPs_dP2_dep_omk_far[1]
         CAP_onset_str = str(CAPs_dP2_dep_omk_far[0][c])
         print("\n\nCAP onset = "+str(CAPs_dP2_dep_omk_far[0][c])+f"a.u., r_max={CAPs_dP2_dep_omk_far[1]}:")
-        test_CAP(CAPs_dP2_dep_omk_far[3]+str(CAPs_dP2_dep_omk_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk_far[1], n=CAPs_dP2_dep_omk_far[1]*5, test_vars=CAPs_dP2_dep_omk_far[2])    
+        test_CAP(CAPs_dP2_dep_omk_far[3]+str(CAPs_dP2_dep_omk_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk_far[1], n=CAPs_dP2_dep_omk_far[1]*5, T=3, test_vars=CAPs_dP2_dep_omk_far[2])    
         
     
     l_max = 8
+    
+    # CAPs_dPdom_close = [[5,10,20,30,40,50],  100, [True,True,False,False], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dPdom_close_"]
+    # CAPs_dPdom_far   = [[50,75,100,125,150], 200, [True,True,False,False], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dPdom_far_"  ]
+    CAPs_dPdom_farther = [[150,175,200,225,250], 300, [True,True,False,False], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dPdom_farther_"  ]
+    # CAPs_dP2_dep_omk_close = [[5,10,15,20,25], 50, [True,False,False,True], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dP2_dep_omk_close_"]
+    # CAPs_dP2_dep_omk = [[20,25,30,35,40,45,50], 100, [True,False,False,True], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dP2_dep_omk_"]
+    CAPs_dP2_dep_omk_far = [[50,75,100,125,150], 200, [True,False,False,True], f"test_CAPS_{gamma_0}_{l_max}/CAPs_dP2_dep_omk_far_"]
+    
     
     print(f"l_max = {l_max}.")
     
@@ -108,14 +116,14 @@ if __name__ == "__main__":
         CAP_onset = CAPs_dPdom_farther[0][c]/CAPs_dPdom_farther[1]
         CAP_onset_str = str(CAPs_dPdom_farther[0][c])
         print("\n\nCAP onset = "+str(CAPs_dPdom_farther[0][c])+f"a.u., r_max={CAPs_dPdom_farther[1]}:")
-        test_CAP(CAPs_dPdom_farther[3]+str(CAPs_dPdom_farther[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_farther[1], n=1000, T=3, test_vars=CAPs_dPdom_farther[2])
+        test_CAP(CAPs_dPdom_farther[3]+str(CAPs_dPdom_farther[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dPdom_farther[1], n=CAPs_dPdom_farther[1]*5, T=5, test_vars=CAPs_dPdom_farther[2])
     
     print("\nTesting dP^2/dεdΩ_k far.")
     for c in range(len(CAPs_dP2_dep_omk_far[0])):
         CAP_onset = CAPs_dP2_dep_omk_far[0][c]/CAPs_dP2_dep_omk_far[1]
         CAP_onset_str = str(CAPs_dP2_dep_omk_far[0][c])
         print("\n\nCAP onset = "+str(CAPs_dP2_dep_omk_far[0][c])+f"a.u., r_max={CAPs_dP2_dep_omk_far[1]}:")
-        test_CAP(CAPs_dP2_dep_omk_far[3]+str(CAPs_dP2_dep_omk_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk_far[1], n=CAPs_dP2_dep_omk_far[1]*5, test_vars=CAPs_dP2_dep_omk_far[2])    
+        test_CAP(CAPs_dP2_dep_omk_far[3]+str(CAPs_dP2_dep_omk_far[0][c]), CAP_onset=CAP_onset, CAP_onset_str=CAP_onset_str, gamma_0=gamma_0, l_max=l_max, r_max=CAPs_dP2_dep_omk_far[1], n=CAPs_dP2_dep_omk_far[1]*5, T=3, test_vars=CAPs_dP2_dep_omk_far[2])    
     
     total_end_time = time.time()
     
