@@ -13,6 +13,18 @@ import scipy as sc
 import seaborn as sns
 from tqdm import tqdm
 
+from laser_hydrogen_solver import laser_hydrogen_solver
+
+
+a = laser_hydrogen_solver(save_dir="good_para7", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                          T=2.5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                          use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+                          calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000)
+a.set_time_propagator(a.Lanczos_fast, k=15)
+
+a.make_time_vector()
+a.load_norm_over_time()
+a.plot_norm(False)
 
 
 # pos_ind = range(8, 500)
@@ -29,17 +41,17 @@ from tqdm import tqdm
 
 # print()
 
-sns.set_theme(style="dark") # nice plots
+# sns.set_theme(style="dark") # nice plots
 
-x = np.linspace(0, 12*np.pi, 500)
-y = np.cos(x) + .99
+# x = np.linspace(0, 12*np.pi, 500)
+# y = np.cos(x) + .99
 
-plt.plot(x, y)
-plt.grid()
-plt.xlabel(r"$x$")
-plt.ylabel(r"$\sin(x)+0.99$")
-plt.yscale('log')
-plt.show()
+# plt.plot(x, y)
+# plt.grid()
+# plt.xlabel(r"$x$")
+# plt.ylabel(r"$\sin(x)+0.99$")
+# plt.yscale('log')
+# plt.show()
 
 
 
