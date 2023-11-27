@@ -53,11 +53,13 @@ class laser_hydrogen_solver:
                  calc_dP2depsdomegak    = False,                        # whether to calculate dP^2/dεdΩ_k
                  spline_n               = 1000,                         # dimension of the spline interpolation used for finding dP/dε
                  max_epsilon            = 2,                            # the maximum value of the epsilon grid used for interpolation
-                 compare_norms          = True,                         # wheter to compare the various norms which may be calculated
+                 calc_mask_method       = False,                        # whether to calculate the mask method
+                 mask_R_c               = 50,                           # a lomg distance from the Coulomb potential, used for the mask method
+                 compare_norms          = True,                         # whether to compare the various norms which may be calculated
                  use_stopping_criterion = False,                        #
                  sc_every_n             = 100,                          #
                  sc_thresh              = 1e-6,                         # 
-                 sc_compare_n           = 10,                           #
+                 sc_compare_n           = 10,                           # 
                  ):
         """
         Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -136,6 +138,7 @@ class laser_hydrogen_solver:
         self.calc_norm                  = calc_norm
         self.calc_dPdepsilon            = calc_dPdepsilon
         self.calc_dP2depsdomegak        = calc_dP2depsdomegak
+        self.calc_mask_method           = calc_mask_method
         self.spline_n                   = spline_n
         self.max_epsilon                = max_epsilon
         self.compare_norms              = compare_norms
@@ -170,8 +173,8 @@ class laser_hydrogen_solver:
         # using scipy.sparse for the T1 and T2 matrices it is slower for small values of l_max
         T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relations in the time dependent Hamiltonian
         T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relations in the time dependent Hamiltonian
-        self.T1 = np.diag(T1_diag, k=-1) + np.diag(T1_diag, k=1)
-        self.T2 = np.diag(T2_diag, k=-1) - np.diag(T2_diag, k=1) 
+        self.T1 = np.diag(T1_diag, k_dim=-1) + np.diag(T1_diag, k_dim=1)
+        self.T2 = np.diag(T2_diag, k_dim=-1) - np.diag(T2_diag, k_dim=1) 
         
         # reformats the matrices for the finite difference of the SE 
         self.D2_2 = -.5*self.D2
@@ -197,7 +200,7 @@ class laser_hydrogen_solver:
         self.found_orth = 0
 
         # the default timproegator is RK4, but Lanczos also be specified later
-        self.set_time_propagator(self.RK4, k=None)
+        self.set_time_propagator(self.RK4, k_dim=None)
         
         if use_CAP: # if we want to use a complex absorbing potential
             self.add_CAP(Gamma_function=Gamma_function,gamma_0=gamma_0,CAP_R_proportion=CAP_R_proportion,custom_Gamma_function=custom_Gamma_function)
@@ -249,7 +252,7 @@ class laser_hydrogen_solver:
         self.energy_constant = -.5 / self.dt_imag # constant to save some flops during re-normalisation
 
 
-    def set_time_propagator(self, name, k):
+    def set_time_propagator(self, name, k_dim):
         """
         Decide which type of time propagator to use. Currently supports RK4 and Lanczos.
         A custom propegator can also be used by inputting a regular function. 
@@ -258,7 +261,7 @@ class laser_hydrogen_solver:
         ----------
         name : Function or class method
             The type of propegator to use. 
-        k : int
+        k_dim : int
             The Krylov dimension to use with Lanczos.
 
         Returns
@@ -272,15 +275,15 @@ class laser_hydrogen_solver:
         if name == self.Lanczos:
             self.make_time_vector()
             self.energy_func = self.Hamiltonian
-            self.k = k
+            self.k_dim = k_dim
         elif name == self.Lanczos_fast:
             self.make_time_vector()
             self.energy_func = self.Hamiltonian
-            self.k = k
+            self.k_dim = k_dim
         elif name == self.RK4:
             self.make_time_vector()
             self.energy_func = self.iHamiltonian
-            self.k = None
+            self.k_dim = None
         elif type(name) == 'function':
             self.make_time_vector()
             self.energy_func = self.Hamiltonian # TODO: include method to speciy this
@@ -742,7 +745,7 @@ class laser_hydrogen_solver:
         return self.P + (k1 + 2*k2 + 2*k3 + k4) * self.dt6
 
 
-    def RK4(self, P, func, tn, dt, dt2, dt6, k=None):
+    def RK4(self, P, func, tn, dt, dt2, dt6, k_dim=None):
         """
         Calculate one step of Runge Kutta 4 for a matrix ODE.
         dt2 = dt/2. dt6 = dt/6.
@@ -830,7 +833,7 @@ class laser_hydrogen_solver:
         return res / np.sqrt(self.inner_product(res, res) ) # normalises the result
 
 
-    def Lanczos(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k=20, tol=1e-8):
+    def Lanczos(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k_dim=20, tol=1e-8):
         """
         Calculate the Lanczos propagator for one timestep.
 
@@ -855,7 +858,7 @@ class laser_hydrogen_solver:
             dt/2. 
         dt6 : float, optional
             dt/6. The default is None.
-        k : int, optional
+        k_dim : int, optional
             The total number of Lanczos iterations. The default is 20.
         tol : float, optional
             How small we allow beta to be. The default is 1e-4.
@@ -867,9 +870,9 @@ class laser_hydrogen_solver:
         """
 
         # TODO: add some comments
-        alpha  = np.zeros(k, dtype=complex)
-        beta   = np.zeros(k-1, dtype=complex)
-        V      = np.zeros((self.n, self.l_max+1, k), dtype=complex)
+        alpha  = np.zeros(k_dim, dtype=complex)
+        beta   = np.zeros(k_dim-1, dtype=complex)
+        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex)
 
         # we keep the norm of the input P
         InitialNorm = np.sqrt(self.inner_product(P,P))
@@ -881,7 +884,7 @@ class laser_hydrogen_solver:
         alpha[0] = self.inner_product(w, V[:,:,0])
         w = w - alpha[0] * V[:,:,0] # P
 
-        for j in range(1,k):
+        for j in range(1,k_dim):
 
             beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm
             V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
@@ -892,13 +895,13 @@ class laser_hydrogen_solver:
             w  = w - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
 
         T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # Not sure if this is the fastest # TODO: wy did this work again?
+        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # Not sure if this is the fastest # TODO: wy did this work again?
         P_new = V.dot(P_k)[:,:,0]
 
         return P_new * InitialNorm # the output P is scaled back to the norm of the input P
     
     
-    def Lanczos_fast(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k=20):
+    def Lanczos_fast(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k_dim=20):
         """
         Calculate the Lanczos propagator for one timestep, but slightly faster by assuming 
         that β never becomes ~0. Uses less memory by not using The w array.
@@ -924,7 +927,7 @@ class laser_hydrogen_solver:
             dt/2. 
         dt6 : float, optional
             dt/6. The default is None.
-        k : int, optional
+        k_dim : int, optional
             The total number of Lanczos iterations. The default is 20.
         tol : float, optional
             How small we allow beta to be. The default is 1e-4.
@@ -936,9 +939,9 @@ class laser_hydrogen_solver:
         """
 
         # TODO: add some comments
-        alpha  = np.zeros(k, dtype=complex)
-        beta   = np.zeros(k-1, dtype=complex)
-        V      = np.zeros((self.n, self.l_max+1, k), dtype=complex)
+        alpha  = np.zeros(k_dim, dtype=complex)
+        beta   = np.zeros(k_dim-1, dtype=complex)
+        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex)
 
         # we keep the norm of the input P
         InitialNorm = np.sqrt(self.inner_product(P,P))
@@ -952,7 +955,7 @@ class laser_hydrogen_solver:
         alpha[0] = self.inner_product(V[:,:,1], V[:,:,0])
         V[:,:,1] = V[:,:,1] - alpha[0] * P  
 
-        for j in range(1,k-1):
+        for j in range(1,k_dim-1):
             beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm
             V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
 
@@ -961,11 +964,11 @@ class laser_hydrogen_solver:
             V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
         
         
-        beta[k-2] = np.sqrt(self.inner_product(V[:,:,k-1], V[:,:,k-1])) # Euclidean norm
-        V[:,:,k-1]    = V[:,:,k-1] / beta[k-2] # haven't used the if/else case here
+        beta[k_dim-2] = np.sqrt(self.inner_product(V[:,:,k_dim-1], V[:,:,k_dim-1])) # Euclidean norm
+        V[:,:,k_dim-1]    = V[:,:,k_dim-1] / beta[k_dim-2] # haven't used the if/else case here
 
         T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k,1) # .dot(V.dot(P)) #Not sure if this is the fastest
+        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # .dot(V.dot(P)) #Not sure if this is the fastest
         P_new = V.dot(P_k)[:,:,0]
 
         return P_new * InitialNorm # the output P is scaled back to the norm of the input P
@@ -1207,7 +1210,7 @@ class laser_hydrogen_solver:
             print("Warning: Ground state needs to be found before running calculate_time_evolution().")
         else: 
 
-            self.Ps     = [self.P] # list of the calculated wave functions
+            self.Ps        = [self.P] # list of the calculated wave functions
             self.save_idx  = np.round(np.linspace(0, self.nt-1, self.n_saves)).astype(int) # which WFs to save
             self.save_idx_ = np.round(np.linspace(0, self.nt*self.T-1, int(self.n_saves*self.T))).astype(int) # which WFs to save
 
@@ -1217,7 +1220,7 @@ class laser_hydrogen_solver:
                 P(t+Δt) = exp(-i*(H - iΓ)*Δt) * P(t) + O(Δt^3) = exp(-Γ*Δt/2)*exp(-i*H*Δt)*exp(-Γ*Δt/2) * P(t) + O(Δt^3)
                 TODO: check that the formula is correct.
                 """
-                if self.calc_norm or self.calc_dPdomega or self.calc_dPdepsilon or self.calc_dP2depsdomegak:
+                if self.calc_norm or self.calc_dPdomega or self.calc_dPdepsilon or self.calc_dP2depsdomegak or self.calc_mask_method:
                     t_ = 0 # allows us to save the norm for both during and after the laser pulse
                     
                     def calc_norm():
@@ -1242,13 +1245,23 @@ class laser_hydrogen_solver:
                         #                 self.calc_zeta_eps_omegak[r,r_,l,l_] += self.P[self.CAP_locs[r],l]*np.conjugate(self.P[r_,l_])
                         self.zeta_eps_omegak += self.P[self.CAP_locs,None,:,None]*np.conjugate(self.P)[None,:,None,:]
                         
-
+                    def calc_b_mask(tn): # for the mask method 
+                        b_mask_t = np.zeros((self.n, self.l_max+1), dtype=complex)
+                        for l in range(self.l_max+1):
+                            # TODO: check that everything here is correct
+                            zeta_mask = self.r[self.CAP_locs] * sc.special.spherical_jn(l, self.k_grid*self.r[self.CAP_locs]) * self.Gamma_vector * self.P[self.CAP_locs,l]
+                            zeta_inte = np.trapz(zeta_mask[:,l], self.r[self.CAP_locs]) 
+                            b_mask_t += 1j**(-l) * self.Y[l] * zeta_inte
+                            # TODO: check if more efficent i
+                        theta_k = self.k_grid*self.k_grid*tn/2 + np.trapz(self.A(np.arange(0,tn,self.dt))*self.k_grid, self.dt) # TODO: should this really be calculated every timestep?
+                        self.b_mask += b_mask_t * np.exp(1j*theta_k)
+                    
                     # test which values we are going to calculate on the fly
                     extra_funcs = [[calc_norm,self.calc_norm],[calc_zeta_omega,self.calc_dPdomega],[calc_zeta_epsilon,self.calc_dPdepsilon],[calc_zeta_eps_omegak,self.calc_dP2depsdomegak]]
                     # this creates a list of functions we can loop over kduring the main calculation, removing the need for an if-test inside the for-loop
                     extra_funcs = [ff[0] for ff in extra_funcs if ff[1]] 
                     
-                    # sets up vecors for saving values calculated on the fly
+                    # sets up vectors for saving values calculated on the fly
                     if self.calc_norm:
                         # the norm |Ψ|^2 
                         self.norm_over_time = np.zeros(len(self.time_vector) + len(self.time_vector1) + 1)
@@ -1265,7 +1278,13 @@ class laser_hydrogen_solver:
                     if self.calc_dP2depsdomegak:
                         # ζ_l(r,r';t=0) = f_l(r,0)f_l'*(r',0) for calculating dP^2/dεdΩ_k
                         self.zeta_eps_omegak = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1,self.l_max+1), dtype=complex)
-                    
+                        
+                    if self.calc_mask_method:
+                        self.k_grid      = np.linspace(0, np.pi, self.n) 
+                        self.b_mask      = np.zeros_like(self.k_grid, dtype=complex)
+                        
+                    if self.calc_dPdomega or self.calc_dP2depsdomegak or self.calc_mask_method:
+                        self.Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
                     
                     # goes through all the pulse timesteps
                     print("With laser pulse: ")
@@ -1274,7 +1293,7 @@ class laser_hydrogen_solver:
                         self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] 
                         
                         # we call whatever time propagator is to be used
-                        self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                        self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
                         
                         # applies the second exp(i*Γ*Δt/2) part to the wave function
                         self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs] 
@@ -1303,7 +1322,7 @@ class laser_hydrogen_solver:
                                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] 
                                 
                                 # we call whatever time propagator is to be used. The energy function is now changed
-                                self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                                self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
                                 
                                 # applies the second exp(i*Γ*Δt/2) part to the wave function
                                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs] 
@@ -1346,7 +1365,7 @@ class laser_hydrogen_solver:
                                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] 
                                 
                                 # we call whatever time propagator is to be used. The energy function is now changed
-                                self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                                self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
                                 
                                 # applies the second exp(i*Γ*Δt/2) part to the wave function
                                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs] 
@@ -1383,6 +1402,11 @@ class laser_hydrogen_solver:
                         # finds dP^2/dεdΩ_k 
                         self.zeta_eps_omegak *= self.dt
                         self.calculate_dP2depsdomegak()
+                        
+                    if self.calc_mask_method:
+                        # finds dP^2/dεdΩ_k 
+                        self.b_mask *= self.dt * np.sqrt(2/np.ni)
+                        self.calculate_mask_method()
                     
                     # we can compare the different norms if several have been calculated
                     if self.compare_norms:
@@ -1405,7 +1429,7 @@ class laser_hydrogen_solver:
                     print("With laser pulse: ")
                     for tn in tqdm(range(len(self.time_vector))):
                         # we call whatever time propagator is to be used
-                        self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                        self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
 
                         # since exp(-Γ*Δt/2) is constant we can apply both the last one for this time step, and the first one for the next
                         # time step at the same time 
@@ -1418,7 +1442,7 @@ class laser_hydrogen_solver:
                         print("After laser pulse: ")
                         for tn in tqdm(range(len(self.time_vector1))):    
                             # we call whatever time propagator is to be used
-                            self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                            self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
     
                             # since exp(-Γ*Δt/2) is constant we can apply both the last one for this time step, and the first one for the next
                             # time step at the same time # TODO double check that this is correct
@@ -1435,7 +1459,7 @@ class laser_hydrogen_solver:
                 print("With laser pulse: ")
                 for tn in tqdm(range(len(self.time_vector))):      
                     # we call whatever time propagator is to be used
-                    self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                    self.P = self.time_propagator(self.P, self.energy_func, tn=self.time_vector[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
                     if tn in self.save_idx:
                         self.Ps.append(self.P)
                 
@@ -1444,7 +1468,7 @@ class laser_hydrogen_solver:
                     print("After laser pulse: ")
                     for tn in tqdm(range(len(self.time_vector1))): 
                         # we call whatever time propagator is to be used
-                        self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k=self.k)
+                        self.P = self.time_propagator(self.P, self.TI_Hamiltonian, tn=self.time_vector1[tn], dt=self.dt, dt2=self.dt2, dt6=self.dt6, k_dim=self.k_dim)
                         if len(self.time_vector)+tn in self.save_idx:
                             self.Ps.append(self.P)
 
@@ -1455,14 +1479,14 @@ class laser_hydrogen_solver:
         
         self.dP_domega = np.zeros(self.n)
         print("\nCalculating dP/dΩ:")
-        Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
+        # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
         
         for l in tqdm(range(self.l_max+1)): # goes through all the l's twice. # TODO: Can this be vetorized? 
             for l_ in range(self.l_max+1):
                 inte = np.trapz(self.Gamma_vector*self.zeta_omega[:,l,l_], self.r[self.CAP_locs]) 
                 
                 # Y and Y_ are always real
-                self.dP_domega += np.real(Y[l]*Y[l_]*inte)
+                self.dP_domega += np.real(self.Y[l]*self.Y[l_]*inte)
         
         self.dP_domega = self.dP_domega*2
         self.dP_domega_calculated = True
@@ -1488,7 +1512,8 @@ class laser_hydrogen_solver:
         # and spans to self.max_epsilon
         min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
         self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
-        self.dP_depsilon = np.zeros_like(self.epsilon_grid)
+        self.dP_depsilon   = np.zeros_like(self.epsilon_grid)
+        self.dP_depsilon_l = np.array([np.zeros_like(self.epsilon_grid)]*(self.l_max+1))
         
         pbar = tqdm(total=self.l_max+1) # for the progress bar
         for l in range(self.l_max+1):   # goes through all the l's
@@ -1509,6 +1534,7 @@ class laser_hydrogen_solver:
             F_l_eps = D_l_eps * np.sum( inte_dr * eigen_vecs[l,pos_ind], axis=1) 
             
             self.dP_depsilon += np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
+            self.dP_depsilon_l[l] = np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
             
             pbar.update()
 
@@ -1516,11 +1542,13 @@ class laser_hydrogen_solver:
         pbar.close()
         
         self.dP_depsilon *= 2 * self.h * self.h 
+        self.dP_depsilon_l *= 2 * self.h * self.h 
         self.dP_depsilon_calculated = True
         
         print()
         self.dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
         print(f"Norm of dP/dε = {self.dP_depsilon_norm}.", "\n")
+        [print(f"Norm of dP/dε_{l} = {np.trapz(self.dP_depsilon_l[l], self.epsilon_grid)}.") for l in range(self.l_max+1)]
         
     
     def calculate_dP2depsdomegak(self):
@@ -1552,16 +1580,16 @@ class laser_hydrogen_solver:
         self.theta_grid = np.linspace(0, np.pi, self.n)
         # self.theta_grid = np.linspace(0, np.pi, 200)
         
-        Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), self.theta_grid) for l in range(self.l_max+1)]
+        # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), self.theta_grid) for l in range(self.l_max+1)]
         # YY = [[Y[l]*Y[l_] for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
         sigma_l  = [np.angle(sc.special.gamma(l+1j+1j/np.sqrt(2*self.epsilon_grid))) for l in range(self.l_max+1)] 
         # sigma_l2 = [[1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])) for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
-        prefix = [[(Y[l]*Y[l_])[None,:] * (1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])))[:,None] for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
+        prefix = [[(self.Y[l]*self.Y[l_])[None,:] * (1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])))[:,None] for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
         eigen_vecs_conjugate = np.conjugate(eigen_vecs)
 
         pbar = tqdm(total=(self.l_max+1)**2) # for the progress bar
         for l in range(self.l_max+1): # goes through all the l's twice. # TODO: Can this be vetorized? 
-            eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector# TODO: test if this works
+            eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector # TODO: test if this works
             for l_ in range(self.l_max+1):
                 
                 # TODO: this is so vectorized, I'm not enteierly sure what it does anymore...
@@ -1637,6 +1665,11 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_normed = np.trapz(self.dP2_depsilon_domegak_norm*np.sin(self.theta_grid), x=self.theta_grid) 
         
         self.dP2_depsilon_domegak_calculated = True
+        
+        
+    def calculate_mask_method(self):
+        # TODO
+        ""
         
         
     def plot_norm(self, do_save=True, extra_title=""):
@@ -1774,6 +1807,18 @@ class laser_hydrogen_solver:
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_log.pdf", bbox_inches='tight')
+            plt.show()
+            
+            for l in range(self.l_max+1):
+                plt.plot(self.epsilon_grid, self.dP_depsilon_l[l], label=f"l={l}")
+            plt.grid()
+            plt.xlabel("ε")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"Contributions to $dP/d\epsilon$ from different $l$-channels with linear scale."+extra_title)
+            plt.legend()
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_l.pdf", bbox_inches='tight')
             plt.show()
         else:
             print("Need to calculate dP/dε berfore plotting it.")
@@ -2349,6 +2394,9 @@ class laser_hydrogen_solver:
             np.save(f"{self.save_dir}/{savename}_dP_depsilon", self.dP_depsilon)
             np.savetxt(f"{self.save_dir}/{savename}_dP_depsilon.csv", self.dP_depsilon, delimiter=',')
             
+            np.save(f"{self.save_dir}/{savename}_dP_depsilon_l", self.dP_depsilon_l)
+            np.savetxt(f"{self.save_dir}/{savename}_dP_depsilon_l.csv", self.dP_depsilon_l, delimiter=',')
+            
             np.save(f"{self.save_dir}/{savename}_epsilon_grid", self.epsilon_grid)
             np.savetxt(f"{self.save_dir}/{savename}_epsilon_grid.csv", self.epsilon_grid, delimiter=',')
         else:
@@ -2371,6 +2419,11 @@ class laser_hydrogen_solver:
 
         """
         self.dP_depsilon  = np.load(f"{self.save_dir}/{savename}_dP_depsilon.npy")
+        try:
+            self.dP_depsilon_l = np.load(f"{self.save_dir}/{savename}_dP_depsilon_l.npy")
+        except:
+            ""
+            
         self.time_evolved = True
         self.dP_depsilon_calculated = True
         self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
@@ -2543,7 +2596,7 @@ class laser_hydrogen_solver:
             "calc_norm":           self.calc_norm,
             "calc_dPdepsilon":     self.calc_dPdepsilon,
             "spline_n":            self.spline_n,
-            "k":                   self.k,
+            "k_dim":               self.k_dim,
             "beta":                1e-6,
             "time_propagator":     self.time_propagator.__name__,
             "Gamma_function":      self.Gamma_function.__name__,
@@ -2584,34 +2637,37 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
                               nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
                               CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
                               calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
-    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    try:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k_dim"])
+    except:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
     
     # loads run data
     a.load_ground_states()
     a.A = a.single_laser_pulse
     a.load_found_states()
-    a.load_norm_over_time()
-    dP_domega_norm = a.load_dP_domega()
-    a.load_dP_depsilon()
-    a.load_dP2_depsilon_domegak()
+    # a.load_norm_over_time()
+    # dP_domega_norm = a.load_dP_domega()
+    # a.load_dP_depsilon()
+    # a.load_dP2_depsilon_domegak()
     
-    print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
+    # print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
     
     # plots stuff
     # a.plot_gs_res(do_save=True)
     # a.plot_res(do_save=False, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3])
-    a.plot_norm(False)
+    # a.plot_norm(False)
     
-    n = 2
-    plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
-    plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
-    plt.grid()
-    plt.xlabel("Time (a.u.)")
-    plt.ylabel("Norm")
-    plt.yscale("log")
-    plt.legend()
-    plt.title(r"Norm diff of $\Psi$ as a function of time.")
-    plt.show()
+    # n = 2
+    # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
+    # plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+    # plt.grid()
+    # plt.xlabel("Time (a.u.)")
+    # plt.ylabel("Norm")
+    # plt.yscale("log")
+    # plt.legend()
+    # plt.title(r"Norm diff of $\Psi$ as a function of time.")
+    # plt.show()
     
     # n = 11
     # avgResult = np.average(np.abs((a.norm_over_time[1:-1]-a.norm_over_time[0:-2])/a.norm_over_time[1:-1]).reshape(-1, n), axis=1) 
@@ -2627,21 +2683,21 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     # plt.show()
     
     
-    n = 40
-    avgres = np.zeros(np.shape(a.norm_over_time[:-1])[0]-n)
-    for i in range(len(avgres)):
-        # avgres[i] = np.abs(np.average(a.norm_over_time[i:i+n+1] - a.norm_over_time[i+1:i+n+2])) # /a.norm_over_time[i])
-        avgres[i] = np.abs(( np.average(a.norm_over_time[i+1:i+n+2]) - np.average(a.norm_over_time[i:i+n+1]) ) / a.norm_over_time[i])
+    # n = 40
+    # avgres = np.zeros(np.shape(a.norm_over_time[:-1])[0]-n)
+    # for i in range(len(avgres)):
+    #     # avgres[i] = np.abs(np.average(a.norm_over_time[i:i+n+1] - a.norm_over_time[i+1:i+n+2])) # /a.norm_over_time[i])
+    #     avgres[i] = np.abs(( np.average(a.norm_over_time[i+1:i+n+2]) - np.average(a.norm_over_time[i:i+n+1]) ) / a.norm_over_time[i])
     
-    plt.plot(np.append(a.time_vector,a.time_vector1)[:-n], avgres, label="Norm diff")
-    plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
-    plt.grid()
-    plt.xlabel("Time (a.u.)")
-    plt.ylabel("Norm")
-    plt.yscale("log")
-    plt.legend()
-    plt.title(r"Norm diff of $\Psi$ as a function of time.")
-    plt.show()
+    # plt.plot(np.append(a.time_vector,a.time_vector1)[:-n], avgres, label="Norm diff")
+    # plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+    # plt.grid()
+    # plt.xlabel("Time (a.u.)")
+    # plt.ylabel("Norm")
+    # plt.yscale("log")
+    # plt.legend()
+    # plt.title(r"Norm diff of $\Psi$ as a function of time.")
+    # plt.show()
     
     
     
@@ -2673,7 +2729,11 @@ def load_zeta_omega(save_dir="dP_domega_S30"):
                               nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
                               CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
                               calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
-    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    try:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k_dim"])
+    except:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
+    
     
     # loads the relevant parameter
     a.zeta_omega = a.load_variable("zeta_omega.npy")
@@ -2705,7 +2765,10 @@ def load_zeta_epsilon(save_dir="dP_domega_S30"):
                               nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
                               CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
                               calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
-    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    try:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k_dim"])
+    except:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
     
     # loads the relevant parameter
     a.zeta_epsilon = a.load_variable("zeta_epsilon.npy")
@@ -2737,7 +2800,10 @@ def load_zeta_eps_omegak(save_dir="dP_domega_S30"):
                               nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
                               CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
                               calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
-    a.set_time_propagator(getattr(a, hyp["time_propagator"]), k=hyp["k"])
+    try:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k_dim"])
+    except:
+        a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
     
     # loads the relevant parameter
     a.zeta_eps_omegak = a.load_variable("zeta_eps_omegak.npy")
@@ -2755,13 +2821,13 @@ def main():
     #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=3, max_epsilon=2,
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
-    # a.set_time_propagator(a.Lanczos, k=15)
-    a = laser_hydrogen_solver(save_dir="good_para10", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+    # a.set_time_propagator(a.Lanczos, k_dim=15)
+    a = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_50_longT", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
                               T=5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=9, max_epsilon=2,
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
-                              use_stopping_criterion=True, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
-    a.set_time_propagator(a.Lanczos_fast, k=15)
+                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    a.set_time_propagator(a.Lanczos_fast, k_dim=15)
     # TODO: compare good_para7 and good_para8
 
     a.calculate_ground_state_imag_time()
@@ -2828,8 +2894,8 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # # load_run_program_and_plot("dP_domega_S19")
-    # # load_zeta_omega()
-    # # load_zeta_epsilon()
-    # # load_zeta_eps_omegak()
-    # load_run_program_and_plot("good_para7", False, plot_postproces=[True,False,False,False])
+    # load_run_program_and_plot("dP_domega_S19")
+    # load_zeta_omega()
+    # load_zeta_epsilon()
+    # load_zeta_eps_omegak()
+    # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False])
