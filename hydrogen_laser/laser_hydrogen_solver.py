@@ -173,8 +173,8 @@ class laser_hydrogen_solver:
         # using scipy.sparse for the T1 and T2 matrices it is slower for small values of l_max
         T1_diag = [  self.b_l(l) for l in range(1,l_max+1)]   # for the angular relations in the time dependent Hamiltonian
         T2_diag = [l*self.b_l(l) for l in range(1,l_max+1)]   # for the angular relations in the time dependent Hamiltonian
-        self.T1 = np.diag(T1_diag, k_dim=-1) + np.diag(T1_diag, k_dim=1)
-        self.T2 = np.diag(T2_diag, k_dim=-1) - np.diag(T2_diag, k_dim=1) 
+        self.T1 = np.diag(T1_diag, k=-1) + np.diag(T1_diag, k=1)
+        self.T2 = np.diag(T2_diag, k=-1) - np.diag(T2_diag, k=1) 
         
         # reformats the matrices for the finite difference of the SE 
         self.D2_2 = -.5*self.D2
@@ -1410,15 +1410,7 @@ class laser_hydrogen_solver:
                     
                     # we can compare the different norms if several have been calculated
                     if self.compare_norms:
-                        calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak]
-                        vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed']
-                        names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k']
-                        
-                        # we use eval() since some of the values may not be calculated
-                        for c in range(len(calcs)-1):
-                            for cc in range(c+1,len(calcs)):
-                                if calcs[c] and calcs[cc]:
-                                    print( f"Norm diff {names[c]} and {names[cc]}: {np.abs(eval(vals[c]+'-'+vals[cc]))}." )
+                        self.print_compare_norms()
                     
                 else:
 
@@ -1473,6 +1465,18 @@ class laser_hydrogen_solver:
                             self.Ps.append(self.P)
 
             self.time_evolved = True
+    
+    
+    def print_compare_norms(self):
+        calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak]
+        vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed']
+        names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k']
+        
+        # we use eval() since some of the values may not be calculated
+        for c in range(len(calcs)-1):
+            for cc in range(c+1,len(calcs)):
+                if calcs[c] and calcs[cc]:
+                    print( f"Norm diff {names[c]} and {names[cc]}: {np.abs(eval(vals[c]+'-'+vals[cc]))}." )
     
     
     def calculate_dPdomega(self):
@@ -2321,9 +2325,9 @@ class laser_hydrogen_solver:
         self.time_evolved    = True
         self.norm_calculated = True
         
-        print()
-        print(f"Norm   |Ψ|^2 = {self.norm_over_time[-1]}.")
-        print(f"Norm 1-|Ψ|^2 = {1-self.norm_over_time[-1]}.")
+        # print()
+        # print(f"Norm   |Ψ|^2 = {self.norm_over_time[-1]}.")
+        # print(f"Norm 1-|Ψ|^2 = {1-self.norm_over_time[-1]}.")
     
     
     
@@ -2370,8 +2374,8 @@ class laser_hydrogen_solver:
         
         self.theta_grid = np.linspace(0, np.pi, len(self.dP_domega))
         dP_domega_norm = 2*np.pi*np.trapz(self.dP_domega*np.sin(self.theta_grid), self.theta_grid) 
-        print()
-        print(f"Norm of dP/dΩ = {dP_domega_norm}.")
+        # print()
+        # print(f"Norm of dP/dΩ = {dP_domega_norm}.")
         return dP_domega_norm
         
     
@@ -2429,8 +2433,8 @@ class laser_hydrogen_solver:
         self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
         
         self.dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
-        print()
-        print(f"Norm of dP/dε = {self.dP_depsilon_norm}.")
+        # print()
+        # print(f"Norm of dP/dε = {self.dP_depsilon_norm}.")
         
         
     def save_dP2_depsilon_domegak(self, savename="found_states"):
@@ -2650,6 +2654,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     # dP_domega_norm = a.load_dP_domega()
     # a.load_dP_depsilon()
     # a.load_dP2_depsilon_domegak()
+    a.print_compare_norms()
     
     # print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
     
@@ -2703,7 +2708,234 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     
     if animate:
         a.make_aimation(do_save=save_animation)
+        
+        
+def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], labels=None, animate=False, save_animation=False, save_dir=None, styles=["-","-","-"], extra_title=""):
+    """
+    Loads a program which has been run, and makes plots of the results.
+
+    Parameters
+    ----------
+    save_dir : string, optional
+        The directory where the run program was saved. The default is "dP_domega_S31".
+
+    Returns
+    -------
+    None.
+
+    """
     
+    sns.set_theme(style="dark") # nice plots
+    
+    classes = []
+    for sdir in save_dirs:
+        # loads the hyperparameters
+        hyp = np.load(f'{sdir}/hyperparameters.npy',allow_pickle='TRUE').item()
+        
+        # sets up a class with the relevant hyperparameters
+        a = laser_hydrogen_solver(save_dir=sdir, fd_method=hyp["fd_method"], gs_fd_method=hyp["gs_fd_method"], nt=hyp["nt"], 
+                                  T=hyp["T"], n=hyp["n"], r_max=hyp["r_max"], E0=hyp["E0"], Ncycle=hyp["Ncycle"], w=hyp["w"], cep=hyp["cep"], 
+                                  nt_imag=hyp["nt_imag"], T_imag=hyp["T_imag"], use_CAP=hyp["use_CAP"], gamma_0=hyp["gamma_0"], 
+                                  CAP_R_proportion=hyp["CAP_R_proportion"], l_max=hyp["l_max"], calc_dPdomega=hyp["calc_dPdomega"], 
+                                  calc_dPdepsilon=hyp["calc_dPdepsilon"], calc_norm=hyp["calc_norm"], spline_n=hyp["spline_n"],)
+        try:
+            a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k_dim"])
+        except:
+            a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
+        
+        classes.append(a)
+        
+    if labels is None:
+        labels = save_dirs
+        
+    # if we want to compare the norm
+    if plot_postproces[0]:
+        print("Comparing norm.")
+        
+        for i,a in enumerate(classes):
+            a.load_norm_over_time()
+            plt.plot(np.append(a.time_vector,a.time_vector1), a.norm_over_time[:-1], styles[i], label=labels[i])
+            
+        plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+        plt.grid()
+        plt.xlabel("Time (a.u.)")
+        plt.ylabel("Norm")
+        plt.legend()
+        plt.title(r"Comparison of norm of $\Psi$ as a function of time."+extra_title)
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_norm.pdf", bbox_inches='tight')
+        plt.show()
+        
+        
+    if plot_postproces[1]:
+        print("Comparing dP/dΩ.")
+        plt.axes(projection = 'polar', rlabel_position=-22.5)
+        for i,a in enumerate(classes):
+            a.load_dP_domega()
+            plt.plot(np.pi/2-a.theta_grid, a.dP_domega, styles[i], label=labels[i])
+            plt.plot(np.pi/2+a.theta_grid, a.dP_domega, styles[i]) # , label="dP_domega")
+        plt.title(r"Comparison of $dP/d\Omega$ with polar projection."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP_domega_polar.pdf", bbox_inches='tight')
+        plt.show()
+            
+        plt.axes(projection = None)
+        for i,a in enumerate(classes):
+            a.load_dP_domega()
+            plt.plot(a.theta_grid, a.dP_domega, styles[i], label=labels[i])
+        plt.grid()
+        plt.xlabel("φ")
+        # plt.ylabel(r"$dP/d\theta$")
+        plt.ylabel(r"$dP/d\Omega$")
+        plt.title(r"Comparison of $dP/d\Omega$ with cartesian coordinates."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP_domega.pdf", bbox_inches='tight')
+        plt.show()
+    
+    
+    
+    # if we want to compare dP/dε
+    if plot_postproces[2]:
+        print("Comparing dP/dε.")
+        for i,a in enumerate(classes):
+            a.load_dP_depsilon()
+            plt.plot(a.epsilon_grid, a.dP_depsilon, styles[i], label=labels[i])
+        plt.grid()
+        plt.xlabel("ε")
+        plt.ylabel(r"$dP/d\epsilon$")
+        plt.title(r"Comparison of $dP/d\epsilon$ with linear scale."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP_depsilon.pdf", bbox_inches='tight')
+        plt.show()
+        
+        for i,a in enumerate(classes):
+            a.load_dP_depsilon()
+            plt.plot(a.epsilon_grid, a.dP_depsilon, styles[i], label=labels[i])
+        plt.grid()
+        plt.xlabel("ε")
+        plt.ylabel(r"$dP/d\epsilon$")
+        plt.title(r"Comparison of $dP/d\epsilon$ with log scale."+extra_title)
+        plt.yscale('log')
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP_depsilon_log.pdf", bbox_inches='tight')
+        plt.show()
+        
+        # for i,a in enumerate(classes):
+        #     for l in range(self.l_max+1):
+        #         plt.plot(self.epsilon_grid, self.dP_depsilon_l[l], label=f"l={l}")
+        # plt.grid()
+        # plt.xlabel("ε")
+        # plt.ylabel(r"$dP/d\epsilon$")
+        # plt.title(r"Contributions to $dP/d\epsilon$ from different $l$-channels with linear scale."+extra_title)
+        # plt.legend()
+        # if do_save:
+        #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+        #     plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_l.pdf", bbox_inches='tight')
+        # plt.show()
+        
+        
+    if plot_postproces[3]:
+        print("Comparing dP^2/dΩ_kdε.")
+        plt.axes(projection = 'polar', rlabel_position=-22.5)
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak()
+            a.theta_grid = np.linspace(0,np.pi,a.n)
+            # X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
+            
+            plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label=labels[i])
+            plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i]) # , label="dP_domega")
+        # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with polar plot projection."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_norm_th_polar.pdf", bbox_inches='tight')
+        plt.show()
+            
+        plt.axes(projection = None)
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak()
+            plt.plot(a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label=labels[i])
+        plt.grid()
+        plt.xlabel(r"$\theta$")
+        plt.ylabel(r"$dP/d\Omega_k$")
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with cartesian plot projection."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_norm_th.pdf", bbox_inches='tight')
+        plt.show()
+
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak()
+            plt.plot(a.epsilon_grid, a.dP2_depsilon_domegak_norm0, styles[i], label=labels[i])
+        plt.grid()
+        plt.xlabel(r"$\epsilon$")
+        plt.ylabel(r"$dP/d\epsilon$")
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with linear scale."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_norm_eps.pdf", bbox_inches='tight')
+        plt.show()
+            
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak()
+            plt.plot(a.epsilon_grid, a.dP2_depsilon_domegak_norm0, styles[i], label=labels[i])
+        plt.grid()
+        plt.yscale('log')
+        plt.xlabel(r"$\epsilon$")
+        plt.ylabel(r"$dP/d\epsilon$")
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ with log scale."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_norm_eps0.pdf", bbox_inches='tight')
+        plt.show()
+            
+            
+            # plt.contourf(X,Y, a.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
+            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.xlabel(r"$\epsilon$")
+            # plt.ylabel(r"$\theta$")
+            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+            # if do_save:
+            #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
+            #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak.pdf", bbox_inches='tight')
+            # plt.show()
+            
+            
+            # plt.contourf(X*np.sin(Y),X*np.cos(Y), a.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='linear', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+            # plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+            # if do_save:
+            #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
+            #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol.pdf", bbox_inches='tight')
+            # plt.show()
+            
+            # plt.contourf(X*np.sin(Y),X*np.cos(Y), a.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='log', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            # plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+            # plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+            # if do_save:
+            #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
+            #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol_log.pdf", bbox_inches='tight')
+            # plt.show()
+            
+        
+
 
 def load_zeta_omega(save_dir="dP_domega_S30"):
     """
@@ -2822,8 +3054,8 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_50_longT", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
-                              T=5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+    a = laser_hydrogen_solver(save_dir="test_if_still_same", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
                               use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
@@ -2831,7 +3063,7 @@ def main():
     # TODO: compare good_para7 and good_para8
 
     a.calculate_ground_state_imag_time()
-    # a.plot_gs_res(do_save=True)
+    a.plot_gs_res(do_save=True)
     a.save_ground_states()
 
     a.A = a.single_laser_pulse    
@@ -2893,9 +3125,13 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    # main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
     # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False])
+    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_longT", "CAPs_dP2_dep_omk_50_longT_7", "CAPs_dP2_dep_omk_far_50_longT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison")
+    load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--"], save_dirs=["test_if_still_same", "test_CAPS_0.000175_8/CAPs_dPdom_close_50"], labels=["New", "Old"], save_dir="stupid_bug_comp")
+    
+    
