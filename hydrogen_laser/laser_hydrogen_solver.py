@@ -254,7 +254,7 @@ class laser_hydrogen_solver:
 
     def set_time_propagator(self, name, k_dim):
         """
-        Decide which type of time propagator to use. Currently supports RK4 and Lanczos.
+        Decide which type of time propagator to use. Currently supports RK4, Lanczos and Lanczos_fast.
         A custom propegator can also be used by inputting a regular function. 
 
         Parameters
@@ -937,7 +937,8 @@ class laser_hydrogen_solver:
         (self.n, l_max) numpy array
             The estimate of the wave function for the next timestep.
         """
-
+        
+        # TODO: BUGGED! Fix later.
         # TODO: add some comments
         alpha  = np.zeros(k_dim, dtype=complex)
         beta   = np.zeros(k_dim-1, dtype=complex)
@@ -950,10 +951,10 @@ class laser_hydrogen_solver:
         tndt2 = tn + dt2
         
         # not using w or w'
-        V[:,:,1] = Hamiltonian(tndt2, P) # or tn + dt/2 ?
+        V[:,:,1] = Hamiltonian(tndt2, V[:,:,0]) # or tn + dt/2 ?
 
         alpha[0] = self.inner_product(V[:,:,1], V[:,:,0])
-        V[:,:,1] = V[:,:,1] - alpha[0] * P  
+        V[:,:,1] = V[:,:,1] - alpha[0] * V[:,:,0]  
 
         for j in range(1,k_dim-1):
             beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm
@@ -963,9 +964,8 @@ class laser_hydrogen_solver:
             alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) 
             V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
         
-        
-        beta[k_dim-2] = np.sqrt(self.inner_product(V[:,:,k_dim-1], V[:,:,k_dim-1])) # Euclidean norm
-        V[:,:,k_dim-1]    = V[:,:,k_dim-1] / beta[k_dim-2] # haven't used the if/else case here
+        beta[k_dim-2]  = np.sqrt(self.inner_product(V[:,:,k_dim-1], V[:,:,k_dim-1])) # Euclidean norm
+        V[:,:,k_dim-1] = V[:,:,k_dim-1] / beta[k_dim-2] # haven't used the if/else case here
 
         T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
         P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # .dot(V.dot(P)) #Not sure if this is the fastest
@@ -3054,28 +3054,68 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_if_still_same", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
-                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+    a = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_50_longT", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
                               use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
-    # TODO: compare good_para7 and good_para8
 
     a.calculate_ground_state_imag_time()
-    a.plot_gs_res(do_save=True)
+    # a.plot_gs_res(do_save=True)
     a.save_ground_states()
 
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
 
     a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
-    # a.make_aimation()
     
     a.save_zetas()
     a.save_found_states()
     a.save_found_states_analysis()
     a.save_hyperparameters()
+    
+    b = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_50_longT_7", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=7, max_epsilon=2,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
+                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    b.set_time_propagator(b.Lanczos_fast, k_dim=15)
+
+    b.calculate_ground_state_imag_time()
+    # b.plot_gs_res(do_save=True)
+    b.save_ground_states()
+
+    b.A = b.single_laser_pulse    
+    b.calculate_time_evolution()
+
+    b.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+    
+    b.save_zetas()
+    b.save_found_states()
+    b.save_found_states_analysis()
+    b.save_hyperparameters()
+    
+    c = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_far_50_longT", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=5, n=1000, r_max=200, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.25, l_max=8, max_epsilon=2,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
+                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    c.set_time_propagator(c.Lanczos_fast, k_dim=15)
+
+    c.calculate_ground_state_imag_time()
+    # c.plot_gs_res(do_save=True)
+    c.save_ground_states()
+
+    c.A = c.single_laser_pulse    
+    c.calculate_time_evolution()
+
+    c.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+    
+    c.save_zetas()
+    c.save_found_states()
+    c.save_found_states_analysis()
+    c.save_hyperparameters()
     
     
     total_end_time = time.time()
@@ -3102,6 +3142,7 @@ def main():
         # gamma_0=1.75e-4 might be good for all
     # fix double integral omh plot
     # try with different CAPs
+    # compare good_para7 and good_para8
     
     
 # DONE:
@@ -3125,13 +3166,13 @@ def main():
     
 
 if __name__ == "__main__":
-    # main()
+    main()
     # load_run_program_and_plot("dP_domega_S19")
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
     # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False])
     # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_longT", "CAPs_dP2_dep_omk_50_longT_7", "CAPs_dP2_dep_omk_far_50_longT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison")
-    load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--"], save_dirs=["test_if_still_same", "test_CAPS_0.000175_8/CAPs_dPdom_close_50"], labels=["New", "Old"], save_dir="stupid_bug_comp")
+    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["test_if_still_same_newest", "test_if_still_same_newest1"], labels=["L", "L_fast"], save_dir="stupid_bug_comp0")
     
     
