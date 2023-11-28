@@ -1814,7 +1814,7 @@ class laser_hydrogen_solver:
             plt.show()
             
             for l in range(self.l_max+1):
-                plt.plot(self.epsilon_grid, self.dP_depsilon_l[l], label=f"l={l}")
+                plt.plot(self.epsilon_grid, self.dP_depsilon_l[l], label=f"l={l}") # , '--'
             plt.grid()
             plt.xlabel("ε")
             plt.ylabel(r"$dP/d\epsilon$")
@@ -1823,6 +1823,19 @@ class laser_hydrogen_solver:
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
                 plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_l.pdf", bbox_inches='tight')
+            plt.show()
+            
+            for l in range(self.l_max+1):
+                plt.plot(self.epsilon_grid, self.dP_depsilon_l[l], label=f"l={l}")
+            plt.grid()
+            plt.xlabel("ε")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"Contributions to $dP/d\epsilon$ from different $l$-channels with log scale."+extra_title)
+            plt.legend()
+            plt.yscale('log')
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_log_l.pdf", bbox_inches='tight')
             plt.show()
         else:
             print("Need to calculate dP/dε berfore plotting it.")
@@ -2373,10 +2386,10 @@ class laser_hydrogen_solver:
         self.dP_domega_calculated = True
         
         self.theta_grid = np.linspace(0, np.pi, len(self.dP_domega))
-        dP_domega_norm = 2*np.pi*np.trapz(self.dP_domega*np.sin(self.theta_grid), self.theta_grid) 
+        self.dP_domega_norm = 2*np.pi*np.trapz(self.dP_domega*np.sin(self.theta_grid), self.theta_grid) 
         # print()
         # print(f"Norm of dP/dΩ = {dP_domega_norm}.")
-        return dP_domega_norm
+        return self.dP_domega_norm
         
     
     def save_dP_depsilon(self, savename="found_states"):
@@ -2548,6 +2561,38 @@ class laser_hydrogen_solver:
             self.save_dP_depsilon(savename)
         if self.calc_dP2depsdomegak:
             self.save_dP2_depsilon_domegak(savename)
+            
+            
+    def load_found_states_analysis(self, savename="found_states"):
+        """
+        Calls the functions to load all the postprosecing results.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        # if self.calc_norm:    
+        #     self.load_norm_over_time(savename)
+        # if self.calc_dPdomega:
+        #     self.load_dP_domega(savename)
+        # if self.calc_dPdepsilon:
+        #     self.load_dP_depsilon(savename)
+        # if self.calc_dP2depsdomegak:
+        #     self.load_dP2_depsilon_domegak(savename)
+        if self.calc_norm:    
+            self.load_norm_over_time()
+        if self.calc_dPdomega:
+            self.load_dP_domega()
+        if self.calc_dPdepsilon:
+            self.load_dP_depsilon()
+        if self.calc_dP2depsdomegak:
+            self.load_dP2_depsilon_domegak()
 
 
     def load_variable(self, savename='zeta_epsilon.npy'):
@@ -2617,7 +2662,7 @@ class laser_hydrogen_solver:
         return hyperparameters
         
 
-def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_animation=False, plot_postproces=[True,True,True,True]):
+def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_animation=False, plot_postproces=[True,True,True,True], save_plots=False):
     """
     Loads a program which has been run, and makes plots of the results.
 
@@ -2650,18 +2695,18 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     a.load_ground_states()
     a.A = a.single_laser_pulse
     a.load_found_states()
-    # a.load_norm_over_time()
-    # dP_domega_norm = a.load_dP_domega()
-    # a.load_dP_depsilon()
-    # a.load_dP2_depsilon_domegak()
+    a.load_found_states_analysis()
+    
     a.print_compare_norms()
     
     # print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
     
+    
     # plots stuff
-    # a.plot_gs_res(do_save=True)
-    # a.plot_res(do_save=False, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3])
-    # a.plot_norm(False)
+    a.plot_gs_res(do_save=True)
+    extra_titles = "\n"+f"CAP onset = {int(a.CAP_R_proportion*a.r_max)}a.u., r_max={a.r_max}a.u, γ_0={a.gamma_0}, l_max={a.l_max}."
+    a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
+               reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
     
     # n = 2
     # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
@@ -2703,7 +2748,6 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     # plt.legend()
     # plt.title(r"Norm diff of $\Psi$ as a function of time.")
     # plt.show()
-    
     
     
     if animate:
@@ -3166,8 +3210,10 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
-    # load_run_program_and_plot("dP_domega_S19")
+    # main()
+    load_run_program_and_plot("CAPs_dP2_dep_omk_50_longT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    load_run_program_and_plot("CAPs_dP2_dep_omk_50_longT_7", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    load_run_program_and_plot("CAPs_dP2_dep_omk_far_50_longT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
