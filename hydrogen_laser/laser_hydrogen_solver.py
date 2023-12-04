@@ -2202,7 +2202,8 @@ class laser_hydrogen_solver:
                 [axes[a].tick_params(axis='y', colors='#4c72b0') for a in range(len(axes))]
                 [axes[a].yaxis.label.set_color('#4c72b0') for a in range(len(axes))]
                 
-                figure0.tight_layout()
+                gs.tight_layout(figure0)
+                # figure0.tight_layout()
                 
                 if self.use_CAP:
                     CAP_array = np.zeros_like(self.r)
@@ -3399,7 +3400,7 @@ if __name__ == "__main__":
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     
-    load_run_program_and_plot(f"compare_lmax/lmax_{8}", animate=True, plot_postproces=[False,False,False,False], save_plots=False, )
+    load_run_program_and_plot(f"compare_lmax/lmax_{8}", animate=True, plot_postproces=[False,False,False,False], save_plots=False, n_rows=4)
     
     # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
     # labels    = [f"{l}" for l in range(8,1,-1)]
