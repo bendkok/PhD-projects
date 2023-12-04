@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import matplotlib.animation as animation
+import matplotlib.gridspec as gridspec
 from tqdm import tqdm 
 import scipy as sc
 import scipy.sparse as sp
@@ -2056,7 +2057,7 @@ class laser_hydrogen_solver:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
     
     
-    def make_aimation(self, do_save=False, extra_title="", make_combined_plot=True, make_multi_plot=True):
+    def make_aimation(self, do_save=False, extra_title="", make_combined_plot=True, make_multi_plot=True, n_cols=None, n_rows=None):
         """
         Function which creates animations of the wave function as it changes with time. 
 
@@ -2148,24 +2149,60 @@ class laser_hydrogen_solver:
                     
             # creates a figure with several subfigures for each l-channel   
             if make_multi_plot:
-            
+                
+                # finds out how many columns and grids are needed for the figure
+                if n_rows is None and n_cols is not None:
+                    # if number of columns is specified
+                    n_rows = int(np.ceil( (self.l_max+1) / n_cols))
+                elif n_cols is None and n_rows is not None:
+                    # if number of rows is specified
+                    n_cols = int(np.ceil( (self.l_max+1) / n_rows))
+                elif n_rows is None and n_cols is None:
+                    # if neither is specified
+                    n_cols=3
+                    n_rows = int(np.ceil( (self.l_max+1) / n_cols))
+                else:
+                    # if both are specified we check that the given numbers are possible
+                    if (n_cols * n_rows) < (self.l_max+1):
+                        print("n_cols * n_rows must be larger than l_max+1.")
+                        exit()
+                
+                # print(n_rows, n_cols)
+                
                 # here we create the sub plots
-                figure0, ax = plt.subplots(3, 3, figsize=(15, 9.5), sharex=True, layout='constrained') 
-                axes = ax.ravel()
-                # TODO: make for abitrary l_max. Maybe replace len(axes) with self.l_max?
+                gs = gridspec.GridSpec(n_rows, n_cols)
+                # figure0 = plt.figure(figsize=(15, 9.5)) # , layout='constrained')
+                figure0 = plt.figure(figsize=(n_cols*5, n_rows*3+.5)) # , layout='constrained')
+                axes = []
+                for n in range((self.l_max+1)):
+                    if n >= n_cols:
+                        ax = figure0.add_subplot(gs[n], sharex=axes[n%n_cols])
+                        # print(n, n%n_cols)
+                    else:
+                        ax = figure0.add_subplot(gs[n])
+                    axes.append(ax)
                 
                 # make the plots look a bit nicer
-                [axes[a].set_xlabel(r"$r$ $(a.u.)$") for a in range(len(axes)-3,len(axes))]
-                [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in [0,3,6]] # range(len(axes))]
+                # [axes[a].set_xlabel(r"$r$ $(a.u.)$") for a in range(len(axes)-3,len(axes))]
+                [axes[a].set_xlabel(r"$r$ $(a.u.)$") for a in range(len(axes)-n_cols,len(axes))] # TODO: check if should be n_rows
+                y_label_locs = [(n_cols)*i for i in range(n_rows)] # applies labels only on the leftmost figures
+                # removes the last elements in case the specified n_cols or n_rows dosen't fi with l_max
+                while y_label_locs[-1] >= self.l_max:
+                    y_label_locs.pop()
+                [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in y_label_locs] 
                 [axes[a].grid() for a in range(len(axes))]
                 
                 [axes[a].spines['bottom'].set_color('orangered') for a in range(len(axes))] # red
                 [axes[a].tick_params(axis='x', colors='orangered') for a in range(len(axes))]
+                for ax in range(self.l_max+1-n_cols):
+                    axes[ax].xaxis.set_tick_params(labelbottom=False)
                 [axes[a].xaxis.label.set_color('orangered') for a in range(len(axes))]
                 
                 [axes[a].spines['left'].set_color('#4c72b0') for a in range(len(axes))]
                 [axes[a].tick_params(axis='y', colors='#4c72b0') for a in range(len(axes))]
                 [axes[a].yaxis.label.set_color('#4c72b0') for a in range(len(axes))]
+                
+                figure0.tight_layout()
                 
                 if self.use_CAP:
                     CAP_array = np.zeros_like(self.r)
@@ -2174,14 +2211,19 @@ class laser_hydrogen_solver:
                     ax_ps = [axes[a].twinx() for a in range(len(axes))]
                     # [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
                     [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
-                    [ax_ps[a].set_ylabel(r"CAP $(a.u.)$") for a in [2,5,8]] # range(len(ax_ps))]
+                    CAP_label_locs = [(n_cols)*i-1 for i in range(1,n_rows)]
+                    CAP_label_locs.append(len(axes)-1)
+                    [ax_ps[a].set_ylabel(r"CAP $(a.u.)$") for a in CAP_label_locs] # applies labels only on the rightmost figures
+                    
                     
                     [ax_ps[a].plot(self.r, CAP_array, '--', color='#55a868', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
                     for ax_p in ax_ps:
                         ax_ps[0].get_shared_y_axes().join(ax_ps[0], ax_p)
                     ax_ps[0].autoscale()
-                    for ax in [0,1,3,4,6,7]:
-                        ax_ps[ax].yaxis.set_tick_params(labelright=False)
+                    # applies ticks only on the rightmost figures
+                    for ax in range(len(ax_ps)):
+                        if ax not in CAP_label_locs:
+                            ax_ps[ax].yaxis.set_tick_params(labelright=False)
                         
                 # plot the initial wave functions
                 lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
@@ -2653,7 +2695,8 @@ class laser_hydrogen_solver:
         return hyperparameters
         
 
-def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_animation=False, plot_postproces=[True,True,True,True], save_plots=False):
+def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, animate=False, save_animation=False, plot_postproces=[True,True,True,True], 
+                              save_plots=False, n_cols=3, n_rows=None):
     """
     Loads a program which has been run, and makes plots of the results.
 
@@ -2690,14 +2733,12 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     
     a.print_compare_norms()
     
-    # print('\n' + f"Norm diff |Ψ| and dP/dΩ: {np.abs(1-a.norm_over_time[-1]-dP_domega_norm)}.", '\n')
-    
-    
     # plots stuff
-    a.plot_gs_res(do_save=True)
-    extra_titles = "\n"+f"CAP onset = {int(a.CAP_R_proportion*a.r_max)}a.u., r_max={a.r_max}a.u, γ_0={a.gamma_0}, l_max={a.l_max}, n={a.n}, nt={a.nt}."
-    a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
-               reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
+    if do_regular_plot:
+        a.plot_gs_res(do_save=save_plots)
+        extra_titles = "\n"+f"CAP onset = {int(a.CAP_R_proportion*a.r_max)}a.u., r_max={a.r_max}a.u, γ_0={a.gamma_0}, l_max={a.l_max}, n={a.n}, nt={a.nt}."
+        a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
+                   reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
     
     # n = 2
     # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
@@ -2740,12 +2781,11 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     # plt.title(r"Norm diff of $\Psi$ as a function of time.")
     # plt.show()
     
-    
     if animate:
-        a.make_aimation(do_save=save_animation)
+        a.make_aimation(do_save=save_animation, make_combined_plot=True, n_cols=n_cols, n_rows=n_rows)
         
         
-def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
+def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
     """
     Loads a program which has been run, and makes plots of the results.
 
@@ -2805,12 +2845,19 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
             plt.savefig(f"{save_dir}/comp_time_evolved_norm.pdf", bbox_inches='tight')
         plt.show()
         
-        print([a.norm_over_time[-1] for a in classes])
-        plt.plot(labels, [a.norm_over_time[-1] for a in classes], "o")
+        final_norms = [a.norm_over_time[-1] for a in classes]
+        print(final_norms)
+        plt.plot(labels, final_norms, "o")
         plt.grid()
         plt.xscale("log")
         plt.xlabel(tested_variable)
         plt.ylabel("Final norm")
+        
+        
+        diff = max(final_norms) - min(final_norms)
+        for i,v in enumerate(labels):
+            plt.text(v, final_norms[i]+diff*0.13, "%.1e" %v, ha="center", rotation = 60, rotation_mode = 'anchor', )
+        
         plt.show()
         
         
@@ -3352,12 +3399,12 @@ if __name__ == "__main__":
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     
-    # load_run_program_and_plot(f"compare_lmax/lmax_{8}", animate=True, plot_postproces=[False,False,False,False], save_plots=False, )
+    load_run_program_and_plot(f"compare_lmax/lmax_{8}", animate=True, plot_postproces=[False,False,False,False], save_plots=False, )
     
     # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
     # labels    = [f"{l}" for l in range(8,1,-1)]
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # load_program_and_compare(plot_postproces=[False,True,False,False], styles=styles, save_dirs=save_dirs, labels=labels) # , save_dir="compare_lmax/comp")
+    # load_programs_and_compare(plot_postproces=[False,True,False,False], styles=styles, save_dirs=save_dirs, labels=labels) # , save_dir="compare_lmax/comp")
     
     # nt_vals = [9000, 8300, 8000, 7000, 6000, 5000]
     # # nt_vals = [5000, 4000, 3000, 2000, 1000]
@@ -3367,7 +3414,7 @@ if __name__ == "__main__":
     # save_dirs = [f"compare_nt/nt_{l}" for l in nt_vals]
     # # labels    = [f"{l}" for l in n_vals]
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=styles, save_dirs=save_dirs, labels=nt_vals, save_dir="compare_nt/comp_high")
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], styles=styles, save_dirs=save_dirs, labels=nt_vals, save_dir="compare_nt/comp_high")
     
     # # gamma_0_vals = [10e-4, 9e-4, 8e-4, 7e-4, 6e-4, 5e-4, 4e-4, 3e-4, 2e-4, 1e-4]
     # # gamma_0_vals = [10e-4, 9e-4, 8e-4, 7e-4, 6e-4] 
@@ -3377,7 +3424,7 @@ if __name__ == "__main__":
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals]
     # # labels    = [f"{l}" for l in n_vals]
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=styles, save_dirs=save_dirs, labels=gamma_0_vals, save_dir="compare_gamma_0t/comp_low")
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], styles=styles, save_dirs=save_dirs, labels=gamma_0_vals, save_dir="compare_gamma_0t/comp_low")
     
     # For the norm and dP/dε: l_max=4 is good enough
     # For dP/dΩ: l_max=7 is good, l_max=6 might be good enough
@@ -3393,28 +3440,33 @@ if __name__ == "__main__":
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
     # # for l in n_vals:
     # #     load_run_program_and_plot(f"compare_n/n_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
-    # load_program_and_compare(plot_postproces=[True,True,True,False], labels=n_vals, save_dir="compare_n/comp_low_n", styles=styles, save_dirs=save_dirs)
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=n_vals, save_dir="compare_n/comp_low_n", styles=styles, save_dirs=save_dirs)
     
     
-    gamma_0_vals = [.1/2**n for n in range(15, 20)]
-    compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
+    # gamma_0_vals = [.1/2**n for n in range(15, 20)]
+    # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    gamma_0_vals = [.1/2**n for n in range(30)]
-    save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
-    styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    load_program_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0", styles=styles, save_dirs=save_dirs)
+    # gamma_0_vals = [.1/2**n for n in range(17)]
+    # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0", styles=styles, save_dirs=save_dirs)
     
-    # gamma_0_vals = [.1/2**n for n in range(7)]
+    # gamma_0_vals = [.1/2**n for n in range(8,16)]
+    # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_center", styles=styles, save_dirs=save_dirs)
+    
+    # gamma_0_vals = [.1/2**n for n in range(9)]
     
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # load_program_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_high", styles=styles, save_dirs=save_dirs)
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_high", styles=styles, save_dirs=save_dirs)
     
-    # gamma_0_vals = [.1/2**n for n in range(7,15)]
+    # gamma_0_vals = [.1/2**n for n in range(9,17)]
     
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # load_program_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_low", styles=styles, save_dirs=save_dirs)
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_low", styles=styles, save_dirs=save_dirs)
     
     # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
@@ -3423,25 +3475,25 @@ if __name__ == "__main__":
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
     # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False])
-    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_longT", "CAPs_dP2_dep_omk_50_longT_7", "CAPs_dP2_dep_omk_far_50_longT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison")
-    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_shortT", "CAPs_dP2_dep_omk_50_shortT_7", "CAPs_dP2_dep_omk_far_50_shortT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison_shortT")
-    # load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150"], labels=[50,75,100,125,150], save_dir=None)
-    # load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_175", "test_CAPS_0.000175_8/CAPs_dPdom_farther_200", "test_CAPS_0.000175_8/CAPs_dPdom_farther_225", "test_CAPS_0.000175_8/CAPs_dPdom_farther_250"], labels=["Far",150,175,200,225,250], save_dir=None)
-    # load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_175", "test_CAPS_0.000175_8/CAPs_dPdom_farther_200", "test_CAPS_0.000175_8/CAPs_dPdom_farther_225", "test_CAPS_0.000175_8/CAPs_dPdom_farther_250"], 
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_longT", "CAPs_dP2_dep_omk_50_longT_7", "CAPs_dP2_dep_omk_far_50_longT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison")
+    # load_programs_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_shortT", "CAPs_dP2_dep_omk_50_shortT_7", "CAPs_dP2_dep_omk_far_50_shortT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison_shortT")
+    # load_programs_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150"], labels=[50,75,100,125,150], save_dir=None)
+    # load_programs_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_175", "test_CAPS_0.000175_8/CAPs_dPdom_farther_200", "test_CAPS_0.000175_8/CAPs_dPdom_farther_225", "test_CAPS_0.000175_8/CAPs_dPdom_farther_250"], labels=["Far",150,175,200,225,250], save_dir=None)
+    # load_programs_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_175", "test_CAPS_0.000175_8/CAPs_dPdom_farther_200", "test_CAPS_0.000175_8/CAPs_dPdom_farther_225", "test_CAPS_0.000175_8/CAPs_dPdom_farther_250"], 
     #                          labels=[50,75,100,125,150,150,175,200,225,250], save_dir="test_CAPS_0.000175_8_comp_dPdom")
     
-    # load_program_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
+    # load_programs_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
     #                          save_dirs=["test_CAPS_0.000175_8/CAPs_dP2_dep_omk_20", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_25", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_30", 
     #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_35", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_40", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_45", 
     #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_50"], 
     #                          labels=[20,25,30,35,40,45,50], save_dir="test_CAPS_0.000175_8_comp_dP2")
     
-    # load_program_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
+    # load_programs_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
     #                          save_dirs=["test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_75", 
     #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_100", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_125", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_150"], 
     #                          labels=[50,75,100,125,150], save_dir="test_CAPS_0.000175_8_comp_dP2")
     
-    # load_program_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
+    # load_programs_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
     #                          save_dirs=["test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_5", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_10", 
     #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_15", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_20", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_25"], 
     #                          labels=[5,10,15,20,25], save_dir="test_CAPS_0.000175_8_comp_dP2")
