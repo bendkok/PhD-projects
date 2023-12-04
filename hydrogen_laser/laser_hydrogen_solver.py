@@ -148,6 +148,7 @@ class laser_hydrogen_solver:
         self.sc_compare_n               = sc_compare_n
 
         # initialise other things
+        # print(n, type(n), l_max, type(l_max))
         self.P  = np.zeros((n, l_max+1))        # we represent the wave function as a matrix
         self.P0 = np.zeros((n, 1)) + .1         # initial guess for the ground state of the wave function as a matrix
 
@@ -870,6 +871,7 @@ class laser_hydrogen_solver:
         """
 
         # TODO: add some comments
+        # initialise arrays
         alpha  = np.zeros(k_dim, dtype=complex)
         beta   = np.zeros(k_dim-1, dtype=complex)
         V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex)
@@ -2054,200 +2056,187 @@ class laser_hydrogen_solver:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
     
     
-    def make_aimation(self, do_save=False, extra_title=""):
-        # Function which creates animations of the wave function as it changes with time. 
-        
-        # def align_yaxis(ax1, ax2, scale_1=1, scale_2=1):
-        #     y_lims = np.array([ax.get_ylim() for ax in [ax1, ax2]])
-        #     y_lims[0,1] *= scale_1
-        #     y_lims[1,1] *= scale_2
-        
-        #     # force 0 to appear on both axes, comment if don't need
-        #     y_lims[:, 0] = y_lims[:, 0].clip(None, 0)
-        #     y_lims[:, 1] = y_lims[:, 1].clip(0, None)
-        
-        #     # normalize both axes
-        #     y_mags = (y_lims[:,1] - y_lims[:,0]).reshape(len(y_lims),1)
-        #     y_lims_normalized = y_lims / y_mags
-        
-        #     # find combined range
-        #     y_new_lims_normalized = np.array([np.min(y_lims_normalized), np.max(y_lims_normalized)])
-        
-        #     # denormalise combined range to get new axes
-        #     new_lim1, new_lim2 = y_new_lims_normalized * y_mags
-        #     ax1.set_ylim(new_lim1)
-        #     ax2.set_ylim(new_lim2)
-            
+    def make_aimation(self, do_save=False, extra_title="", make_combined_plot=True, make_multi_plot=True):
+        """
+        Function which creates animations of the wave function as it changes with time. 
+
+        Parameters
+        ----------
+        do_save : boolean, optional
+            Whether to save the animations. The default is False.
+        extra_title : string, optional
+            Extra text to be included in the title. The default is "".
+        make_combined_plot : boolean, optional
+            Whether to animate all the l-channels in one plot. The default is True.
+        make_multi_plot : boolean, optional
+            Whether to create one animate-figure with all the l-channels as subfigures. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
         
         if self.time_evolved: # chekcs that there is something to plot 
             sns.set_theme(style="dark", rc={'xtick.bottom': True,'ytick.left': True}) # nice plots
             
-            # self.use_CAP = False
-            # plt.ion() # allows for animation
-            # here we are creating sub plots
-            figure, ax0 = plt.subplots(figsize=(12, 8))
-            # make the plots look a bit nicer
-            # ax.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*2.2, bottom=-0.01)
-            # ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1, bottom=-0.01) # TODO: check if it should be squared
-            # ax0.set_ylim(top = np.max(np.abs(self.Ps[0][:,0])**2)*1.1) # TODO: check if it should be squared
-            plt.xlabel(r"$r$")
-            ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$")
-            plt.grid()
-            # ax0.set_yscale('symlog') # TODO: decide if to keep
+            # combine the l-channels in one figure
+            if make_combined_plot:
             
-            if self.use_CAP:
-                CAP_array = np.zeros_like(self.r)
-                CAP_array[self.CAP_locs] = self.Gamma_vector
+                # here we create the sub plots
+                figure, ax0 = plt.subplots(figsize=(12, 8))
+                # make the plots look a bit nicer
+                plt.xlabel(r"$r$")
+                ax0.set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$")
+                plt.grid()
                 
-                ax_p = ax0.twinx()
-                # align_yaxis(ax0, ax_p, np.max(CAP_array))
-                ax_p.set_ylim(top=np.max(CAP_array), bottom=-0.01)
-                ax_p.set_ylabel("CAP")
-                
-                line_V, = ax_p.plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)
-                
-            # plot the initial wave functions
-            lines0 = [(ax0.plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
-            ax0.set_yscale('log') # TODO: decide if to keep
-            # ax0.set_yscale('symlog') # TODO: decide if to keep
-            
-            # ask matplotlib for the plotted objects and their labels
-            if self.use_CAP:
-                lines0, labels = ax0.get_legend_handles_labels()
-                lines2, labels2 = ax_p.get_legend_handles_labels()
-                ax0.legend(lines0 + lines2, labels + labels2, loc=1)
-        
-                ax0.set_zorder(ax_p.get_zorder()+1) # put ax in front of ax_p
-                ax0.patch.set_visible(False)  # hide the 'canvas'
-                ax_p.patch.set_visible(True) # show the 'canvas'
-            else:
-                ax0.legend()
-            
-            # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
-            times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
-            time_text0 = ax0.text(.4, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=ax0.transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
-            
-            # goes through all the time steps
-            def animate0(t):
-            
-                #     [lines[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
-        
-                #     return lines + [time_text,]
-                
-                # # goes through all the time steps
-                # for t in tqdm(range(len(times))):
-                [lines0[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
-                time_text0.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))
-    
-                # plt.title("t = {:.2f}. Frame = {}.".format(times[t], t))
-    
-                # # drawing updated values
-                # figure.canvas.draw()
-    
-                # # This will run the GUI event
-                # # loop until all UI events
-                # # currently waiting have been processed
-                # figure.canvas.flush_events()
-                
-                return lines0 + [time_text0,]
-            
-            ani = animation.FuncAnimation(figure, animate0, range(1, len(times)), 
-                                          interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
-            if do_save:
-                plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
-                writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
-                ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_single.mp4", writer=writervideo, ) # dpi=500, 
-                
-            plt.show()
-                
-            
-            # here we are creating sub plots
-            figure0, ax = plt.subplots(3, 3, figsize=(15, 9.5), sharex=True, layout='constrained')
-            axes = ax.ravel()
-            
-            # make the plots look a bit nicer
-            [axes[a].set_xlabel(r"$r$ $(a.u.)$") for a in range(len(axes)-3,len(axes))]
-            [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in [0,3,6]] # range(len(axes))]
-            [axes[a].grid() for a in range(len(axes))]
-            
-            [axes[a].spines['bottom'].set_color('orangered') for a in range(len(axes))] # red
-            [axes[a].tick_params(axis='x', colors='orangered') for a in range(len(axes))]
-            [axes[a].xaxis.label.set_color('orangered') for a in range(len(axes))]
-            
-            [axes[a].spines['left'].set_color('#4c72b0') for a in range(len(axes))]
-            [axes[a].tick_params(axis='y', colors='#4c72b0') for a in range(len(axes))]
-            [axes[a].yaxis.label.set_color('#4c72b0') for a in range(len(axes))]
-            
-            if self.use_CAP:
-                CAP_array = np.zeros_like(self.r)
-                CAP_array[self.CAP_locs] = self.Gamma_vector
-                
-                ax_ps = [axes[a].twinx() for a in range(len(axes))]
-                # [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
-                [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
-                [ax_ps[a].set_ylabel(r"CAP $(a.u.)$") for a in [2,5,8]] # range(len(ax_ps))]
-                
-                [ax_ps[a].plot(self.r, CAP_array, '--', color='#55a868', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
-                for ax_p in ax_ps:
-                    ax_ps[0].get_shared_y_axes().join(ax_ps[0], ax_p)
-                ax_ps[0].autoscale()
-                for ax in [0,1,3,4,6,7]:
-                    ax_ps[ax].yaxis.set_tick_params(labelright=False)
+                # if we used a CAP we can add it to the plot
+                if self.use_CAP:
+                    # CAP_array for plotting
+                    CAP_array = np.zeros_like(self.r)
+                    CAP_array[self.CAP_locs] = self.Gamma_vector
                     
-            # plot the initial wave functions
-            lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
-            # [axes[a].set_yscale('log') for a in range(len(axes))]
-            [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-6) for a in range(len(axes))]
-            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
-            [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-7) for a in range(len(axes))] # TODO: check if it should be squared
-            # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
-
-            # ask matplotlib for the plotted objects and their labels
-            if self.use_CAP:
-                # sns.despine(right=False)
+                    # plots CAP along the right axis
+                    ax_p = ax0.twinx()
+                    # align_yaxis(ax0, ax_p, np.max(CAP_array))
+                    ax_p.set_ylim(top=np.max(CAP_array), bottom=-0.01)
+                    ax_p.set_ylabel("CAP")
+                    
+                    ax_p.plot(self.r, CAP_array, '--', color='grey', label="CAP", zorder=2)
+                    
+                # plot the initial wave functions
+                lines0 = [(ax0.plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
+                ax0.set_yscale('log') # TODO: decide if to keep
+                # ax0.set_yscale('symlog') # TODO: decide if to keep
                 
-                la = [axes[a].get_legend_handles_labels() for a in range(len(axes))]
-                lp = [ax_ps[a].get_legend_handles_labels() for a in range(len(ax_ps))]
-                [axes[a].legend(la[a][0] + lp[a][0], la[a][1] + lp[a][1], loc=1) for a in range(len(axes))]
+                # ask matplotlib for the plotted objects and their labels, to create a legend
+                if self.use_CAP:
+                    lines0, labels = ax0.get_legend_handles_labels()
+                    lines2, labels2 = ax_p.get_legend_handles_labels()
+                    ax0.legend(lines0 + lines2, labels + labels2, loc=1)
+            
+                    ax0.set_zorder(ax_p.get_zorder()+1) # put ax in front of ax_p
+                    ax0.patch.set_visible(False)  # hide the 'canvas'
+                    ax_p.patch.set_visible(True) # show the 'canvas'
+                else:
+                    ax0.legend()
+                
+                # array and textbox to keep track of the time during the animation 
+                times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
+                time_text0 = ax0.text(.4, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=ax0.transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
+                
+                def animate0(t):
+                    # function to go to the next time step
+                
+                    [lines0[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)] # updates the wace function lines
+                    time_text0.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))                # updates the time textbox
         
-                [axes[a].set_zorder(ax_ps[a].get_zorder()+1) for a in range(len(axes))] # put ax in front of ax_p
-                [axes[a].patch.set_visible(False) for a in range(len(axes))]  # hide the 'canvas'
-                [ax_ps[a].patch.set_visible(True) for a in range(len(axes))] # show the 'canvas'
+                    return lines0 + [time_text0,]
                 
-                # [ax_ps[a].spines['right'].set_zorder(axes[a].get_zorder()+1) for a in range(len(axes))]
-                [axes[a].spines['right'].set_color('#55a868') for a in range(len(axes))]
-                # [axes[a].spines['right'].set_linewidth(3) for a in range(len(axes))]
-                [ax_ps[a].tick_params(axis='y', colors='#55a868') for a in range(len(axes))]
-                [ax_ps[a].yaxis.label.set_color('#55a868') for a in range(len(axes))]
+                # creates the animation, the interval is choosen becoause it looked nice
+                ani = animation.FuncAnimation(figure, animate0, range(1, len(times)), 
+                                              interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
                 
-                # sns.despine(ax=axes[0], right=False, left=False)
-                # sns.despine(ax=ax_ps[0], left=False, right=False)
-            else:
-                [axes[a].legend() for a in range(len(axes))]
+                if do_save:
+                    # saves using ffmpeg
+                    ffmpeg_local_path = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
+                    plt.rcParams['animation.ffmpeg_path'] = ffmpeg_local_path 
+                    writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
+                    ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_single.mp4", writer=writervideo, ) # dpi=500, 
+                    
+                plt.show()
+                    
+            # creates a figure with several subfigures for each l-channel   
+            if make_multi_plot:
             
-            # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
-            times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
-            time_text = axes[1].text(.3, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=axes[1].transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
-            
-            # goes through all the time steps
-            def animate(t):
-            
-                [lines[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
-                time_text.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))
+                # here we create the sub plots
+                figure0, ax = plt.subplots(3, 3, figsize=(15, 9.5), sharex=True, layout='constrained') 
+                axes = ax.ravel()
+                # TODO: make for abitrary l_max. Maybe replace len(axes) with self.l_max?
+                
+                # make the plots look a bit nicer
+                [axes[a].set_xlabel(r"$r$ $(a.u.)$") for a in range(len(axes)-3,len(axes))]
+                [axes[a].set_ylabel(r"$\left|\Psi\left(r \right)\right|^2$") for a in [0,3,6]] # range(len(axes))]
+                [axes[a].grid() for a in range(len(axes))]
+                
+                [axes[a].spines['bottom'].set_color('orangered') for a in range(len(axes))] # red
+                [axes[a].tick_params(axis='x', colors='orangered') for a in range(len(axes))]
+                [axes[a].xaxis.label.set_color('orangered') for a in range(len(axes))]
+                
+                [axes[a].spines['left'].set_color('#4c72b0') for a in range(len(axes))]
+                [axes[a].tick_params(axis='y', colors='#4c72b0') for a in range(len(axes))]
+                [axes[a].yaxis.label.set_color('#4c72b0') for a in range(len(axes))]
+                
+                if self.use_CAP:
+                    CAP_array = np.zeros_like(self.r)
+                    CAP_array[self.CAP_locs] = self.Gamma_vector
+                    
+                    ax_ps = [axes[a].twinx() for a in range(len(axes))]
+                    # [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
+                    [ax_ps[a].set_ylim(top=np.max(CAP_array)*1.1, bottom=-np.max(CAP_array)*1e-10) for a in range(len(ax_ps))]
+                    [ax_ps[a].set_ylabel(r"CAP $(a.u.)$") for a in [2,5,8]] # range(len(ax_ps))]
+                    
+                    [ax_ps[a].plot(self.r, CAP_array, '--', color='#55a868', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
+                    for ax_p in ax_ps:
+                        ax_ps[0].get_shared_y_axes().join(ax_ps[0], ax_p)
+                    ax_ps[0].autoscale()
+                    for ax in [0,1,3,4,6,7]:
+                        ax_ps[ax].yaxis.set_tick_params(labelright=False)
+                        
+                # plot the initial wave functions
+                lines = [(axes[ln].plot(self.r, np.abs(self.Ps[0][:,ln])**2, label=f"l={ln}"))[0] for ln in range(self.l_max+1)]
+                # [axes[a].set_yscale('log') for a in range(len(axes))]
+                [axes[a].set_yscale('symlog', linthresh=np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-6) for a in range(len(axes))]
+                # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1) for a in range(len(axes))] # TODO: check if it should be squared
+                [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1e-7) for a in range(len(axes))] # TODO: check if it should be squared
+                # [axes[a].set_ylim(top = np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*1.1, bottom=-np.max(np.abs(np.array(self.Ps)[:,:,a])**2)*2e-2) for a in range(len(axes))] # TODO: check if it should be squared
     
-                return lines + [time_text,]
+                # ask matplotlib for the plotted objects and their labels
+                if self.use_CAP:
+                    # sns.despine(right=False)
+                    
+                    la = [axes[a].get_legend_handles_labels() for a in range(len(axes))]
+                    lp = [ax_ps[a].get_legend_handles_labels() for a in range(len(ax_ps))]
+                    [axes[a].legend(la[a][0] + lp[a][0], la[a][1] + lp[a][1], loc=1) for a in range(len(axes))]
             
-            ani = animation.FuncAnimation(figure0, animate, range(1, len(times)), 
-                                          interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
-            if do_save:
-                plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
-                writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
-                ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_multi.mp4", writer=writervideo, ) # dpi=500, 
-            
-            # TODO: add saving
-            # TODO: make for abitrary l_max
-            
-            plt.show()
+                    [axes[a].set_zorder(ax_ps[a].get_zorder()+1) for a in range(len(axes))] # put ax in front of ax_p
+                    [axes[a].patch.set_visible(False) for a in range(len(axes))]  # hide the 'canvas'
+                    [ax_ps[a].patch.set_visible(True) for a in range(len(axes))] # show the 'canvas'
+                    
+                    # [ax_ps[a].spines['right'].set_zorder(axes[a].get_zorder()+1) for a in range(len(axes))]
+                    [axes[a].spines['right'].set_color('#55a868') for a in range(len(axes))]
+                    # [axes[a].spines['right'].set_linewidth(3) for a in range(len(axes))]
+                    [ax_ps[a].tick_params(axis='y', colors='#55a868') for a in range(len(axes))]
+                    [ax_ps[a].yaxis.label.set_color('#55a868') for a in range(len(axes))]
+                    
+                    # sns.despine(ax=axes[0], right=False, left=False)
+                    # sns.despine(ax=ax_ps[0], left=False, right=False)
+                else:
+                    [axes[a].legend() for a in range(len(axes))]
+                
+                # times = np.concatenate((self.time_vector[self.save_idx], self.time_vector1[self.save_idx_]))
+                times = np.concatenate((self.time_vector[self.save_idx[:-1]], self.time_vector1[self.save_idx_[:-1]]))
+                time_text = axes[1].text(.3, 0.95, "", bbox=dict(facecolor='none', edgecolor='red'), horizontalalignment='left',verticalalignment='top', transform=axes[1].transAxes) # fig.suptitle("t = {:d} of {:d}.".format(0, 200)) 
+                
+                # goes through all the time steps
+                def animate(t):
+                
+                    [lines[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)]
+                    time_text.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))
+        
+                    return lines + [time_text,]
+                
+                ani = animation.FuncAnimation(figure0, animate, range(1, len(times)), 
+                                              interval=int(400/(times[2]-times[1])), blit=True) # int(10/(times[2]-times[1]))
+                if do_save:
+                    plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
+                    writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
+                    ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_multi.mp4", writer=writervideo, ) # dpi=500, 
+                
+                # TODO: add saving
+                
+                
+                plt.show()
             
         else:
             print("Warning: calculate_time_evolution() needs to be run before make_aimation().")
@@ -2491,7 +2480,9 @@ class laser_hydrogen_solver:
 
         """
         self.dP2_depsilon_domegak       = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.npy")
+        self.epsilon_grid               = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
         self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
+        self.theta_grid                 = np.linspace(0, np.pi, self.n)
         self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
         self.time_evolved = True
         self.dP2_depsilon_domegak_calculated = True
@@ -2704,7 +2695,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
     
     # plots stuff
     a.plot_gs_res(do_save=True)
-    extra_titles = "\n"+f"CAP onset = {int(a.CAP_R_proportion*a.r_max)}a.u., r_max={a.r_max}a.u, γ_0={a.gamma_0}, l_max={a.l_max}."
+    extra_titles = "\n"+f"CAP onset = {int(a.CAP_R_proportion*a.r_max)}a.u., r_max={a.r_max}a.u, γ_0={a.gamma_0}, l_max={a.l_max}, n={a.n}, nt={a.nt}."
     a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
                reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
     
@@ -2754,7 +2745,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", animate=False, save_anim
         a.make_aimation(do_save=save_animation)
         
         
-def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], labels=None, animate=False, save_animation=False, save_dir=None, styles=["-","-","-"], extra_title=""):
+def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
     """
     Loads a program which has been run, and makes plots of the results.
 
@@ -2770,6 +2761,9 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
     """
     
     sns.set_theme(style="dark") # nice plots
+    
+    if styles is None:
+        styles=["-"]*len(save_dirs)
     
     classes = []
     for sdir in save_dirs:
@@ -2798,9 +2792,9 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
         
         for i,a in enumerate(classes):
             a.load_norm_over_time()
-            plt.plot(np.append(a.time_vector,a.time_vector1), a.norm_over_time[:-1], styles[i], label=labels[i])
+            plt.plot(np.append(a.time_vector,a.time_vector1), a.norm_over_time[:-1], styles[i], label="{:.1e}".format(labels[i]))
             
-        plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+        plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End") 
         plt.grid()
         plt.xlabel("Time (a.u.)")
         plt.ylabel("Norm")
@@ -2811,13 +2805,21 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
             plt.savefig(f"{save_dir}/comp_time_evolved_norm.pdf", bbox_inches='tight')
         plt.show()
         
+        print([a.norm_over_time[-1] for a in classes])
+        plt.plot(labels, [a.norm_over_time[-1] for a in classes], "o")
+        plt.grid()
+        plt.xscale("log")
+        plt.xlabel(tested_variable)
+        plt.ylabel("Final norm")
+        plt.show()
+        
         
     if plot_postproces[1]:
         print("Comparing dP/dΩ.")
         plt.axes(projection = 'polar', rlabel_position=-22.5)
         for i,a in enumerate(classes):
             a.load_dP_domega()
-            plt.plot(np.pi/2-a.theta_grid, a.dP_domega, styles[i], label=labels[i])
+            plt.plot(np.pi/2-a.theta_grid, a.dP_domega, styles[i], label="{:.1e}".format(labels[i]))
             plt.plot(np.pi/2+a.theta_grid, a.dP_domega, styles[i]) # , label="dP_domega")
         plt.title(r"Comparison of $dP/d\Omega$ with polar projection."+extra_title)
         plt.legend()
@@ -2829,7 +2831,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
         plt.axes(projection = None)
         for i,a in enumerate(classes):
             a.load_dP_domega()
-            plt.plot(a.theta_grid, a.dP_domega, styles[i], label=labels[i])
+            plt.plot(a.theta_grid, a.dP_domega, styles[i], label="{:.1e}".format(labels[i]))
         plt.grid()
         plt.xlabel("φ")
         # plt.ylabel(r"$dP/d\theta$")
@@ -2848,7 +2850,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
         print("Comparing dP/dε.")
         for i,a in enumerate(classes):
             a.load_dP_depsilon()
-            plt.plot(a.epsilon_grid, a.dP_depsilon, styles[i], label=labels[i])
+            plt.plot(a.epsilon_grid, a.dP_depsilon, styles[i], label="{:.1e}".format(labels[i]))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -2861,7 +2863,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
         
         for i,a in enumerate(classes):
             a.load_dP_depsilon()
-            plt.plot(a.epsilon_grid, a.dP_depsilon, styles[i], label=labels[i])
+            plt.plot(a.epsilon_grid, a.dP_depsilon, styles[i], label="{:.1e}".format(labels[i]))
         plt.grid()
         plt.xlabel("ε")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -2895,7 +2897,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
             a.theta_grid = np.linspace(0,np.pi,a.n)
             # X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
-            plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label=labels[i])
+            plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label="{:.1e}".format(labels[i]))
             plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i]) # , label="dP_domega")
         # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
         plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with polar plot projection."+extra_title)
@@ -2908,7 +2910,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
         plt.axes(projection = None)
         for i,a in enumerate(classes):
             a.load_dP2_depsilon_domegak()
-            plt.plot(a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label=labels[i])
+            plt.plot(a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label="{:.1e}".format(labels[i]))
         plt.grid()
         plt.xlabel(r"$\theta$")
         plt.ylabel(r"$dP/d\Omega_k$")
@@ -2921,7 +2923,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
 
         for i,a in enumerate(classes):
             a.load_dP2_depsilon_domegak()
-            plt.plot(a.epsilon_grid, a.dP2_depsilon_domegak_norm0, styles[i], label=labels[i])
+            plt.plot(a.epsilon_grid, a.dP2_depsilon_domegak_norm0, styles[i], label="{:.1e}".format(labels[i]))
         plt.grid()
         plt.xlabel(r"$\epsilon$")
         plt.ylabel(r"$dP/d\epsilon$")
@@ -2934,7 +2936,7 @@ def load_program_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,
             
         for i,a in enumerate(classes):
             a.load_dP2_depsilon_domegak()
-            plt.plot(a.epsilon_grid, a.dP2_depsilon_domegak_norm0, styles[i], label=labels[i])
+            plt.plot(a.epsilon_grid, a.dP2_depsilon_domegak_norm0, styles[i], label="{:.1e}".format(labels[i]))
         plt.grid()
         plt.yscale('log')
         plt.xlabel(r"$\epsilon$")
@@ -3086,21 +3088,70 @@ def load_zeta_eps_omegak(save_dir="dP_domega_S30"):
     a.calculate_dP2depsdomegak()
     a.save_dP2_depsilon_domegak()
     a.plot_dP2_depsilon_domegak(do_save=False)
-        
+     
     
-def main():
+def compare_var(savedir="compare_lmax", var="l_max", test_vals=[8,7,6,5,4], calc_extra=[True,True,True,False]):
+    
+    total_start_time = time.time()
+    hyps = {"nt": 5000, # 8300, 10000, # 8000, #
+            "T": 1.5,
+            "n": 500,
+            "r_max": 100,
+            "gamma_0": 1.75e-4,
+            "l_max": 7,
+            "k_dim": 15,
+            "CAP_R_proportion": .1,
+            }
+        
+    for val in test_vals:
+        
+        hyps[var] = val
+        print('\n', f"{var} = {hyps[var]}:", '\n')
+
+        a = laser_hydrogen_solver(save_dir=f"{savedir}/{var}_{val}", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = hyps["nt"], 
+                                  T=hyps["T"], n=hyps["n"], r_max=hyps["r_max"], nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=hyps["gamma_0"], 
+                                  CAP_R_proportion=hyps["CAP_R_proportion"], l_max=hyps["l_max"], calc_norm=calc_extra[0], calc_dPdomega=calc_extra[1], 
+                                  calc_dPdepsilon=calc_extra[2], calc_dP2depsdomegak=calc_extra[3], 
+                                  )
+        a.set_time_propagator(a.Lanczos_fast, k_dim=hyps["k_dim"])
+    
+        a.calculate_ground_state_imag_time()
+        # a.plot_gs_res(do_save=True)
+        a.save_ground_states()
+    
+        a.A = a.single_laser_pulse    
+        a.calculate_time_evolution()
+    
+        # a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+        
+        a.save_found_states()
+        a.save_zetas()
+        a.save_found_states_analysis()
+        a.save_hyperparameters()
+    
+        load_run_program_and_plot(f"{savedir}/{var}_{val}", animate=False, plot_postproces=calc_extra, save_plots=True)
+
+    total_end_time = time.time()
+    
+    total_time = total_end_time-total_start_time
+    total_time_min = total_time//60
+    total_time_sec = total_time % 60
+    total_time_hou = total_time_min//60
+    total_time_min = total_time_min % 60
+    total_time_mil = (total_time-int(total_time))*1000
+    
+    print()
+    print("Total runtime: {:.4f} s.".format(total_time))
+    print("Total runtime: {:02d}h:{:02d}m:{:02d}s:{:02d}ms.".format(int(total_time_hou),int(total_time_min),int(total_time_sec),int(total_time_mil)))
+    
+    
+def compare_lmax():
 
     total_start_time = time.time()
 
-    # a = laser_hydrogen_solver(save_dir="test_CAP", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(2000), 
-    #                           T=2, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=3, max_epsilon=2,
-    #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
-    #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
-    # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_50_longT", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
-                              T=5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=8, max_epsilon=2,
+    a = laser_hydrogen_solver(save_dir="compare_lmax/lmax_6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=6, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
@@ -3119,9 +3170,9 @@ def main():
     a.save_found_states_analysis()
     a.save_hyperparameters()
     
-    b = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_50_longT_7", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
-                              T=5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=7, max_epsilon=2,
+    b = laser_hydrogen_solver(save_dir="compare_lmax/lmax_5", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=5, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     b.set_time_propagator(b.Lanczos_fast, k_dim=15)
@@ -3140,9 +3191,9 @@ def main():
     b.save_found_states_analysis()
     b.save_hyperparameters()
     
-    c = laser_hydrogen_solver(save_dir="CAPs_dP2_dep_omk_far_50_longT", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
-                              T=5, n=1000, r_max=200, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.25, l_max=8, max_epsilon=2,
+    c = laser_hydrogen_solver(save_dir="compare_lmax/lmax_4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=4, max_epsilon=2,
                               calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     c.set_time_propagator(c.Lanczos_fast, k_dim=15)
@@ -3160,6 +3211,48 @@ def main():
     c.save_found_states()
     c.save_found_states_analysis()
     c.save_hyperparameters()
+    
+    d = laser_hydrogen_solver(save_dir="compare_lmax/lmax_3", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=3, max_epsilon=2,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
+                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    d.set_time_propagator(d.Lanczos_fast, k_dim=15)
+
+    d.calculate_ground_state_imag_time()
+    # d.plot_gs_res(do_save=True)
+    d.save_ground_states()
+
+    d.A = d.single_laser_pulse    
+    d.calculate_time_evolution()
+
+    d.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+    
+    d.save_zetas()
+    d.save_found_states()
+    d.save_found_states_analysis()
+    d.save_hyperparameters()
+    
+    e = laser_hydrogen_solver(save_dir="compare_lmax/lmax_2", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=2, max_epsilon=2,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
+                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    e.set_time_propagator(e.Lanczos_fast, k_dim=15)
+
+    e.calculate_ground_state_imag_time()
+    # e.plot_gs_res(do_save=True)
+    e.save_ground_states()
+
+    e.A = e.single_laser_pulse    
+    e.calculate_time_evolution()
+
+    e.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+    
+    e.save_zetas()
+    e.save_found_states()
+    e.save_found_states_analysis()
+    e.save_hyperparameters()
     
     
     total_end_time = time.time()
@@ -3207,18 +3300,149 @@ def main():
         # should be same
     # test dP^2 with closer CAP
         # 30au?
+        
+def main():
+    
+    total_start_time = time.time()
+
+    # a = laser_hydrogen_solver(save_dir="test_CAP", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(2000), 
+    #                           T=2, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=3, max_epsilon=2,
+    #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
+    #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
+    # a.set_time_propagator(a.Lanczos, k_dim=15)
+    a = laser_hydrogen_solver(save_dir="compare_lmax/lmax_6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=6, max_epsilon=2,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
+                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    a.set_time_propagator(a.Lanczos_fast, k_dim=15)
+
+    a.calculate_ground_state_imag_time()
+    # a.plot_gs_res(do_save=True)
+    a.save_ground_states()
+
+    a.A = a.single_laser_pulse    
+    a.calculate_time_evolution()
+
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+    
+    a.save_zetas()
+    a.save_found_states()
+    a.save_found_states_analysis()
+    a.save_hyperparameters()
+    
+    total_end_time = time.time()
+    
+    total_time = total_end_time-total_start_time
+    total_time_min = total_time//60
+    total_time_sec = total_time % 60
+    total_time_hou = total_time_min//60
+    total_time_min = total_time_min % 60
+    total_time_mil = (total_time-int(total_time))*1000
+    
+    print()
+    print("Total runtime: {:.4f} s.".format(total_time))
+    print("Total runtime: {:02d}h:{:02d}m:{:02d}s:{:02d}ms.".format(int(total_time_hou),int(total_time_min),int(total_time_sec),int(total_time_mil)))
     
 
 if __name__ == "__main__":
     # main()
-    load_run_program_and_plot("CAPs_dP2_dep_omk_50_longT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
-    load_run_program_and_plot("CAPs_dP2_dep_omk_50_longT_7", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
-    load_run_program_and_plot("CAPs_dP2_dep_omk_far_50_longT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    
+    # for l in range(2,9):
+    #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    
+    # load_run_program_and_plot(f"compare_lmax/lmax_{8}", animate=True, plot_postproces=[False,False,False,False], save_plots=False, )
+    
+    # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
+    # labels    = [f"{l}" for l in range(8,1,-1)]
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_program_and_compare(plot_postproces=[False,True,False,False], styles=styles, save_dirs=save_dirs, labels=labels) # , save_dir="compare_lmax/comp")
+    
+    # nt_vals = [9000, 8300, 8000, 7000, 6000, 5000]
+    # # nt_vals = [5000, 4000, 3000, 2000, 1000]
+    # # compare_var("compare_nt", "nt", nt_vals)
+    # # nt_vals = [6000, 5000, 4000, 3000, 2000, 1000]
+    
+    # save_dirs = [f"compare_nt/nt_{l}" for l in nt_vals]
+    # # labels    = [f"{l}" for l in n_vals]
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=styles, save_dirs=save_dirs, labels=nt_vals, save_dir="compare_nt/comp_high")
+    
+    # # gamma_0_vals = [10e-4, 9e-4, 8e-4, 7e-4, 6e-4, 5e-4, 4e-4, 3e-4, 2e-4, 1e-4]
+    # # gamma_0_vals = [10e-4, 9e-4, 8e-4, 7e-4, 6e-4] 
+    # gamma_0_vals = [5e-4, 4e-4, 3e-4, 2e-4, 1e-4]
+    # # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
+    
+    # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals]
+    # # labels    = [f"{l}" for l in n_vals]
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=styles, save_dirs=save_dirs, labels=gamma_0_vals, save_dir="compare_gamma_0t/comp_low")
+    
+    # For the norm and dP/dε: l_max=4 is good enough
+    # For dP/dΩ: l_max=7 is good, l_max=6 might be good enough
+    # nt = 5000 or 6000 gives 100% overlap
+    # not sure about gamma_0
+    
+    
+    # # n_vals = [700, 600, 500, 400, 300]
+    # n_vals = [300, 250, 200, 150, 100]
+    # # compare_var("compare_n", "n", n_vals)
+    
+    # save_dirs = [f"compare_n/n_{l}" for l in n_vals] # run again with nt=5000, but save them
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # # for l in n_vals:
+    # #     load_run_program_and_plot(f"compare_n/n_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    # load_program_and_compare(plot_postproces=[True,True,True,False], labels=n_vals, save_dir="compare_n/comp_low_n", styles=styles, save_dirs=save_dirs)
+    
+    
+    gamma_0_vals = [.1/2**n for n in range(15, 20)]
+    compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
+    
+    gamma_0_vals = [.1/2**n for n in range(30)]
+    save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
+    styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    load_program_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0", styles=styles, save_dirs=save_dirs)
+    
+    # gamma_0_vals = [.1/2**n for n in range(7)]
+    
+    # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_program_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_high", styles=styles, save_dirs=save_dirs)
+    
+    # gamma_0_vals = [.1/2**n for n in range(7,15)]
+    
+    # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # load_program_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_low", styles=styles, save_dirs=save_dirs)
+    
+    # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
+    # load_run_program_and_plot("CAPs_dP2_dep_omk_far_50_shortT", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
     # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False])
     # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_longT", "CAPs_dP2_dep_omk_50_longT_7", "CAPs_dP2_dep_omk_far_50_longT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison")
-    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["test_if_still_same_newest", "test_if_still_same_newest1"], labels=["L", "L_fast"], save_dir="stupid_bug_comp0")
+    # load_program_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_shortT", "CAPs_dP2_dep_omk_50_shortT_7", "CAPs_dP2_dep_omk_far_50_shortT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison_shortT")
+    # load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150"], labels=[50,75,100,125,150], save_dir=None)
+    # load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_175", "test_CAPS_0.000175_8/CAPs_dPdom_farther_200", "test_CAPS_0.000175_8/CAPs_dPdom_farther_225", "test_CAPS_0.000175_8/CAPs_dPdom_farther_250"], labels=["Far",150,175,200,225,250], save_dir=None)
+    # load_program_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_150", "test_CAPS_0.000175_8/CAPs_dPdom_farther_175", "test_CAPS_0.000175_8/CAPs_dPdom_farther_200", "test_CAPS_0.000175_8/CAPs_dPdom_farther_225", "test_CAPS_0.000175_8/CAPs_dPdom_farther_250"], 
+    #                          labels=[50,75,100,125,150,150,175,200,225,250], save_dir="test_CAPS_0.000175_8_comp_dPdom")
     
+    # load_program_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
+    #                          save_dirs=["test_CAPS_0.000175_8/CAPs_dP2_dep_omk_20", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_25", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_30", 
+    #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_35", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_40", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_45", 
+    #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_50"], 
+    #                          labels=[20,25,30,35,40,45,50], save_dir="test_CAPS_0.000175_8_comp_dP2")
+    
+    # load_program_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
+    #                          save_dirs=["test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_75", 
+    #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_100", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_125", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_150"], 
+    #                          labels=[50,75,100,125,150], save_dir="test_CAPS_0.000175_8_comp_dP2")
+    
+    # load_program_and_compare(plot_postproces=[True,False,False,True], styles=["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"], 
+    #                          save_dirs=["test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_5", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_10", 
+    #                                     "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_15", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_20", "test_CAPS_0.000175_8/CAPs_dP2_dep_omk_close_25"], 
+    #                          labels=[5,10,15,20,25], save_dir="test_CAPS_0.000175_8_comp_dP2")
     
