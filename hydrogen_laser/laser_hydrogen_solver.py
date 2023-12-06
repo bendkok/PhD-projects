@@ -50,6 +50,7 @@ class laser_hydrogen_solver:
                  custom_Gamma_function  = None,                         # a custom CAP Gamma function
                  calc_norm              = False,                        # whether to calculate the norm
                  calc_dPdomega          = False,                        # whether to calculate dP/dΩ
+                 theta_grid_size        = 100,                          # 
                  calc_dPdepsilon        = False,                        # whether to calculate dP/dε
                  calc_dP2depsdomegak    = False,                        # whether to calculate dP^2/dεdΩ_k
                  spline_n               = 1000,                         # dimension of the spline interpolation used for finding dP/dε
@@ -136,6 +137,7 @@ class laser_hydrogen_solver:
         self.cep                        = cep
         self.save_dir                   = save_dir
         self.calc_dPdomega              = calc_dPdomega
+        self.theta_grid_size            = theta_grid_size
         self.calc_norm                  = calc_norm
         self.calc_dPdepsilon            = calc_dPdepsilon
         self.calc_dP2depsdomegak        = calc_dP2depsdomegak
@@ -1283,11 +1285,11 @@ class laser_hydrogen_solver:
                         self.zeta_eps_omegak = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1,self.l_max+1), dtype=complex)
                         
                     if self.calc_mask_method:
-                        self.k_grid      = np.linspace(0, np.pi, self.n) 
+                        self.k_grid      = np.linspace(0, 2, 100) 
                         self.b_mask      = np.zeros_like(self.k_grid, dtype=complex)
                         
                     if self.calc_dPdomega or self.calc_dP2depsdomegak or self.calc_mask_method:
-                        self.Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
+                        self.Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.theta_grid_size), np.linspace(0,np.pi,self.theta_grid_size)) for l in range(self.l_max+1)]
                     
                     # goes through all the pulse timesteps
                     print("With laser pulse: ")
@@ -1484,7 +1486,8 @@ class laser_hydrogen_solver:
     
     def calculate_dPdomega(self):
         
-        self.dP_domega = np.zeros(self.n)
+        # self.dP_domega = np.zeros(self.n)
+        self.dP_domega = np.zeros(self.theta_grid_size)
         print("\nCalculating dP/dΩ:")
         # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
         
@@ -1573,7 +1576,8 @@ class laser_hydrogen_solver:
         # the used grid spans from the smalest to the largest of the positive values
         min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
         self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
-        self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.n))
+        # self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.n))
+        self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.theta_grid_size))
         
         D_l_eps = []
         for l in range(self.l_max+1):
@@ -1584,7 +1588,7 @@ class laser_hydrogen_solver:
             D_l_eps[l][ 0]   = np.sqrt(1/(eigen_vals[l,pos_ind][ 1]-eigen_vals[l,pos_ind][ 0]))
             D_l_eps[l][-1]   = np.sqrt(1/(eigen_vals[l,pos_ind][-1]-eigen_vals[l,pos_ind][-2]))
         
-        self.theta_grid = np.linspace(0, np.pi, self.n)
+        self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
         # self.theta_grid = np.linspace(0, np.pi, 200)
         
         # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), self.theta_grid) for l in range(self.l_max+1)]
@@ -1670,7 +1674,6 @@ class laser_hydrogen_solver:
         print()
         
         self.dP2_depsilon_domegak_normed = np.trapz(self.dP2_depsilon_domegak_norm*np.sin(self.theta_grid), x=self.theta_grid) 
-        
         self.dP2_depsilon_domegak_calculated = True
         
         
@@ -1865,7 +1868,7 @@ class laser_hydrogen_solver:
 
             sns.set_theme(style="dark") # nice plots
             
-            self.theta_grid = np.linspace(0,np.pi,self.n)
+            self.theta_grid = np.linspace(0,np.pi,self.theta_grid_size)
             X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
             plt.axes(projection = 'polar', rlabel_position=-22.5)
@@ -2166,6 +2169,8 @@ class laser_hydrogen_solver:
                     if (n_cols * n_rows) < (self.l_max+1):
                         print("n_cols * n_rows must be larger than l_max+1.")
                         exit()
+                        
+                # TODO: not all values of n_cols/n_rows and l_max work propperly
                 
                 # print(n_rows, n_cols)
                 
@@ -2215,7 +2220,6 @@ class laser_hydrogen_solver:
                     CAP_label_locs = [(n_cols)*i-1 for i in range(1,n_rows)]
                     CAP_label_locs.append(len(axes)-1)
                     [ax_ps[a].set_ylabel(r"CAP $(a.u.)$") for a in CAP_label_locs] # applies labels only on the rightmost figures
-                    
                     
                     [ax_ps[a].plot(self.r, CAP_array, '--', color='#55a868', label="CAP", zorder=2)[0] for a in range(len(ax_ps))]
                     for ax_p in ax_ps:
@@ -2783,7 +2787,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
     # plt.show()
     
     if animate:
-        a.make_aimation(do_save=save_animation, make_combined_plot=True, n_cols=n_cols, n_rows=n_rows)
+        a.make_aimation(do_save=save_animation, make_combined_plot=False, n_cols=n_cols, n_rows=n_rows)
         
         
 def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
@@ -2846,19 +2850,23 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             plt.savefig(f"{save_dir}/comp_time_evolved_norm.pdf", bbox_inches='tight')
         plt.show()
         
-        final_norms = [a.norm_over_time[-1] for a in classes]
-        print(final_norms)
-        plt.plot(labels, final_norms, "o")
+        final_norms = [1-a.norm_over_time[-1] for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        plt.bar(labels_s, final_norms) 
+        low = min(final_norms)
+        high = max(final_norms)
+        plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
         plt.grid()
-        plt.xscale("log")
+        plt.xticks(rotation=40, ha='right')
         plt.xlabel(tested_variable)
         plt.ylabel("Final norm")
+        plt.title(r"Comparison of (1 - final norm of $\Psi$) for different "+str(tested_variable)+"."+extra_title)
         
-        
-        diff = max(final_norms) - min(final_norms)
-        for i,v in enumerate(labels):
-            plt.text(v, final_norms[i]+diff*0.13, "%.1e" %v, ha="center", rotation = 60, rotation_mode = 'anchor', )
-        
+        # diff = max(final_norms) - min(final_norms)
+        # for i,v in enumerate(labels):
+        #     plt.text(v, final_norms[i]-diff*0.13, "%.1e" %v, ha="center", rotation = 45, rotation_mode = 'anchor', )
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_final_norm.pdf", bbox_inches='tight')
         plt.show()
         
         
@@ -2891,6 +2899,22 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             plt.savefig(f"{save_dir}/comp_time_evolved_dP_domega.pdf", bbox_inches='tight')
         plt.show()
     
+        
+        omega_norms = [a.dP_domega_norm for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        plt.bar(labels_s, omega_norms)
+        plt.grid()
+        low = min(omega_norms)
+        high = max(omega_norms)
+        plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm of $dP/d\Omega$")
+        plt.title(r"Comparison of norm of $dP/d\Omega$ for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_omega_norm.pdf", bbox_inches='tight')
+        plt.show()    
     
     
     # if we want to compare dP/dε
@@ -2935,6 +2959,73 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
         #     plt.savefig(f"{self.save_dir}/time_evolved_dP_depsilon_l.pdf", bbox_inches='tight')
         # plt.show()
+        
+        epsilon_norms = [a.dP_depsilon_norm for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        plt.bar(labels_s, epsilon_norms)
+        plt.grid()
+        low = min(epsilon_norms)
+        high = max(epsilon_norms)
+        plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm of $dP/d\epsilon$")
+        plt.title(r"Comparison of norm of $dP/d\epsilon$ for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_epsilon_norm.pdf", bbox_inches='tight')
+        plt.show() 
+        
+        
+    if plot_postproces[1] and plot_postproces[2]:
+        
+        final_norms = [1-a.norm_over_time[-1] for a in classes]
+        omega_norms = [a.dP_domega_norm for a in classes]
+        epsilon_norms = [a.dP_depsilon_norm for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        
+        plt.bar(labels_s, np.abs(np.array(final_norms)-np.array(omega_norms)))
+        plt.grid()
+        # low = min(epsilon_norms)
+        # high = max(epsilon_norms)
+        # plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm")
+        plt.title(r"Comparison of difference in norm of $\Psi$ and $dP/d\Omega$ for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_final_omega_norm.pdf", bbox_inches='tight')
+        plt.show() 
+        
+        plt.bar(labels_s, np.abs(np.array(final_norms)-np.array(epsilon_norms)))
+        plt.grid()
+        # low = min(epsilon_norms)
+        # high = max(epsilon_norms)
+        # plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm")
+        plt.title(r"Comparison of difference in norm of $\Psi$ and $dP/d\epsilon$ for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_final_epsilon_norm.pdf", bbox_inches='tight')
+        plt.show() 
+        
+        plt.bar(labels_s, np.abs(np.array(omega_norms)-np.array(epsilon_norms)))
+        plt.grid()
+        # low = min(epsilon_norms)
+        # high = max(epsilon_norms)
+        # plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm")
+        plt.title(r"Comparison of difference in norm of $dP/d\Omega$ and $dP/d\epsilon$ for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_omega_epsilon_norm.pdf", bbox_inches='tight')
+        plt.show() 
+        
         
         
     if plot_postproces[3]:
@@ -2995,7 +3086,23 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
             plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_norm_eps0.pdf", bbox_inches='tight')
         plt.show()
-            
+        
+        dP2_depsilon_domegak_norms = [a.dP2_depsilon_domegak_normed for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        plt.bar(labels_s, dP2_depsilon_domegak_norms)
+        plt.grid()
+        low = min(dP2_depsilon_domegak_norms)
+        high = max(dP2_depsilon_domegak_norms)
+        plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm of $dP/d\dP2_depsilon_domegak$")
+        plt.title(r"Comparison of norm of $dP/d\dP2_depsilon_domegak$ for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_dP2_depsilon_domegak_norm.pdf", bbox_inches='tight')
+        plt.show()    
+    
             
             # plt.contourf(X,Y, a.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
             # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
@@ -3027,7 +3134,7 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
             #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol_log.pdf", bbox_inches='tight')
             # plt.show()
-            
+    
         
 
 
@@ -3359,10 +3466,10 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="compare_lmax/lmax_6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(8300), 
-                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1.75e-4, CAP_R_proportion=.5, l_max=6, max_epsilon=2,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, spline_n=1_000,
+    a = laser_hydrogen_solver(save_dir="test_mask", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
+                              T=1, n=250, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.5, l_max=7, max_epsilon=2,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
@@ -3373,7 +3480,7 @@ def main():
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
 
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=False)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
     
     a.save_zetas()
     a.save_found_states()
@@ -3395,12 +3502,12 @@ def main():
     
 
 if __name__ == "__main__":
-    # main()
+    main()
     
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     
-    load_run_program_and_plot(f"compare_lmax/lmax_{8}", animate=True, plot_postproces=[False,False,False,False], save_plots=False, n_rows=4)
+    # load_run_program_and_plot("compare_gamma_0/gamma_0_0.0001953125", animate=True, do_regular_plot=False, plot_postproces=[False,False,False,False], save_plots=False, n_rows=3)
     
     # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
     # labels    = [f"{l}" for l in range(8,1,-1)]
@@ -3458,13 +3565,11 @@ if __name__ == "__main__":
     # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_center", styles=styles, save_dirs=save_dirs)
     
     # gamma_0_vals = [.1/2**n for n in range(9)]
-    
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
     # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_high", styles=styles, save_dirs=save_dirs)
     
     # gamma_0_vals = [.1/2**n for n in range(9,17)]
-    
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
     # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
     # load_programs_and_compare(plot_postproces=[True,True,True,False], labels=gamma_0_vals, save_dir="compare_gamma_0/comp_low_gamma_0_low", styles=styles, save_dirs=save_dirs)
