@@ -50,11 +50,13 @@ class laser_hydrogen_solver:
                  custom_Gamma_function  = None,                         # a custom CAP Gamma function
                  calc_norm              = False,                        # whether to calculate the norm
                  calc_dPdomega          = False,                        # whether to calculate dP/dΩ
-                 theta_grid_size        = 100,                          # 
+                 theta_grid_size        = 150,                          # 
                  calc_dPdepsilon        = False,                        # whether to calculate dP/dε
                  calc_dP2depsdomegak    = False,                        # whether to calculate dP^2/dεdΩ_k
                  spline_n               = 1000,                         # dimension of the spline interpolation used for finding dP/dε
                  max_epsilon            = 2,                            # the maximum value of the epsilon grid used for interpolation
+                 mask_max_epsilon       = 2,                            # 
+                 mask_epsilon_n         = 100,                          #
                  calc_mask_method       = False,                        # whether to calculate the mask method
                  mask_R_c               = 50,                           # a lomg distance from the Coulomb potential, used for the mask method
                  compare_norms          = True,                         # whether to compare the various norms which may be calculated
@@ -144,6 +146,8 @@ class laser_hydrogen_solver:
         self.calc_mask_method           = calc_mask_method
         self.spline_n                   = spline_n
         self.max_epsilon                = max_epsilon
+        self.mask_max_epsilon           = mask_max_epsilon
+        self.mask_epsilon_n             = mask_epsilon_n
         self.compare_norms              = compare_norms
         self.use_stopping_criterion     = use_stopping_criterion
         self.sc_every_n                 = sc_every_n
@@ -191,12 +195,13 @@ class laser_hydrogen_solver:
         self.pi_Tpulse = np.pi/self.Tpulse
 
         # some booleans to check that thing have been run
-        self.ground_state_found                 = False
-        self.time_evolved                       = False
-        self.norm_calculated                    = False
-        self.dP_domega_calculated               = False
-        self.dP_depsilon_calculated             = False
-        self.dP2_depsilon_domegak_calculated    = False
+        self.ground_state_found                     = False
+        self.time_evolved                           = False
+        self.norm_calculated                        = False
+        self.dP_domega_calculated                   = False
+        self.dP_depsilon_calculated                 = False
+        self.dP2_depsilon_domegak_calculated        = False
+        self.dP2_depsilon_domegak_mask_calculated   = False
 
         self.make_time_vector_imag()
         self.make_time_vector()
@@ -1250,19 +1255,22 @@ class laser_hydrogen_solver:
                         #                 self.calc_zeta_eps_omegak[r,r_,l,l_] += self.P[self.CAP_locs[r],l]*np.conjugate(self.P[r_,l_])
                         self.zeta_eps_omegak += self.P[self.CAP_locs,None,:,None]*np.conjugate(self.P)[None,:,None,:]
                         
-                    def calc_b_mask(tn): # for the mask method 
-                        b_mask_t = np.zeros((self.n, self.l_max+1), dtype=complex)
+                    def calc_b_mask(): # for the mask method 
+                        # TODO: I haven't found a way to not have to calulate this much on the fly
+                        # TODO: Vectorise, pre-calculate and add comments
+                        phi_k = (self.k_grid**2*self.time_vector[tn]/2)[:,None] + mask_T * self.k_grid[:,None] * np.cos(self.theta_grid)[None,:] * np.trapz(self.A(np.arange(0,self.time_vector[tn],self.dt)), dx=self.dt) # TODO: vectorize and pre-calculate
+                        l_sum = np.zeros_like(phi_k, dtype=complex)
                         for l in range(self.l_max+1):
-                            # TODO: check that everything here is correct
-                            zeta_mask = self.r[self.CAP_locs] * sc.special.spherical_jn(l, self.k_grid*self.r[self.CAP_locs]) * self.Gamma_vector * self.P[self.CAP_locs,l]
-                            zeta_inte = np.trapz(zeta_mask[:,l], self.r[self.CAP_locs]) 
-                            b_mask_t += 1j**(-l) * self.Y[l] * zeta_inte
+                            r_inte = self.r[None,self.CAP_locs] * sc.special.spherical_jn(l, self.k_grid[:,None]*self.r[None,self.CAP_locs]) * (self.Gamma_vector * self.P[self.CAP_locs, l])[None,:]
+                            r_inte = np.trapz(r_inte, self.r[None,self.CAP_locs]) 
+                            l_sum += 1j**(-l) * self.Y[l][None,:] * r_inte[:,None]
                             # TODO: check if more efficent i
-                        theta_k = self.k_grid*self.k_grid*tn/2 + np.trapz(self.A(np.arange(0,tn,self.dt))*self.k_grid, self.dt) # TODO: should this really be calculated every timestep?
-                        self.b_mask += b_mask_t * np.exp(1j*theta_k)
+                        self.b_mask += np.exp(1j*phi_k) * l_sum
+                    
                     
                     # test which values we are going to calculate on the fly
-                    extra_funcs = [[calc_norm,self.calc_norm],[calc_zeta_omega,self.calc_dPdomega],[calc_zeta_epsilon,self.calc_dPdepsilon],[calc_zeta_eps_omegak,self.calc_dP2depsdomegak]]
+                    extra_funcs = [[calc_norm,self.calc_norm],[calc_zeta_omega,self.calc_dPdomega],[calc_zeta_epsilon,self.calc_dPdepsilon],
+                                   [calc_zeta_eps_omegak,self.calc_dP2depsdomegak],[calc_b_mask,self.calc_mask_method]]
                     # this creates a list of functions we can loop over kduring the main calculation, removing the need for an if-test inside the for-loop
                     extra_funcs = [ff[0] for ff in extra_funcs if ff[1]] 
                     
@@ -1285,10 +1293,15 @@ class laser_hydrogen_solver:
                         self.zeta_eps_omegak = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1,self.l_max+1), dtype=complex)
                         
                     if self.calc_mask_method:
-                        self.k_grid      = np.linspace(0, 2, 100) 
-                        self.b_mask      = np.zeros_like(self.k_grid, dtype=complex)
+                        self.epsilon_mask_grid = np.linspace(0, self.mask_max_epsilon, self.mask_epsilon_n) 
+                        self.k_grid            = np.sqrt(2*self.epsilon_mask_grid)
+                        # self.zeta_b_mask = np.zeros((self.mask_epsilon_n, self.l_max+1), dtype=complex)
+                        self.b_mask            = np.zeros((self.mask_epsilon_n, self.theta_grid_size), dtype=complex)
+                        mask_T = 1  # to distinguish during an after the lasr pulse # TODO: remove need
+                        # self.A_vec = self.A(np.arange(0,self.time_vector1,self.dt))
                         
                     if self.calc_dPdomega or self.calc_dP2depsdomegak or self.calc_mask_method:
+                        self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
                         self.Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.theta_grid_size), np.linspace(0,np.pi,self.theta_grid_size)) for l in range(self.l_max+1)]
                     
                     # goes through all the pulse timesteps
@@ -1314,6 +1327,9 @@ class laser_hydrogen_solver:
                     print()
                     t_ = len(self.time_vector) # allows us to save the norm for both during and after the laser pulse
                     if self.T > 0:
+                        
+                        if self.calc_mask_method: # TODO: remove need
+                            mask_T = 0
                         
                         # goes through all the non-pulse timesteps
                         if self.use_stopping_criterion:
@@ -1410,7 +1426,7 @@ class laser_hydrogen_solver:
                         
                     if self.calc_mask_method:
                         # finds dP^2/dεdΩ_k 
-                        self.b_mask *= self.dt * np.sqrt(2/np.ni)
+                        self.b_mask *= self.dt * np.sqrt(2/np.pi)
                         self.calculate_mask_method()
                     
                     # we can compare the different norms if several have been calculated
@@ -1502,7 +1518,7 @@ class laser_hydrogen_solver:
         self.dP_domega_calculated = True
         
         # checks the norm of dP/dΩ
-        self.theta_grid = np.linspace(0, np.pi, len(self.dP_domega))
+        # self.theta_grid = np.linspace(0, np.pi, len(self.dP_domega))
         self.dP_domega_norm = 2*np.pi*np.trapz(self.dP_domega*np.sin(self.theta_grid), self.theta_grid) 
         print()
         print(f"Norm of dP/dΩ = {self.dP_domega_norm}.")
@@ -1588,8 +1604,7 @@ class laser_hydrogen_solver:
             D_l_eps[l][ 0]   = np.sqrt(1/(eigen_vals[l,pos_ind][ 1]-eigen_vals[l,pos_ind][ 0]))
             D_l_eps[l][-1]   = np.sqrt(1/(eigen_vals[l,pos_ind][-1]-eigen_vals[l,pos_ind][-2]))
         
-        self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
-        # self.theta_grid = np.linspace(0, np.pi, 200)
+        # self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
         
         # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), self.theta_grid) for l in range(self.l_max+1)]
         # YY = [[Y[l]*Y[l_] for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
@@ -1678,8 +1693,20 @@ class laser_hydrogen_solver:
         
         
     def calculate_mask_method(self):
-        # TODO
-        ""
+        # TODO: add comments
+
+        self.dP2_depsilon_domegak_mask = self.k_grid[:,None] * np.abs(self.b_mask)**2
+        
+        print()
+        self.dP2_depsilon_domegak_mask_norm  = np.trapz(self.dP2_depsilon_domegak_mask, x=self.epsilon_mask_grid, axis=0) 
+        self.dP2_depsilon_domegak_mask_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak_mask*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
+        print(f"Norm of dP^2/dεdΩ_k mask = {np.trapz(self.dP2_depsilon_domegak_mask_norm*2*np.pi*np.sin(self.theta_grid), x=self.theta_grid) }.")
+        print(f"Norm of dP^2/dεdΩ_k mask = {np.trapz(self.dP2_depsilon_domegak_mask_norm0, x=self.epsilon_mask_grid) }.")
+        print()
+        
+        self.dP2_depsilon_domegak_mask_normed = np.trapz(self.dP2_depsilon_domegak_mask_norm*np.sin(self.theta_grid), x=self.theta_grid) 
+        self.dP2_depsilon_domegak_mask_calculated = True
+        
         
         
     def plot_norm(self, do_save=True, extra_title=""):
@@ -1868,7 +1895,7 @@ class laser_hydrogen_solver:
 
             sns.set_theme(style="dark") # nice plots
             
-            self.theta_grid = np.linspace(0,np.pi,self.theta_grid_size)
+            # self.theta_grid = np.linspace(0,np.pi,self.theta_grid_size)
             X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
             plt.axes(projection = 'polar', rlabel_position=-22.5)
@@ -1946,13 +1973,116 @@ class laser_hydrogen_solver:
                 plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_pol_log.pdf", bbox_inches='tight')
             plt.show()
 
+        else:
+            print("Need to calculate dP^2/dεdΩ_k berfore plotting it.")
+            
+            
+    def plot_mask_results(self, do_save=True, extra_title=""):
+        """
+        Plots the angle/energy distribution as a function of θ, ε or both, for 
+        the results from the mask method. 
+
+        Parameters
+        ----------
+        do_save : boolean, optional
+            Whether to save the plots. The default is True.
+        extra_title : string, optional
+            A string to add to the plots' titles. The default is "".
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        if self.dP2_depsilon_domegak_mask_calculated: 
+
+            sns.set_theme(style="dark") # nice plots
+            
+            # self.theta_grid = np.linspace(0,np.pi,self.theta_grid_size)
+            X,Y   = np.meshgrid(self.epsilon_mask_grid, self.theta_grid)
+            
+            plt.axes(projection = 'polar', rlabel_position=-22.5)
+            plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_mask_norm, label="dP_domega")
+            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_mask_norm, label="dP_domega")
+            # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ for the mask method with polar plot projection."+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask_norm_th_polar.pdf", bbox_inches='tight')
+            plt.show()
+            
+            plt.axes(projection = None)
+            plt.plot(self.theta_grid, self.dP2_depsilon_domegak_mask_norm)
+            plt.grid()
+            plt.xlabel(r"$\theta$")
+            plt.ylabel(r"$dP/d\Omega_k$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ for the mask method with cartesian plot projection."+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask_norm_th.pdf", bbox_inches='tight')
+            plt.show()
+
+
+            plt.plot(self.epsilon_mask_grid, self.dP2_depsilon_domegak_mask_norm0)
+            plt.grid()
+            plt.xlabel(r"$\epsilon$")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ for the mask method with linear scale."+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask_norm_eps.pdf", bbox_inches='tight')
+            plt.show()
+            
+            plt.plot(self.epsilon_mask_grid, self.dP2_depsilon_domegak_mask_norm0)
+            plt.grid()
+            plt.yscale('log')
+            plt.xlabel(r"$\epsilon$")
+            plt.ylabel(r"$dP/d\epsilon$")
+            plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ for the mask method with log scale."+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask_norm_eps0.pdf", bbox_inches='tight')
+            plt.show()
+            
+            
+            plt.contourf(X,Y, self.dP2_depsilon_domegak_mask.T, levels=30, alpha=1., antialiased=True)
+            plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.xlabel(r"$\epsilon$")
+            plt.ylabel(r"$\theta$")
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$ for the mask method"+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask.pdf", bbox_inches='tight')
+            plt.show()
+            
+            
+            plt.contourf(X*np.sin(Y),X*np.cos(Y), self.dP2_depsilon_domegak_mask.T, levels=100, alpha=1., norm='linear', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+            plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$ for the mask method")
+            plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+            plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask_pol.pdf", bbox_inches='tight')
+            plt.show()
+            
+            plt.contourf(X*np.sin(Y),X*np.cos(Y), self.dP2_depsilon_domegak_mask.T, levels=100, alpha=1., norm='log', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+            plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+            plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+            plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+            plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$ for the mask method"+extra_title)
+            if do_save:
+                os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+                plt.savefig(f"{self.save_dir}/time_evolved_dP2_depsilon_domegak_mask_pol_log.pdf", bbox_inches='tight')
+            plt.show()
 
         else:
             print("Need to calculate dP^2/dεdΩ_k berfore plotting it.")
     
     
 
-    def plot_res(self, do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=False, plot_dP2_depsilon_domegak=False, reg_extra_title="", extra_titles=["","","",""]):
+    def plot_res(self, do_save=True, plot_norm=False, plot_dP_domega=False, plot_dP_depsilon=False, plot_dP2_depsilon_domegak=False, plot_mask_results=False, reg_extra_title="", extra_titles=["","","",""]):
         """
         Create nice plots of the found wave functions. Also calls functions to plot the results from the post-analysis.
 
@@ -2055,6 +2185,12 @@ class laser_hydrogen_solver:
                 
             if plot_dP2_depsilon_domegak:
                 self.plot_dP2_depsilon_domegak(do_save, extra_title=extra_titles[3])
+                
+            if plot_mask_results:
+                if len(extra_titles)>4: # to suport some legacy code
+                    self.plot_mask_results(do_save, extra_title=extra_titles[4])
+                else:
+                    self.plot_mask_results(do_save, extra_title=extra_titles[3])
 
         else:
             print("Warning: calculate_time_evolution() needs to be run before plot_res().")
@@ -3467,9 +3603,9 @@ def main():
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
     a = laser_hydrogen_solver(save_dir="test_mask", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
-                              T=1, n=250, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.5, l_max=7, max_epsilon=2,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.2, l_max=7, max_epsilon=2, mask_epsilon_n=250, theta_grid_size=200,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=True, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
@@ -3480,7 +3616,7 @@ def main():
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
 
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True)
+    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True, plot_mask_results=True)
     
     a.save_zetas()
     a.save_found_states()
