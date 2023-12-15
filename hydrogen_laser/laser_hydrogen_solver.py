@@ -1489,9 +1489,9 @@ class laser_hydrogen_solver:
     
     
     def print_compare_norms(self):
-        calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak]
-        vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed']
-        names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k']
+        calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak,self.calc_mask_method]
+        vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed', 'self.dP2_depsilon_domegak_mask_normed']
+        names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k', 'mask']
         
         # we use eval() since some of the values may not be calculated
         for c in range(len(calcs)-1):
@@ -2123,6 +2123,27 @@ class laser_hydrogen_solver:
             
             CAP_array = np.zeros_like(self.r)
             CAP_array[self.CAP_locs] = self.Gamma_vector
+            
+            # plt.plot(self.r, np.abs(self.Ps[0][:,0]), "-", label="GS" ) # adds the ground state
+            # max_vals = np.zeros(len(self.plot_idx1[1:])+1) # array to help scale the CAP
+            # max_vals[0] = np.max(np.abs(self.Ps[0][:,0]))
+            
+            # # plots the CAP
+            # plt.plot(self.r, CAP_array*np.max(max_vals)/np.max(CAP_array), '--', color='grey', label="CAP", zorder=1)
+            # plt.legend(loc='best')
+            
+            # title  = f"Time propagator: {self.time_propagator.__name__.replace('self.', '')}{' with '+str(self.Gamma_function.__name__.replace('_', ' ')) if self.use_CAP else ''}. "
+            # # title += "\n"+f"FD-method: {self.fd_method.replace('_', ' ')}"+f", l = {ln}."+reg_extra_title
+            # # plt.title(title)
+            # plt.xlabel("r (a.u.)")
+            # plt.ylabel("Wave function")
+            # plt.grid()
+            # # plt.xscale("log")
+            # # plt.yscale("log")
+            # if do_save:
+            #     os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            #     plt.savefig(f"{self.save_dir}/CAP_showcase.pdf", bbox_inches='tight')
+            # plt.show()
             
             # makes one plot for each l-channel
             for ln in range(self.l_max+1):
@@ -2879,17 +2900,17 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
         a.plot_gs_res(do_save=save_plots)
         extra_titles = "\n"+f"CAP onset = {int(a.CAP_R_proportion*a.r_max)}a.u., r_max={a.r_max}a.u, γ_0={a.gamma_0}, l_max={a.l_max}, n={a.n}, nt={a.nt}."
         a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
-                   reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
+                   plot_mask_results=True,reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
     
-    # n = 2
+    # n = 10
     # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
     # plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
     # plt.grid()
     # plt.xlabel("Time (a.u.)")
     # plt.ylabel("Norm")
-    # plt.yscale("log")
+    # # plt.yscale("log")
     # plt.legend()
-    # plt.title(r"Norm diff of $\Psi$ as a function of time.")
+    # plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
     # plt.show()
     
     # n = 11
@@ -2900,9 +2921,9 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
     # plt.grid()
     # plt.xlabel("Time (a.u.)")
     # plt.ylabel("Norm")
-    # plt.yscale("log")
+    # # plt.yscale("log")
     # plt.legend()
-    # plt.title(r"Norm diff of $\Psi$ as a function of time.")
+    # plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
     # plt.show()
     
     
@@ -2917,9 +2938,9 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
     # plt.grid()
     # plt.xlabel("Time (a.u.)")
     # plt.ylabel("Norm")
-    # plt.yscale("log")
+    # # plt.yscale("log")
     # plt.legend()
-    # plt.title(r"Norm diff of $\Psi$ as a function of time.")
+    # plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
     # plt.show()
     
     if animate:
@@ -3033,6 +3054,21 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
             plt.savefig(f"{save_dir}/comp_time_evolved_dP_domega.pdf", bbox_inches='tight')
+        plt.show()
+        
+        
+        for i,a in enumerate(classes):
+            a.load_dP_domega()
+            plt.plot(a.theta_grid, a.dP_domega*np.sin(a.theta_grid), styles[i], label="{:.1e}".format(labels[i]))
+        plt.grid()
+        plt.xlabel("φ")
+        # plt.ylabel(r"$dP/d\theta$")
+        plt.ylabel(r"$dP/d\Omega$")
+        plt.title(r"Comparison of $dP/d\Omega\cdot \sin\theta$ with cartesian coordinates."+extra_title)
+        plt.legend(loc='best')
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP_domega_.pdf", bbox_inches='tight')
         plt.show()
     
         
@@ -3602,10 +3638,10 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_mask", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
+    a = laser_hydrogen_solver(save_dir="test_mask2", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.2, l_max=7, max_epsilon=2, mask_epsilon_n=250, theta_grid_size=200,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=True, spline_n=1_000,
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.25, l_max=7, max_epsilon=5, mask_epsilon_n=250, theta_grid_size=200,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, calc_mask_method=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
@@ -3638,12 +3674,13 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    # main()
     
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     
-    # load_run_program_and_plot("compare_gamma_0/gamma_0_0.0001953125", animate=True, do_regular_plot=False, plot_postproces=[False,False,False,False], save_plots=False, n_rows=3)
+    load_run_program_and_plot("test_mask0", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
+    # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
     
     # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
     # labels    = [f"{l}" for l in range(8,1,-1)]
