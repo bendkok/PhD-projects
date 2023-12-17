@@ -2902,16 +2902,17 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
         a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
                    plot_mask_results=True,reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
     
-    # n = 10
+    n = 10
     # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
-    # plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
-    # plt.grid()
-    # plt.xlabel("Time (a.u.)")
-    # plt.ylabel("Norm")
-    # # plt.yscale("log")
-    # plt.legend()
-    # plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
-    # plt.show()
+    plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.dt), label="Norm diff")
+    plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+    plt.grid()
+    plt.xlabel("Time (a.u.)")
+    plt.ylabel("Norm")
+    plt.yscale("log")
+    plt.legend()
+    plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
+    plt.show()
     
     # n = 11
     # avgResult = np.average(np.abs((a.norm_over_time[1:-1]-a.norm_over_time[0:-2])/a.norm_over_time[1:-1]).reshape(-1, n), axis=1) 
@@ -3679,8 +3680,8 @@ if __name__ == "__main__":
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     
-    load_run_program_and_plot("test_mask0", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
-    # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
+    # load_run_program_and_plot("test_mask0", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
+    load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
     
     # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
     # labels    = [f"{l}" for l in range(8,1,-1)]
