@@ -913,8 +913,8 @@ class laser_hydrogen_solver:
     
     def Lanczos_fast(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k_dim=20):
         """
-        Calculate the Lanczos propagator for one timestep, but slightly faster by assuming 
-        that β never becomes ~0. Uses less memory by not using The w array.
+        Calculate the Lanczos algorithm for one timestep, but slightly faster by assuming 
+        that β never becomes ~0. Uses less memory by not using the w array.
 
         This a fast method which we use to propagate a matrix ODE one timestep.
         The idea is to create a Krylov sub-space of the P state, and then calculate the
@@ -3639,10 +3639,10 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_mask2", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
+    a = laser_hydrogen_solver(save_dir="test_mask3", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.25, l_max=7, max_epsilon=5, mask_epsilon_n=500, theta_grid_size=400,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, calc_mask_method=True, spline_n=1_000,
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.1, l_max=7, max_epsilon=5, mask_epsilon_n=500, theta_grid_size=400,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
