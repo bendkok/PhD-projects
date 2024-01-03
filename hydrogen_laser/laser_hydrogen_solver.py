@@ -844,7 +844,7 @@ class laser_hydrogen_solver:
 
     def Lanczos(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k_dim=20, tol=1e-8):
         """
-        Calculate the Lanczos propagator for one timestep.
+        Propagate one timestep using the Lanczos algorithm.
 
         This a fast method which we use to propagate a matrix ODE one timestep.
         The idea is to create a Krylov sub-space of the P state, and then calculate the
@@ -852,6 +852,10 @@ class laser_hydrogen_solver:
         back into the regular space, giving a close estimate of P_new.
         
         We use tn+dt2 instead of tn because it scales better as dt decreases.
+        
+        Lanczos algorithm is usually meant for a vector and 2D matrix. We however represent
+        the wave function as an matrix. Lanczos still works, but for the explenation here 
+        you can think of P as a pseudo-vector.
 
         Parameters
         ----------
@@ -880,29 +884,33 @@ class laser_hydrogen_solver:
 
         # TODO: add some comments
         # initialise arrays
-        alpha  = np.zeros(k_dim, dtype=complex)
-        beta   = np.zeros(k_dim-1, dtype=complex)
-        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex)
-
-        # we keep the norm of the input P
-        InitialNorm = np.sqrt(self.inner_product(P,P))
-        V[:,:,0] = P / InitialNorm # P is normalised
+        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex) # (n,l_max+1)X(k_dim) matrix with othonormal "columns"
+        alpha  = np.zeros(k_dim, dtype=complex) # main diagoal of a tridiagonal matrix T, where T = V*PV. T is used as an approximiation to P
+        beta   = np.zeros(k_dim-1, dtype=complex) # off diagoal of T
         
-        tndt2 = tn + dt2
-        w = Hamiltonian(tndt2, V[:,:,0])
+        tndt2 = tn + dt2 # we use tn+dt2 because it scales better as dt decreases
 
-        alpha[0] = self.inner_product(w, V[:,:,0])
-        w = w - alpha[0] * V[:,:,0] # P
+        # step 0
+        InitialNorm = np.sqrt(self.inner_product(P,P)) # we save the norm of the input P
+        V[:,:,0] = P / InitialNorm # P is normalised and used as the initial column of V
+        
+        w = Hamiltonian(tndt2, V[:,:,0]) # temporary(?) array. The same memory space is used to store two different thigs each k_dim-step
+        
+        alpha[0] = self.inner_product(w, V[:,:,0]) 
+        w = w - alpha[0] * V[:,:,0] # updates w for next k-step
+        
+        # there is k_dim steps
+        for j in range(1,k_dim): 
 
-        for j in range(1,k_dim):
-
-            beta[j-1] = np.sqrt(self.inner_product(w, w)) # Euclidean norm
+            beta[j-1] = np.sqrt(self.inner_product(w, w)) # this is for the current step, but len(beta) = k_dim-1
+            # the value of V at step j is equal to w scaled by the value of the current beta
+            # if beta is ~0 we instead use a random vector, which is othonormal towards all the current "columns" of V
             V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
             # TODO: Implement stopping criterion of np.abs(beta[j-1]) > tol
 
-            w = Hamiltonian(tndt2, V[:,:,j])
+            w = Hamiltonian(tndt2, V[:,:,j]) 
             alpha[j] = self.inner_product(w, V[:,:,j])
-            w  = w - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+            w  = w - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1] # updates w for next k-step
 
         T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
         P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # Not sure if this is the fastest # TODO: wy did this work again?
@@ -913,7 +921,7 @@ class laser_hydrogen_solver:
     
     def Lanczos_fast(self, P, Hamiltonian, tn, dt, dt2, dt6=None, k_dim=20):
         """
-        Calculate the Lanczos algorithm for one timestep, but slightly faster by assuming 
+        Propagate one timestep using the Lanczos algorithm, but slightly faster by assuming 
         that β never becomes ~0. Uses less memory by not using the w array.
 
         This a fast method which we use to propagate a matrix ODE one timestep.
@@ -948,7 +956,6 @@ class laser_hydrogen_solver:
             The estimate of the wave function for the next timestep.
         """
         
-        # TODO: BUGGED! Fix later.
         # TODO: add some comments
         alpha  = np.zeros(k_dim, dtype=complex)
         beta   = np.zeros(k_dim-1, dtype=complex)
@@ -961,7 +968,7 @@ class laser_hydrogen_solver:
         tndt2 = tn + dt2
         
         # not using w or w'
-        V[:,:,1] = Hamiltonian(tndt2, V[:,:,0]) # or tn + dt/2 ?
+        V[:,:,1] = Hamiltonian(tndt2, V[:,:,0]) # 
 
         alpha[0] = self.inner_product(V[:,:,1], V[:,:,0])
         V[:,:,1] = V[:,:,1] - alpha[0] * V[:,:,0]  
