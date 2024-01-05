@@ -1052,7 +1052,7 @@ class laser_hydrogen_solver:
         (n,m) numpy array
             The inner product.
         """
-        return np.sum( np.conj(psi1) * psi2 ) * self.h
+        return np.sum( np.conj(psi1) * psi2 ) * self.h 
 
 
     def calculate_ground_state_analytical(self):
@@ -1316,7 +1316,7 @@ class laser_hydrogen_solver:
                         self.k_grid            = np.sqrt(2*self.epsilon_mask_grid)
                         # self.zeta_b_mask = np.zeros((self.mask_epsilon_n, self.l_max+1), dtype=complex)
                         self.b_mask            = np.zeros((self.mask_epsilon_n, self.theta_grid_size), dtype=complex)
-                        mask_T = 1  # to distinguish during an after the lasr pulse # TODO: remove need
+                        mask_T = 1  # to distinguish during and after the laser pulse # TODO: remove need
                         # self.A_vec = self.A(np.arange(0,self.time_vector1,self.dt))
                         
                     if self.calc_dPdomega or self.calc_dP2depsdomegak or self.calc_mask_method:
@@ -1508,23 +1508,43 @@ class laser_hydrogen_solver:
     
     
     def print_compare_norms(self):
-        calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak,self.calc_mask_method]
+        """
+        Prints the absolute difference between all the calculated norms. 
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        calcs = [self.calc_norm,self.calc_dPdomega,self.calc_dPdepsilon,self.calc_dP2depsdomegak,self.calc_mask_method] 
+        # we can't store all the norm-values in a list, since we don't know beforehand which have been calculated
+        # instead we use eval() once know that a specific norm was calculated
         vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed', 'self.dP2_depsilon_domegak_mask_normed']
         names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k', 'mask']
         
-        # we use eval() since some of the values may not be calculated
-        for c in range(len(calcs)-1):
-            for cc in range(c+1,len(calcs)):
-                if calcs[c] and calcs[cc]:
+        # we use eval() since some of the values may not be calculated. Bit clunky, but it works
+        for c in range(len(calcs)-1): # for all the values which could have been calculated
+            for cc in range(c+1,len(calcs)): # for all the values which could have been calculated, but without repeating
+                if calcs[c] and calcs[cc]: # if both were calculated
+                    # eval() here is used to turn the string into an expression, which is calculated
                     print( f"Norm diff {names[c]} and {names[cc]}: {np.abs(eval(vals[c]+'-'+vals[cc]))}." )
     
     
     def calculate_dPdomega(self):
+        """
+        Function to calculate dP/dΩ. 
+        dP/dΩ = 2 • Σ_l Σ_l_ Re( (Y_l(Ω)•Y_l_*(Ω) • ∫dr γ(r)•ζ_l_l_(r)) )
+        ζ_l_l_(r) was calculated during the time evolution. 
+
+        Returns
+        -------
+        None.
+
+        """
         
-        # self.dP_domega = np.zeros(self.n)
         self.dP_domega = np.zeros(self.theta_grid_size)
         print("\nCalculating dP/dΩ:")
-        # Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.n), np.linspace(0,np.pi,self.n)) for l in range(self.l_max+1)]
         
         for l in tqdm(range(self.l_max+1)): # goes through all the l's twice. # TODO: Can this be vetorized? 
             for l_ in range(self.l_max+1):
@@ -1544,9 +1564,22 @@ class laser_hydrogen_solver:
         
     
     def calculate_dPdepsilon(self):
+        """
+        Function to calculate dP/dε. 
+        dP/dε = 2 • Σ_l Re( ∫dr∫dr' ψ_εl*(r)•γ(r)•ζ_l(r,r')•ψ_εl(r') )
+        ζ_l(r,r') was calculated during the time evolution. 
+            
+        Here we need to interploate from the pseudo-countinous energy values inside the numrical
+        box, to the true countinous energy values of the system.
+
+        Returns
+        -------
+        None.
+
+        """
         
+        # we need the eigenvalues of the Hamiltonian to interpolate 
         eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian() 
-        # eigen_vals /= np.sqrt(self.h)
         eigen_vecs /= np.sqrt(self.h)
         
         print("\nCalculating dP/dε:")
@@ -1557,39 +1590,45 @@ class laser_hydrogen_solver:
         # and spans to self.max_epsilon
         min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
         self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
-        self.dP_depsilon   = np.zeros_like(self.epsilon_grid)
-        self.dP_depsilon_l = np.array([np.zeros_like(self.epsilon_grid)]*(self.l_max+1))
+        self.dP_depsilon   = np.zeros_like(self.epsilon_grid) # the total energy distribution
+        self.dP_depsilon_l = np.array([np.zeros_like(self.epsilon_grid)]*(self.l_max+1)) # to contribution to the total energy distribution from each l-channel
+        
         
         pbar = tqdm(total=self.l_max+1) # for the progress bar
-        for l in range(self.l_max+1):   # goes through all the l's
+        for l in range(self.l_max+1):   # goes through all the l-channels
+            # gets the positive eigenvalues and their indexes, which are used for the eigenvectors
             pos_ind = pos_inds[l] 
             pos_eps = eigen_vals[l,pos_ind]
             
+            # calculates the density of states for the current l-channel
+            # ψ_εl is equal to D_l times the eigenvector
             D_l_eps = np.zeros(pos_eps.shape)
             D_l_eps[1:-1] = 2/(pos_eps[2:]-pos_eps[:-2])
-            D_l_eps[ 0]   = 1/(pos_eps[ 1]-pos_eps[ 0])
+            D_l_eps[ 0]   = 1/(pos_eps[ 1]-pos_eps[ 0]) # for the boundraies we use the one-sided formula
             D_l_eps[-1]   = 1/(pos_eps[-1]-pos_eps[-2])
             
-            F_l_eps = np.zeros(pos_eps.shape, dtype=complex)
-            
-            # inte_dr = np.zeros((len(pos_ind), self.zeta_epsilon.shape[1]), dtype='complex') 
+            F_l_eps = np.zeros(pos_eps.shape, dtype=complex) # the double intergral using the density of states and the eigenvectors
             
             # this is very vectorized now! Might be a better way to do it? Since we need to transpose inte_dr
-            inte_dr = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,self.CAP_locs]) * self.Gamma_vector[:,None])[:,None,:] * self.zeta_epsilon[...,l,None], axis=0).T
-            F_l_eps = D_l_eps * np.sum( inte_dr * eigen_vecs[l,pos_ind], axis=1) 
+            inte_dr = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,self.CAP_locs]) * self.Gamma_vector[:,None])[:,None,:] * self.zeta_epsilon[...,l,None], axis=0).T # first integral
+            F_l_eps = D_l_eps * np.sum( inte_dr * eigen_vecs[l,pos_ind], axis=1) # second integral, the density of states can be 
             
-            self.dP_depsilon += np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
-            self.dP_depsilon_l[l] = np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
+            # gets the epsilon distribution for this l-channel
+            # interpolates from the pseudo-continuum in the numeircal box, to the true continuum
+            dP_de = np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
+            self.dP_depsilon += dP_de # np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
+            self.dP_depsilon_l[l] = dP_de # np.real(sc.interpolate.CubicSpline(pos_eps, np.real(F_l_eps))(self.epsilon_grid))
             
             pbar.update()
-
             
         pbar.close()
         
+        # final scaling
         self.dP_depsilon *= 2 * self.h * self.h 
         self.dP_depsilon_l *= 2 * self.h * self.h 
         self.dP_depsilon_calculated = True
         
+        # finds the norm(s)
         print()
         self.dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
         print(f"Norm of dP/dε = {self.dP_depsilon_norm}.", "\n")
@@ -2097,7 +2136,7 @@ class laser_hydrogen_solver:
             plt.show()
 
         else:
-            print("Need to calculate dP^2/dεdΩ_k berfore plotting it.")
+            print("Need to calculate dP^2/dεdΩ_k with mask method berfore plotting it.")
     
     
 
@@ -2308,7 +2347,7 @@ class laser_hydrogen_solver:
                 def animate0(t):
                     # function to go to the next time step
                 
-                    [lines0[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)] # updates the wace function lines
+                    [lines0[ln].set_ydata(np.abs(self.Ps[t][:,ln])**2) for ln in range(self.l_max+1)] # updates the wave function lines
                     time_text0.set_text("t = {:.2f}. Frame = {}.".format(times[t], t))                # updates the time textbox
         
                     return lines0 + [time_text0,]
@@ -2347,8 +2386,6 @@ class laser_hydrogen_solver:
                         exit()
                         
                 # TODO: not all values of n_cols/n_rows and l_max work propperly
-                
-                # print(n_rows, n_cols)
                 
                 # here we create the sub plots
                 gs = gridspec.GridSpec(n_rows, n_cols)
@@ -2455,9 +2492,6 @@ class laser_hydrogen_solver:
                     plt.rcParams['animation.ffmpeg_path'] = 'C:/Users/bendikst/OneDrive - OsloMet/Dokumenter/ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe' # replace with your local path
                     writervideo = animation.FFMpegWriter(fps=15) # ,bitrate=30000)
                     ani.save(self.save_dir+f"/animation_{'CAP' if self.use_CAP else 'reg'}_multi.mp4", writer=writervideo, ) # dpi=500, 
-                
-                # TODO: add saving
-                
                 
                 plt.show()
             
@@ -3661,7 +3695,7 @@ def main():
     a = laser_hydrogen_solver(save_dir="test_mask3", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
                               use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.1, l_max=7, max_epsilon=5, mask_epsilon_n=500, theta_grid_size=400,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=False, spline_n=1_000,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, calc_mask_method=False, spline_n=1_000,
                               use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
