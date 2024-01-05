@@ -854,7 +854,7 @@ class laser_hydrogen_solver:
         We use tn+dt2 instead of tn because it scales better as dt decreases.
         
         Lanczos algorithm is usually meant for a vector and 2D matrix. We however represent
-        the wave function as an matrix. Lanczos still works, but for the explenation here 
+        the wave function as an matrix. Lanczos still works, but for the explanation here 
         you can think of P as a pseudo-vector.
 
         Parameters
@@ -884,9 +884,9 @@ class laser_hydrogen_solver:
 
         # TODO: add some comments
         # initialise arrays
-        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex) # (n,l_max+1)X(k_dim) matrix with othonormal "columns"
-        alpha  = np.zeros(k_dim, dtype=complex) # main diagoal of a tridiagonal matrix T, where T = V*PV. T is used as an approximiation to P
-        beta   = np.zeros(k_dim-1, dtype=complex) # off diagoal of T
+        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex) # (n,l_max+1)X(k_dim) matrix with orthonormal "columns"
+        alpha  = np.zeros(k_dim, dtype=complex) # main diagonal of a tridiagonal matrix T, where T = V*PV. T is used as an approximation to P
+        beta   = np.zeros(k_dim-1, dtype=complex) # off diagonal of T
         
         tndt2 = tn + dt2 # we use tn+dt2 because it scales better as dt decreases
 
@@ -894,7 +894,7 @@ class laser_hydrogen_solver:
         InitialNorm = np.sqrt(self.inner_product(P,P)) # we save the norm of the input P
         V[:,:,0] = P / InitialNorm # P is normalised and used as the initial column of V
         
-        w = Hamiltonian(tndt2, V[:,:,0]) # temporary(?) array. The same memory space is used to store two different thigs each k_dim-step
+        w = Hamiltonian(tndt2, V[:,:,0]) # temporary array. The same memory space is used to store two different things each k_dim-step
         
         alpha[0] = self.inner_product(w, V[:,:,0]) 
         w = w - alpha[0] * V[:,:,0] # updates w for next k-step
@@ -902,19 +902,21 @@ class laser_hydrogen_solver:
         # there is k_dim steps
         for j in range(1,k_dim): 
 
-            beta[j-1] = np.sqrt(self.inner_product(w, w)) # this is for the current step, but len(beta) = k_dim-1
-            # the value of V at step j is equal to w scaled by the value of the current beta
-            # if beta is ~0 we instead use a random vector, which is othonormal towards all the current "columns" of V
+            beta[j-1] = np.sqrt(self.inner_product(w, w)) # this is for the current step, but len(β) = k_dim-1
+            # the value of V at step j is equal to w scaled by the value of the current β
+            # if β is ~0 we instead use a random vector, which is orthonormal towards all the current "columns" of V
             V[:,:,j]  = w / beta[j-1] if (np.abs(beta[j-1]) > tol) else self.find_orth(V[:,:,:j-1])
             # TODO: Implement stopping criterion of np.abs(beta[j-1]) > tol
 
-            w = Hamiltonian(tndt2, V[:,:,j]) 
+            w = Hamiltonian(tndt2, V[:,:,j]) # needed to find α
+
             alpha[j] = self.inner_product(w, V[:,:,j])
             w  = w - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1] # updates w for next k-step
 
-        T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # Not sure if this is the fastest # TODO: wy did this work again?
-        P_new = V.dot(P_k)[:,:,0]
+        T     = sp.diags([beta, alpha, beta], [-1,0,1], format='csc') # a surrogate for P
+        P_k   = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # exponentiates inside the Krylow space
+        # Not sure if this is the fastest # TODO: wy did this work again?
+        P_new = V.dot(P_k)[:,:,0] # transforms back into regular space
 
         return P_new * InitialNorm # the output P is scaled back to the norm of the input P
     
@@ -930,7 +932,11 @@ class laser_hydrogen_solver:
         back into the regular space, giving a close estimate of P_new.
         
         We use tn+dt2 instead of tn because it scales better as dt decreases.
-
+        
+        Lanczos algorithm is usually meant for a vector and 2D matrix. We however represent
+        the wave function as an matrix. Lanczos still works, but for the explanation here 
+        you can think of P as a pseudo-vector.
+        
         Parameters
         ----------
         P : (self.n, l_max) numpy array
@@ -957,41 +963,47 @@ class laser_hydrogen_solver:
         """
         
         # TODO: add some comments
-        alpha  = np.zeros(k_dim, dtype=complex)
-        beta   = np.zeros(k_dim-1, dtype=complex)
-        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex)
+        # initialise arrays
+        V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex) # (n,l_max+1)X(k_dim) matrix with othonormal "columns"
+        alpha  = np.zeros(k_dim, dtype=complex) # main diagonal of a tridiagonal matrix T, where T = V*PV. T is used as an approximation to P
+        beta   = np.zeros(k_dim-1, dtype=complex) # off diagonal of T
+        
+        tndt2 = tn + dt2 # we use tn+dt2 because it scales better as dt decreases
 
-        # we keep the norm of the input P
-        InitialNorm = np.sqrt(self.inner_product(P,P))
+        # step 0
+        InitialNorm = np.sqrt(self.inner_product(P,P)) # we save the norm of the input P
         V[:,:,0] = P / InitialNorm # P is normalised
         
-        tndt2 = tn + dt2
-        
-        # not using w or w'
-        V[:,:,1] = Hamiltonian(tndt2, V[:,:,0]) # 
+        V[:,:,1] = Hamiltonian(tndt2, V[:,:,0]) # not using w or w'. Instead they are stored in the memory space of V for the next timestep
 
         alpha[0] = self.inner_product(V[:,:,1], V[:,:,0])
-        V[:,:,1] = V[:,:,1] - alpha[0] * V[:,:,0]  
+        V[:,:,1] = V[:,:,1] - alpha[0] * V[:,:,0]  # updates V_1 for next k-step
 
+        # there is k_dim steps
         for j in range(1,k_dim-1):
-            beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # Euclidean norm
-            V[:,:,j]    = V[:,:,j] / beta[j-1] # haven't used the if/else case here
 
-            V[:,:,j+1] = Hamiltonian(tndt2, V[:,:,j])
+            beta[j-1] = np.sqrt(self.inner_product(V[:,:,j], V[:,:,j])) # this is for the current step, but len(β) = k_dim-1
+            # the value of V at step j is equal to w scaled by the value of the current β
+            V[:,:,j]    = V[:,:,j] / beta[j-1] # we don't check if β is ~0 
+
+            V[:,:,j+1] = Hamiltonian(tndt2, V[:,:,j]) # needed to find α
+
             alpha[j]   = self.inner_product(V[:,:,j+1], V[:,:,j]) 
-            V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1]
+            V[:,:,j+1] = V[:,:,j+1] - alpha[j]*V[:,:,j] - beta[j-1]*V[:,:,j-1] # updates V_j for next k-step
         
-        beta[k_dim-2]  = np.sqrt(self.inner_product(V[:,:,k_dim-1], V[:,:,k_dim-1])) # Euclidean norm
-        V[:,:,k_dim-1] = V[:,:,k_dim-1] / beta[k_dim-2] # haven't used the if/else case here
+        beta[k_dim-2]  = np.sqrt(self.inner_product(V[:,:,k_dim-1], V[:,:,k_dim-1])) # final β
+        V[:,:,k_dim-1] = V[:,:,k_dim-1] / beta[k_dim-2] # final value of V
 
-        T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc')
-        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # .dot(V.dot(P)) #Not sure if this is the fastest
-        P_new = V.dot(P_k)[:,:,0]
+        T = sp.diags([beta, alpha, beta], [-1,0,1], format='csc') # a surrogate for P
+        P_k = sl.expm(-1j*T.todense()*dt) @ np.eye(k_dim,1) # exponentiates inside the Krylow space
+        #Not sure if this is the fastest
+        P_new = V.dot(P_k)[:,:,0] # transforms back into regular space
 
         return P_new * InitialNorm # the output P is scaled back to the norm of the input P
 
 
     def arnoldi_iteration(A, b, n: int):
+        # NOT IN USE
         # TODO: either actually implement, or remove
         """Computes a basis of the (n + 1)-Krylov subspace of A: the space
         spanned by {b, Ab, ..., A^n b}.
