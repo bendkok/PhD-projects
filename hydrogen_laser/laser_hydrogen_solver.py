@@ -50,13 +50,13 @@ class laser_hydrogen_solver:
                  custom_Gamma_function  = None,                         # a custom CAP Gamma function
                  calc_norm              = False,                        # whether to calculate the norm
                  calc_dPdomega          = False,                        # whether to calculate dP/dΩ
-                 theta_grid_size        = 150,                          # 
+                 theta_grid_size        = 300,                          # 
                  calc_dPdepsilon        = False,                        # whether to calculate dP/dε
                  calc_dP2depsdomegak    = False,                        # whether to calculate dP^2/dεdΩ_k
                  spline_n               = 1000,                         # dimension of the spline interpolation used for finding dP/dε
-                 max_epsilon            = 2,                            # the maximum value of the epsilon grid used for interpolation
-                 mask_max_epsilon       = 2,                            # 
-                 mask_epsilon_n         = 100,                          #
+                 max_epsilon            = 5,                            # the maximum value of the epsilon grid used for interpolation
+                 mask_max_epsilon       = 5,                            # 
+                 mask_epsilon_n         = 400,                          #
                  calc_mask_method       = False,                        # whether to calculate the mask method
                  mask_R_c               = 50,                           # a lomg distance from the Coulomb potential, used for the mask method
                  compare_norms          = True,                         # whether to compare the various norms which may be calculated
@@ -2713,7 +2713,7 @@ class laser_hydrogen_solver:
         
     def save_dP2_depsilon_domegak(self, savename="found_states"):
         """
-        Save the found dP/dΩ to a file.
+        Save the found dP^2/dεdΩ_k to a file.
 
         Parameters
         ----------
@@ -2738,8 +2738,8 @@ class laser_hydrogen_solver:
 
     def load_dP2_depsilon_domegak(self, savename="found_states"):
         """
-        Load a found dP/dΩ from a file, and sets it into self.dP2_depsilon_domegak.
-        The loaded dP/dΩ needs to have been generated using the same grid.
+        Load a found dP^2/dεdΩ_k from a file, and sets it into self.dP2_depsilon_domegak.
+        The loaded dP^2/dεdΩ_k needs to have been generated using the same grid.
 
         Parameters
         ----------
@@ -2758,7 +2758,55 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
         self.time_evolved = True
         self.dP2_depsilon_domegak_calculated = True
-        self.epsilon_grid = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
+        
+        
+    def save_dP2_depsilon_domegak_mask(self, savename="found_states"):
+        """
+        Save the found mask dP^2/dεdΩ_k to a file.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        if self.dP2_depsilon_domegak_mask_calculated:
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            np.save(f"{self.save_dir}/{savename}_dP2_depsilon_domegak_mask", self.dP2_depsilon_domegak_mask)
+            np.savetxt(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.csv", self.dP2_depsilon_domegak_mask, delimiter=',')
+            
+            np.save(f"{self.save_dir}/{savename}_epsilon_mask_grid", self.epsilon_mask_grid)
+            np.savetxt(f"{self.save_dir}/{savename}_epsilon_mask_grid.csv", self.epsilon_mask_grid, delimiter=',')
+        else:
+            print("Warning: calculate_time_evolution() needs to be run with calc_mask_method=True before save_dP2_depsilon_domegak_maskk().")
+
+
+    def load_dP2_depsilon_domegak_mask(self, savename="found_states"):
+        """
+        Load a found mask dP^2/dεdΩ_k from a file, and sets it into self.dP2_depsilon_domegak.
+        The loaded mask dP^2/dεdΩ_k needs to have been generated using the same grid.
+
+        Parameters
+        ----------
+        savename : string, optional
+            Name of save file. The default is "found_states".
+
+        Returns
+        -------
+        None.
+
+        """
+        self.dP2_depsilon_domegak_mask          = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak_mask.npy")
+        self.epsilon_mask_grid                  = np.load(f"{self.save_dir}/{savename}_epsilon_mask_grid.npy")
+        self.dP2_depsilon_domegak_mask_norm     = np.trapz(self.dP2_depsilon_domegak_mask, x=self.epsilon_mask_grid, axis=0) 
+        self.theta_grid                         = np.linspace(0, np.pi, self.n)
+        self.dP2_depsilon_domegak_mask_norm0    = np.trapz(2*np.pi*self.dP2_depsilon_domegak_mask*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
+        self.time_evolved = True
+        self.dP2_depsilon_domegak_mask_calculated = True
         
         
     def save_variable(self, variable, savename):
@@ -2856,6 +2904,8 @@ class laser_hydrogen_solver:
             self.load_dP_depsilon()
         if self.calc_dP2depsdomegak:
             self.load_dP2_depsilon_domegak()
+        # if self.calc_mask_method:
+        #     self.lo
 
 
     def load_variable(self, savename='zeta_epsilon.npy'):
@@ -3511,7 +3561,7 @@ def compare_var(savedir="compare_lmax", var="l_max", test_vals=[8,7,6,5,4], calc
     
     total_start_time = time.time()
     hyps = {"nt": 5000, # 8300, 10000, # 8000, #
-            "T": 1.5,
+            "T": 2.5,
             "n": 500,
             "r_max": 100,
             "gamma_0": 1.75e-4,
@@ -3770,7 +3820,7 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    # main()
     
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
@@ -3823,11 +3873,11 @@ if __name__ == "__main__":
     # gamma_0_vals = [.1/2**n for n in range(15, 20)]
     # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    # gamma_0_vals = [.1/2**n for n in range(17)]
-    # save_dirs = [f"compare_gamma_0_25/gamma_0_{l}" for l in gamma_0_vals] 
-    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # compare_var("compare_gamma_0_25", "gamma_0", gamma_0_vals, [True,True,True,False,True])
-    # load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_25/comp_gamma_0_all", styles=styles, save_dirs=save_dirs)
+    gamma_0_vals = [.1/2**n for n in range(20)]
+    save_dirs = [f"compare_gamma_0_25/gamma_0_{l}" for l in gamma_0_vals] 
+    styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    compare_var("compare_gamma_0_25", "gamma_0", gamma_0_vals, [True,True,True,False,True])
+    load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_25/comp_gamma_0_all", styles=styles, save_dirs=save_dirs)
     
     # gamma_0_vals = [.1/2**n for n in range(8,16)]
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
