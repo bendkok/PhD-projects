@@ -2751,11 +2751,12 @@ class laser_hydrogen_solver:
         None.
 
         """
-        self.dP2_depsilon_domegak       = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.npy")
-        self.epsilon_grid               = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
-        self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
-        self.theta_grid                 = np.linspace(0, np.pi, self.n)
-        self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
+        self.dP2_depsilon_domegak        = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.npy")
+        self.epsilon_grid                = np.load(f"{self.save_dir}/{savename}_epsilon_grid.npy")
+        self.dP2_depsilon_domegak_norm   = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
+        self.theta_grid                  = np.linspace(0, np.pi, self.n)
+        self.dP2_depsilon_domegak_norm0  = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
+        self.dP2_depsilon_domegak_normed = np.trapz(self.dP2_depsilon_domegak_norm*np.sin(self.theta_grid), x=self.theta_grid) 
         self.time_evolved = True
         self.dP2_depsilon_domegak_calculated = True
         
@@ -2803,8 +2804,9 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_mask          = np.load(f"{self.save_dir}/{savename}_dP2_depsilon_domegak_mask.npy")
         self.epsilon_mask_grid                  = np.load(f"{self.save_dir}/{savename}_epsilon_mask_grid.npy")
         self.dP2_depsilon_domegak_mask_norm     = np.trapz(self.dP2_depsilon_domegak_mask, x=self.epsilon_mask_grid, axis=0) 
-        self.theta_grid                         = np.linspace(0, np.pi, self.n)
+        self.theta_grid                         = np.linspace(0, np.pi, self.theta_grid_size)
         self.dP2_depsilon_domegak_mask_norm0    = np.trapz(2*np.pi*self.dP2_depsilon_domegak_mask*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
+        self.dP2_depsilon_domegak_mask_normed   = np.trapz(self.dP2_depsilon_domegak_mask_norm*np.sin(self.theta_grid), x=self.theta_grid) 
         self.time_evolved = True
         self.dP2_depsilon_domegak_mask_calculated = True
         
@@ -2872,6 +2874,8 @@ class laser_hydrogen_solver:
             self.save_dP_depsilon(savename)
         if self.calc_dP2depsdomegak:
             self.save_dP2_depsilon_domegak(savename)
+        if self.calc_mask_method:
+            self.save_dP2_depsilon_domegak_mask(savename)
             
             
     def load_found_states_analysis(self, savename="found_states"):
@@ -2904,8 +2908,8 @@ class laser_hydrogen_solver:
             self.load_dP_depsilon()
         if self.calc_dP2depsdomegak:
             self.load_dP2_depsilon_domegak()
-        # if self.calc_mask_method:
-        #     self.lo
+        if self.calc_mask_method:
+            self.load_dP2_depsilon_domegak_mask()
 
 
     def load_variable(self, savename='zeta_epsilon.npy'):
@@ -3066,7 +3070,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
         a.make_aimation(do_save=save_animation, make_combined_plot=False, n_cols=n_cols, n_rows=n_rows)
         
         
-def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
+def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
     """
     Loads a program which has been run, and makes plots of the results.
 
@@ -3320,7 +3324,7 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         
         
     if plot_postproces[3]:
-        print("Comparing dP^2/dΩ_kdε.")
+        print("Comparing dP^2/dεdΩ_k.")
         plt.axes(projection = 'polar', rlabel_position=-22.5)
         for i,a in enumerate(classes):
             a.load_dP2_depsilon_domegak()
@@ -3394,38 +3398,117 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             plt.savefig(f"{save_dir}/comp_dP2_depsilon_domegak_norm.pdf", bbox_inches='tight')
         plt.show()    
     
-            
-            # plt.contourf(X,Y, a.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
-            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # plt.xlabel(r"$\epsilon$")
-            # plt.ylabel(r"$\theta$")
-            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
-            # if do_save:
-            #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak.pdf", bbox_inches='tight')
-            # plt.show()
-            
-            
-            # plt.contourf(X*np.sin(Y),X*np.cos(Y), a.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='linear', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
-            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
-            # plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
-            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
-            # if do_save:
-            #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol.pdf", bbox_inches='tight')
-            # plt.show()
-            
-            # plt.contourf(X*np.sin(Y),X*np.cos(Y), a.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='log', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
-            # plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
-            # plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
-            # plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
-            # plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
-            # if do_save:
-            #     os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
-            #     plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol_log.pdf", bbox_inches='tight')
-            # plt.show()
     
+    if plot_postproces[4]:
+        print("Comparing dP^2/dεdΩ_k for mask.")
+        plt.axes(projection = 'polar', rlabel_position=-22.5)
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak_mask()
+            a.theta_grid = np.linspace(0,np.pi,a.theta_grid_size)
+            # X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
+            
+            plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i], label="{:.1e}".format(labels[i]))
+            plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i]) # , label="dP_domega")
+        # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ for the mask method with polar plot projection."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_mask_norm_th_polar.pdf", bbox_inches='tight')
+        plt.show()
+            
+        plt.axes(projection = None)
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak_mask()
+            plt.plot(a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i], label="{:.1e}".format(labels[i]))
+        plt.grid()
+        plt.xlabel(r"$\theta$")
+        plt.ylabel(r"$dP/d\Omega_k$")
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ for the mask method with cartesian plot projection."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_mask_norm_th.pdf", bbox_inches='tight')
+        plt.show()
+
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak_mask()
+            plt.plot(a.epsilon_mask_grid, a.dP2_depsilon_domegak_mask_norm0, styles[i], label="{:.1e}".format(labels[i]))
+        plt.grid()
+        plt.xlabel(r"$\epsilon$")
+        plt.ylabel(r"$dP/d\epsilon$")
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ for the mask method with linear scale."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_mask_norm_eps.pdf", bbox_inches='tight')
+        plt.show()
+            
+        for i,a in enumerate(classes):
+            a.load_dP2_depsilon_domegak_mask()
+            plt.plot(a.epsilon_mask_grid, a.dP2_depsilon_domegak_mask_norm0, styles[i], label="{:.1e}".format(labels[i]))
+        plt.grid()
+        plt.yscale('log')
+        plt.xlabel(r"$\epsilon$")
+        plt.ylabel(r"$dP/d\epsilon$")
+        plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\Omega_k$ for the mask method with log scale."+extra_title)
+        plt.legend()
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_time_evolved_dP2_depsilon_domegak_mask_norm_eps0.pdf", bbox_inches='tight')
+        plt.show()
+        
+        dP2_depsilon_domegak_mask_norms = [a.dP2_depsilon_domegak_mask_normed for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        plt.bar(labels_s, dP2_depsilon_domegak_mask_norms)
+        plt.grid()
+        low = min(dP2_depsilon_domegak_mask_norms)
+        high = max(dP2_depsilon_domegak_mask_norms)
+        plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.xlabel(tested_variable)
+        plt.ylabel(r"Norm of $dP^2/d\epsilon d \omega_k$")
+        plt.title(r"Comparison of norm of $dP^2/d\epsilon d\omega_k$ for the mask method for different "+str(tested_variable)+"."+extra_title)
+        plt.xticks(rotation=40, ha='right')
+        
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{save_dir}/comp_dP2_depsilon_domegak_mask_norm.pdf", bbox_inches='tight')
+        plt.show()    
+        
+        
+    
+        """
+        plt.contourf(X,Y, a.dP2_depsilon_domegak.T, levels=30, alpha=1., antialiased=True)
+        plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+        plt.xlabel(r"$\epsilon$")
+        plt.ylabel(r"$\theta$")
+        plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+        if do_save:
+            os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak.pdf", bbox_inches='tight')
+        plt.show()
+        
+        
+        plt.contourf(X*np.sin(Y),X*np.cos(Y), a.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='linear', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+        plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+        plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+        plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+        plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+        if do_save:
+            os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol.pdf", bbox_inches='tight')
+        plt.show()
+        
+        plt.contourf(X*np.sin(Y),X*np.cos(Y), a.dP2_depsilon_domegak.T, levels=100, alpha=1., norm='log', antialiased=True, locator = ticker.MaxNLocator(prune = 'lower'))
+        plt.colorbar(label=r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")
+        plt.xlabel(r"$\epsilon \sin \theta (a.u.)$")
+        plt.ylabel(r"$\epsilon \cos \theta (a.u.)$")
+        plt.title(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$"+extra_title)
+        if do_save:
+            os.makedirs(a.save_dir, exist_ok=True) # make sure the save directory exists
+            plt.savefig(f"{a.save_dir}/time_evolved_dP2_depsilon_domegak_pol_log.pdf", bbox_inches='tight')
+        plt.show()
+        """
         
 
 
@@ -3873,11 +3956,11 @@ if __name__ == "__main__":
     # gamma_0_vals = [.1/2**n for n in range(15, 20)]
     # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    gamma_0_vals = [.1/2**n for n in range(20)]
+    gamma_0_vals = [.1/2**n for n in range(1,17,2)]
     save_dirs = [f"compare_gamma_0_25/gamma_0_{l}" for l in gamma_0_vals] 
     styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    compare_var("compare_gamma_0_25", "gamma_0", gamma_0_vals, [True,True,True,False,True])
-    load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_25/comp_gamma_0_all", styles=styles, save_dirs=save_dirs)
+    # compare_var("compare_gamma_0_25", "gamma_0", gamma_0_vals, [False,False,False,False,True])
+    load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_25/comp_gamma_0_center", styles=styles, save_dirs=save_dirs)
     
     # gamma_0_vals = [.1/2**n for n in range(8,16)]
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
