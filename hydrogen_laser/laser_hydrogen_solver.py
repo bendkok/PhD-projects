@@ -3650,7 +3650,7 @@ def compare_var(savedir="compare_lmax", var="l_max", test_vals=[8,7,6,5,4], calc
             "gamma_0": 1.75e-4,
             "l_max": 7,
             "k_dim": 15,
-            "CAP_R_proportion": .25,
+            "CAP_R_proportion": .50,
             }
     
     print(f"Testing {var}:")
@@ -3956,11 +3956,13 @@ if __name__ == "__main__":
     # gamma_0_vals = [.1/2**n for n in range(15, 20)]
     # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    gamma_0_vals = [.1/2**n for n in range(1,17,2)]
-    save_dirs = [f"compare_gamma_0_25/gamma_0_{l}" for l in gamma_0_vals] 
+    gamma_0_vals = [.1/2**n for n in range(1,17)]
+    # Testing gamma_0:
+    # [0.05, 0.025, 0.0125, 0.00625, 0.003125, 0.0015625, 0.00078125, 0.000390625, 0.0001953125, 9.765625e-05, 4.8828125e-05, 2.44140625e-05, 1.220703125e-05, 6.103515625e-06, 3.0517578125e-06, 1.52587890625e-06]
+    save_dirs = [f"compare_gamma_0_50/gamma_0_{l}" for l in gamma_0_vals] 
     styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # compare_var("compare_gamma_0_25", "gamma_0", gamma_0_vals, [False,False,False,False,True])
-    load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_25/comp_gamma_0_center", styles=styles, save_dirs=save_dirs)
+    compare_var("compare_gamma_0_50", "gamma_0", gamma_0_vals, [True,True,True,False,True])
+    load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_50/comp_gamma_0_center", styles=styles, save_dirs=save_dirs)
     
     # gamma_0_vals = [.1/2**n for n in range(8,16)]
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
