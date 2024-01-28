@@ -6,6 +6,7 @@ Created on Fri Jan 20 10:40:04 2023
 """
 
 import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -215,7 +216,8 @@ class laser_hydrogen_solver:
             self.add_CAP(Gamma_function=Gamma_function,gamma_0=gamma_0,CAP_R_proportion=CAP_R_proportion,custom_Gamma_function=custom_Gamma_function)
             
         if use_stopping_criterion and not calc_norm:
-            print("Needs calc_norm to be true to use the stopping criterion.")
+            print("Needs calc_norm to be true to use the stopping criterion. Stopping program...")
+            raise SystemExit(0)
         
 
     def make_time_vector(self):
@@ -1275,29 +1277,20 @@ class laser_hydrogen_solver:
                         self.zeta_eps_omegak += self.P[self.CAP_locs,None,:,None]*np.conjugate(self.P)[None,:,None,:]
                         
                     def calc_b_mask_dp(): # for the mask method during pulse
-                        # TODO: I haven't found a way to not have to calulate this much on the fly
-                        # TODO: Vectorise, pre-calculate and add comments
-                        phi_k = (self.k_grid**2*self.time_vector[tn]/2)[:,None] + self.k_grid[:,None] * np.cos(self.theta_grid)[None,:] * np.trapz(self.A(np.arange(0,self.time_vector[tn],self.dt)), dx=self.dt) # TODO: vectorize and pre-calculate
-                        l_sum = np.zeros_like(phi_k, dtype=complex)
-                        for l in range(self.l_max+1):
-                            r_inte = self.r[None,self.CAP_locs] * sc.special.spherical_jn(l, self.k_grid[:,None]*self.r[None,self.CAP_locs]) * (self.Gamma_vector * self.P[self.CAP_locs, l])[None,:]
-                            r_inte = np.trapz(r_inte, self.r[None,self.CAP_locs]) 
-                            l_sum += 1j**(-l) * self.Y[l][None,:] * r_inte[:,None]
-                            # TODO: check if more efficent i
+                        # TODO: add comments
+                        phi_k = self.phi_k_tn[tn,:,None] + self.k_cos_theta * np.trapz(self.A(np.arange(0,self.time_vector[tn],self.dt)), dx=self.dt) 
+                        r_inte_l = self.r[None,None,self.CAP_locs] * self.spherical_jn_lkr * (self.Gamma_vector[None,:] * self.P[self.CAP_locs].T)[:,None,:]
+                        r_inte_l = np.trapz(r_inte_l, self.r[None,self.CAP_locs]) 
+                        l_sum = np.sum(1j**(-np.arange(self.l_max+1))[:,None,None] * np.array(self.Y)[:,None,:] * r_inte_l[:,:,None], axis=0)
                         self.b_mask += np.exp(1j*phi_k) * l_sum
                         
-                    def calc_b_mask_ap(): # for the mask method after pulse
-                        # TODO: I haven't found a way to not have to calulate this much on the fly
-                        # TODO: Vectorise, pre-calculate and add comments
-                        phi_k = (self.k_grid**2*self.time_vector1[tn]/2)[:,None] # + self.k_grid[:,None] * np.cos(self.theta_grid)[None,:] * np.trapz(self.A(np.arange(0,self.time_vector1[tn],self.dt)), dx=self.dt) # TODO: vectorize and pre-calculate
-                        # TODO: someting with dimensions?
-                        # l_sum = np.zeros_like(phi_k, dtype=complex)
-                        l_sum = np.zeros((self.mask_epsilon_n, self.theta_grid_size), dtype=complex)
-                        for l in range(self.l_max+1):
-                            r_inte = self.r[None,self.CAP_locs] * sc.special.spherical_jn(l, self.k_grid[:,None]*self.r[None,self.CAP_locs]) * (self.Gamma_vector * self.P[self.CAP_locs, l])[None,:]
-                            r_inte = np.trapz(r_inte, self.r[None,self.CAP_locs]) 
-                            l_sum += 1j**(-l) * self.Y[l][None,:] * r_inte[:,None]
-                            # TODO: check if more efficent i
+                        
+                    def calc_b_mask_ap(): # for the mask method after pulse                       
+                        # TODO: add comments
+                        phi_k = self.phi_k_tn[tn,:,None] 
+                        r_inte_l = self.r[None,None,self.CAP_locs] * self.spherical_jn_lkr * (self.Gamma_vector[None,:] * self.P[self.CAP_locs].T)[:,None,:]
+                        r_inte_l = np.trapz(r_inte_l, self.r[None,self.CAP_locs]) 
+                        l_sum = np.sum(1j**(-np.arange(self.l_max+1))[:,None,None] * np.array(self.Y)[:,None,:] * r_inte_l[:,:,None], axis=0)
                         self.b_mask += np.exp(1j*phi_k) * l_sum
                     
                     
@@ -1325,6 +1318,10 @@ class laser_hydrogen_solver:
                         # ζ_l(r,r';t=0) = f_l(r,0)f_l'*(r',0) for calculating dP^2/dεdΩ_k
                         self.zeta_eps_omegak = np.zeros((len(self.CAP_locs),len(self.r),self.l_max+1,self.l_max+1), dtype=complex)
                         
+                    if self.calc_dPdomega or self.calc_dP2depsdomegak or self.calc_mask_method:
+                        self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
+                        self.Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.theta_grid_size), np.linspace(0,np.pi,self.theta_grid_size)) for l in range(self.l_max+1)]
+
                     if self.calc_mask_method:
                         self.epsilon_mask_grid = np.linspace(0, self.mask_max_epsilon, self.mask_epsilon_n) 
                         self.k_grid            = np.sqrt(2*self.epsilon_mask_grid)
@@ -1332,9 +1329,15 @@ class laser_hydrogen_solver:
                         self.b_mask            = np.zeros((self.mask_epsilon_n, self.theta_grid_size), dtype=complex)
                         # self.A_vec = self.A(np.arange(0,self.time_vector1,self.dt))
                         
-                    if self.calc_dPdomega or self.calc_dP2depsdomegak or self.calc_mask_method:
-                        self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
-                        self.Y = [sc.special.sph_harm(0, l, np.linspace(0,2*np.pi,self.theta_grid_size), np.linspace(0,np.pi,self.theta_grid_size)) for l in range(self.l_max+1)]
+                        # pre-caclulation for time evolution
+                        self.k_cos_theta = self.k_grid[:,None] * np.cos(self.theta_grid)[None,:]
+                        self.phi_k_tn = (self.k_grid[None,:]**2*self.time_vector[:,None]/2)
+                        # (self.k_grid**2*self.time_vector[tn]/2)[:,None] + self.k_grid[:,None] * np.cos(self.theta_grid)[None,:] * np.trapz(self.A(np.arange(0,self.time_vector,self.dt)), dx=self.dt, axis=0) 
+                        
+                        self.spherical_jn_lkr = np.zeros((self.l_max+1,self.mask_epsilon_n,len(self.r[self.CAP_locs]))) # TODO: explain
+                        for l in range(self.l_max+1):
+                            self.spherical_jn_lkr[l] = sc.special.spherical_jn(l, self.k_grid[:,None]*self.r[None,self.CAP_locs])
+                        
                     
                     # goes through all the pulse timesteps
                     print("With laser pulse: ")
@@ -1362,7 +1365,8 @@ class laser_hydrogen_solver:
                         
                         if self.calc_mask_method: 
                             # replace the mask method function with the one for after the pulse
-                            loc = extra_funcs.index(calc_b_mask_dp) # np.where(calc_b_mask_dp == extra_funcs)[0]
+                            # this saves having to check every timestep
+                            loc = extra_funcs.index(calc_b_mask_dp) 
                             extra_funcs[loc] = calc_b_mask_ap
                         
                         # goes through all the non-pulse timesteps
@@ -1371,7 +1375,7 @@ class laser_hydrogen_solver:
                             tn = 0
                             cont_sim = True
                             n_avg_min = 10
-                            while tn < len(self.time_vector1) and cont_sim and self.calc_norm: # TODO: consider non-calc_norm implementation
+                            while tn < len(self.time_vector1) and cont_sim: # TODO: consider non-calc_norm implementation
                                 # for tn in tqdm(range(len(self.time_vector1))):
                                 # applies the first exp(i*Γ*Δt/2) part to the wave function
                                 self.P[self.CAP_locs] = self.exp_Gamma_vector_dt2 * self.P[self.CAP_locs, :] 
@@ -1392,8 +1396,8 @@ class laser_hydrogen_solver:
                                 tn += 1
                                 if tn % self.sc_every_n == 0:
                                     n_avg = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.norm_over_time[tn+t_])
-                                    if n_avg < n_avg_min:
-                                        n_avg_min = n_avg
+                                    # if n_avg < n_avg_min:
+                                    #     n_avg_min = n_avg
                                         
                                     if n_avg < self.sc_thresh:
                                         cont_sim = False
@@ -1410,7 +1414,7 @@ class laser_hydrogen_solver:
                                 
                             if cont_sim:
                                 print("Did not reach stopping criterion. Consider increasing T.")
-                                print(n_avg, n_avg_min, tn, self.sc_thresh)
+                                # print(n_avg, n_avg_min, tn, self.sc_thresh)
                             
                         else:
                             # goes through all the non-pulse timesteps
@@ -3024,9 +3028,10 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
         a.plot_res(do_save=save_plots, plot_norm=plot_postproces[0], plot_dP_domega=plot_postproces[1], plot_dP_depsilon=plot_postproces[2], plot_dP2_depsilon_domegak=plot_postproces[3],
                    plot_mask_results=plot_postproces[4],reg_extra_title=extra_titles, extra_titles=[extra_titles,extra_titles,extra_titles,extra_titles])
     
-    # n = 10
-    # # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm diff")
-    # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.dt), label="Norm diff")
+    # n = 15
+    # # n_avg = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.norm_over_time[tn+t_])
+    # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm ")
+    # plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.dt), label="dt")
     # plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
     # plt.grid()
     # plt.xlabel("Time (a.u.)")
@@ -3650,7 +3655,7 @@ def compare_var(savedir="compare_lmax", var="l_max", test_vals=[8,7,6,5,4], calc
             "gamma_0": 1.75e-4,
             "l_max": 7,
             "k_dim": 15,
-            "CAP_R_proportion": .50,
+            "CAP_R_proportion": .30,
             }
     
     print(f"Testing {var}:")
@@ -3867,11 +3872,11 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_mask4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
-                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.1, l_max=7, max_epsilon=5, mask_epsilon_n=500, theta_grid_size=400,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, calc_mask_method=True, spline_n=1_000,
-                              use_stopping_criterion=False, sc_every_n=50, sc_compare_n=2, sc_thresh=1e-5, )
+    a = laser_hydrogen_solver(save_dir="test_mask6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
+                              T=.5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.1, l_max=7, max_epsilon=5, mask_epsilon_n=300, theta_grid_size=250,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=False, spline_n=1_000,
+                              use_stopping_criterion=False, sc_every_n=15, sc_compare_n=15, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
     a.calculate_ground_state_imag_time()
@@ -3903,13 +3908,13 @@ def main():
     
 
 if __name__ == "__main__":
-    # main()
+    main()
     
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
     
     # load_run_program_and_plot("test_mask0", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
-    # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False], save_plots=False, n_rows=3)
+    # load_run_program_and_plot("CAPs_dP2_dep_omk_50_shortT_7", animate=False, do_regular_plot=True, plot_postproces=[True,False,False,False,False], save_plots=False, n_rows=3)
     
     # save_dirs = [f"compare_lmax/lmax_{l}" for l in range(8,6,-1)]
     # labels    = [f"{l}" for l in range(8,1,-1)]
@@ -3956,13 +3961,12 @@ if __name__ == "__main__":
     # gamma_0_vals = [.1/2**n for n in range(15, 20)]
     # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    gamma_0_vals = [.1/2**n for n in range(1,17)]
-    # Testing gamma_0:
-    # [0.05, 0.025, 0.0125, 0.00625, 0.003125, 0.0015625, 0.00078125, 0.000390625, 0.0001953125, 9.765625e-05, 4.8828125e-05, 2.44140625e-05, 1.220703125e-05, 6.103515625e-06, 3.0517578125e-06, 1.52587890625e-06]
-    save_dirs = [f"compare_gamma_0_50/gamma_0_{l}" for l in gamma_0_vals] 
-    styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    compare_var("compare_gamma_0_50", "gamma_0", gamma_0_vals, [True,True,True,False,True])
-    load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_50/comp_gamma_0_center", styles=styles, save_dirs=save_dirs)
+    # gamma_0_vals = [.1/2**n for n in range(1,17)]
+    # save_dirs = [f"compare_gamma_0_30/gamma_0_{l}" for l in gamma_0_vals] 
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # compare_var("compare_gamma_0_30", "gamma_0", gamma_0_vals, [True,True,True,False,True])
+    # load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_30/comp_gamma_0_center", styles=styles, save_dirs=save_dirs)
+    
     
     # gamma_0_vals = [.1/2**n for n in range(8,16)]
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
@@ -3985,7 +3989,7 @@ if __name__ == "__main__":
     # load_zeta_omega()
     # load_zeta_epsilon()
     # load_zeta_eps_omegak()
-    # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False])
+    # load_run_program_and_plot("test_CAPS_0.000175_8/CAPs_dP2_dep_omk_far_50", True, plot_postproces=[False,False,False,False,False])
     # load_programs_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_longT", "CAPs_dP2_dep_omk_50_longT_7", "CAPs_dP2_dep_omk_far_50_longT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison")
     # load_programs_and_compare(plot_postproces=[True,True,True,False], styles=["-","--","--"], save_dirs=["CAPs_dP2_dep_omk_50_shortT", "CAPs_dP2_dep_omk_50_shortT_7", "CAPs_dP2_dep_omk_far_50_shortT"], labels=["8 near", "7 near", "8 far"], save_dir="plot_comparison_shortT")
     # load_programs_and_compare(plot_postproces=[True,True,False,False], styles=["-","--","--","--","--"], save_dirs=["test_CAPS_0.000175_8/CAPs_dPdom_far_50", "test_CAPS_0.000175_8/CAPs_dPdom_far_75", "test_CAPS_0.000175_8/CAPs_dPdom_far_100", "test_CAPS_0.000175_8/CAPs_dPdom_far_125", "test_CAPS_0.000175_8/CAPs_dPdom_far_150"], labels=[50,75,100,125,150], save_dir=None)
