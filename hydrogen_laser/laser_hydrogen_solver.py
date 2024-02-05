@@ -47,7 +47,7 @@ class laser_hydrogen_solver:
                  Gamma_function         = "polynomial_Gamma_CAP",       # which CAP-function to use
                  gamma_0                = .01,                          # strength of CAP
                  CAP_R_proportion       = .8,                           # CAP onset
-                 Gamma_power            = 2,                            # the power of the monimial in the CAP Gamma function
+                 Gamma_power            = 2,                            # the power of the monomial in the CAP Gamma function
                  custom_Gamma_function  = None,                         # a custom CAP Gamma function
                  calc_norm              = False,                        # whether to calculate the norm
                  calc_dPdomega          = False,                        # whether to calculate dP/dΩ
@@ -59,7 +59,7 @@ class laser_hydrogen_solver:
                  mask_max_epsilon       = 5,                            # 
                  mask_epsilon_n         = 400,                          #
                  calc_mask_method       = False,                        # whether to calculate the mask method
-                 mask_R_c               = 50,                           # a lomg distance from the Coulomb potential, used for the mask method
+                 mask_R_c               = 50,                           # a long distance from the Coulomb potential, used for the mask method
                  compare_norms          = True,                         # whether to compare the various norms which may be calculated
                  use_stopping_criterion = False,                        #
                  sc_every_n             = 100,                          #
@@ -108,11 +108,11 @@ class laser_hydrogen_solver:
         save_dir : string, optional
             DESCRIPTION: Where to save the results. The default is "results".
         compare_norms : bool, optional
-            DESCRIPTION: Wheter to compare the various norms which may be calculated. The default is True.
+            DESCRIPTION: Whether to compare the various norms which may be calculated. The default is True.
             
         custom_Gamma_function : function, optional
             A custom CAP Gamma function. Is only used if Gamma_function == "custom". Needs to have the inputs (gamma_0, R, Gamma_power).
-            The defualt is None.
+            The default is None.
 
         Returns
         -------
@@ -175,7 +175,7 @@ class laser_hydrogen_solver:
         self.D2_2_gs = -.5*self.D2 # this and V_ are the only matrices the GS needs
         
         # get matrices for the finite difference for the regular SE
-        # having the GS and the regular calculations seperate allows us to use different FD-scheems 
+        # having the GS and the regular calculations separate allows us to use different FD-schemes 
         self.make_derivative_matrices(self.fd_method)
 
         # tri-diagonal matrices for the SE
@@ -209,7 +209,7 @@ class laser_hydrogen_solver:
 
         self.found_orth = 0
 
-        # the default timproegator is RK4, but Lanczos also be specified later
+        # the default time propagator is RK4, but Lanczos also be specified later
         self.set_time_propagator(self.RK4, k_dim=None)
         
         if use_CAP: # if we want to use a complex absorbing potential
@@ -266,12 +266,12 @@ class laser_hydrogen_solver:
     def set_time_propagator(self, name, k_dim):
         """
         Decide which type of time propagator to use. Currently supports RK4, Lanczos and Lanczos_fast.
-        A custom propegator can also be used by inputting a regular function. 
+        A custom propagator can also be used by inputting a regular function. 
 
         Parameters
         ----------
         name : Function or class method
-            The type of propegator to use. 
+            The type of propagator to use. 
         k_dim : int
             The Krylov dimension to use with Lanczos.
 
@@ -297,7 +297,7 @@ class laser_hydrogen_solver:
             self.k_dim = None
         elif type(name) == 'function':
             self.make_time_vector()
-            self.energy_func = self.Hamiltonian # TODO: include method to speciy this
+            self.energy_func = self.Hamiltonian # TODO: include method to specify this
         else:
             print("Invalid time propagator method!")
 
@@ -357,7 +357,7 @@ class laser_hydrogen_solver:
             # 5-point symmetric method, with antisymmetric BC
             # both are O(h⁴)
 
-            # pentadiagonal matrices for the SE
+            # penta-diagonal matrices for the SE
             # for D1 and D2 we use scipy.sparse because it is faster
             ones = np.ones(self.n)
             diag_D1 = np.zeros(self.n); diag_D1[0] = -1
@@ -371,7 +371,7 @@ class laser_hydrogen_solver:
 
     def add_CAP(self, use_CAP = True, Gamma_function = "polynomial_Gamma_CAP", gamma_0 = .01, CAP_R_proportion = .8, Gamma_power = 2, custom_Gamma_function=None):
         """
-        Set up the CAP method, functions and varaibles. 
+        Set up the CAP method, functions and variables. 
 
         Parameters
         ----------
@@ -382,12 +382,12 @@ class laser_hydrogen_solver:
         gamma_0 : float, optional
             A scaling factor in the Gamma function. The default is .01.
         CAP_R_proportion : float, optional
-            The porportion of the physical grid where the CAP is applied. The default is .8.
+            The proportion of the physical grid where the CAP is applied. The default is .8.
         Gamma_power : float, optional
-            The monimial in the Gamma function. The default is 2.
+            The monomial in the Gamma function. The default is 2.
         custom_Gamma_function : function, optional
             A custom CAP Gamma function. Is only used if Gamma_function == "custom". Needs to have the inputs (gamma_0, R, Gamma_power).
-            The defualt is None.
+            The default is None.
 
         Returns
         -------
@@ -435,7 +435,6 @@ class laser_hydrogen_solver:
             l / √( (2l-1)*(2l+1) ).
         """
         return l / np.sqrt((2*l-1)*(2*l+1))
-        # return (l+1) / np.sqrt((2*l+1)*(2*l+3))
 
 
     def single_laser_pulse(self, t):
@@ -644,7 +643,7 @@ class laser_hydrogen_solver:
         R : float, optional
             The part of the physical grid where the CAP starts. The default is 160.
         Gamma_power : float, optional
-            The monimial in the Gamma function. The default is 2.
+            The monomial in the Gamma function. The default is 2.
 
         Returns
         -------
@@ -707,7 +706,7 @@ class laser_hydrogen_solver:
             """
             self.V    = 1/self.r      # from the Coulomb potential
             self.Vs   = 1/self.r**2   # from the centrifugal term
-            self.D2_2 = -.5*self.D2   # the differeniated double derivative
+            self.D2_2 = -.5*self.D2   # the differentiated double derivative
             """
             
             # finds the eigen vectors and values for the current H_L
@@ -718,7 +717,7 @@ class laser_hydrogen_solver:
             eigen_vals[L] = np.real(e_vals_L)[inds]
             eigen_vecs[L] = e_vecs_L.T[inds]
             
-            # Here we make sure that the found eigenvetors are "positive" eigenvectors.
+            # Here we make sure that the found eigenvectors are "positive" eigenvectors.
             # Since kλA = kλv, we need to make ensure that the found k is positive.
             for n in range(self.n):
                 if eigen_vecs[L,n,0] < 0:
@@ -1297,7 +1296,7 @@ class laser_hydrogen_solver:
                     # test which values we are going to calculate on the fly
                     extra_funcs = [[calc_norm,self.calc_norm],[calc_zeta_omega,self.calc_dPdomega],[calc_zeta_epsilon,self.calc_dPdepsilon],
                                    [calc_zeta_eps_omegak,self.calc_dP2depsdomegak],[calc_b_mask_dp,self.calc_mask_method]]
-                    # this creates a list of functions we can loop over kduring the main calculation, removing the need for an if-test inside the for-loop
+                    # this creates a list of functions we can loop over during the main calculation, removing the need for an if-test inside the for-loop
                     extra_funcs = [ff[0] for ff in extra_funcs if ff[1]] 
                     
                     # sets up vectors for saving values calculated on the fly
@@ -1329,7 +1328,7 @@ class laser_hydrogen_solver:
                         self.b_mask            = np.zeros((self.mask_epsilon_n, self.theta_grid_size), dtype=complex)
                         # self.A_vec = self.A(np.arange(0,self.time_vector1,self.dt))
                         
-                        # pre-caclulation for time evolution
+                        # pre-calculation for time evolution
                         self.k_cos_theta = self.k_grid[:,None] * np.cos(self.theta_grid)[None,:]
                         self.phi_k_tn = (self.k_grid[None,:]**2*self.time_vector[:,None]/2)
                         # (self.k_grid**2*self.time_vector[tn]/2)[:,None] + self.k_grid[:,None] * np.cos(self.theta_grid)[None,:] * np.trapz(self.A(np.arange(0,self.time_vector,self.dt)), dx=self.dt, axis=0) 
@@ -1438,7 +1437,7 @@ class laser_hydrogen_solver:
                                     func()
                         
                             
-                    # Now we do post-proscscing:
+                    # Now we do post-processing:
                     
                     if self.calc_norm:
                         # found the norm |Ψ|^2
@@ -3872,11 +3871,11 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_mask6", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
-                              T=.5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.1, l_max=7, max_epsilon=5, mask_epsilon_n=300, theta_grid_size=250,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=False, spline_n=1_000,
-                              use_stopping_criterion=False, sc_every_n=15, sc_compare_n=15, sc_thresh=1e-5, )
+    a = laser_hydrogen_solver(save_dir="test_sc2", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
+                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.25, l_max=7, max_epsilon=3, mask_epsilon_n=300, theta_grid_size=400,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, calc_mask_method=False, spline_n=1_000,
+                              use_stopping_criterion=True, sc_every_n=30, sc_compare_n=15, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
     a.calculate_ground_state_imag_time()
