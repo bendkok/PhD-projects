@@ -61,10 +61,12 @@ class laser_hydrogen_solver:
                  calc_mask_method       = False,                        # whether to calculate the mask method
                  mask_R_c               = 50,                           # a long distance from the Coulomb potential, used for the mask method
                  compare_norms          = True,                         # whether to compare the various norms which may be calculated
-                 use_stopping_criterion = False,                        #
-                 sc_every_n             = 100,                          #
-                 sc_thresh              = 1e-6,                         # 
-                 sc_compare_n           = 10,                           # 
+                 use_stopping_criterion = False,                        # whether to use a stopping criterion 
+                 sc_every_n             = 30,                           # how often to check the stopping criterion
+                 sc_thresh              = 1e-5,                         # the stopping criterion threshold
+                 sc_compare_n           = 15,                           # at time step n, the stopping criterion checks if n - sc_compare_n < sc_thresh.
+                                                                        # If so the simulation is stopped
+                
                  ):
         """
         Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -857,6 +859,7 @@ class laser_hydrogen_solver:
         Lanczos algorithm is usually meant for a vector and 2D matrix. We however represent
         the wave function as an matrix. Lanczos still works, but for the explanation here 
         you can think of P as a pseudo-vector.
+        
 
         Parameters
         ----------
@@ -882,7 +885,8 @@ class laser_hydrogen_solver:
         (self.n, l_max) numpy array
             The estimate of the wave function for the next timestep.
         """
-
+        
+        # TODO: Mention Magnus propegator
         # TODO: add some comments
         # initialise arrays
         V      = np.zeros((self.n, self.l_max+1, k_dim), dtype=complex) # (n,l_max+1)X(k_dim) matrix with orthonormal "columns"
@@ -1373,7 +1377,8 @@ class laser_hydrogen_solver:
                             print("After laser pulse, with stopping criterion: ")
                             tn = 0
                             cont_sim = True
-                            n_avg_min = 10
+                            # n_avg_min = 10
+                            pbar = tqdm(total=len(self.time_vector1)) # progress bar
                             while tn < len(self.time_vector1) and cont_sim: # TODO: consider non-calc_norm implementation
                                 # for tn in tqdm(range(len(self.time_vector1))):
                                 # applies the first exp(i*Γ*Δt/2) part to the wave function
@@ -1393,6 +1398,7 @@ class laser_hydrogen_solver:
                                     func()
                                 
                                 tn += 1
+                                pbar.update(tn-pbar.n)
                                 if tn % self.sc_every_n == 0:
                                     n_avg = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.norm_over_time[tn+t_])
                                     # if n_avg < n_avg_min:
@@ -1404,13 +1410,8 @@ class laser_hydrogen_solver:
                                         self.save_idx_ = self.save_idx_[np.where(self.save_idx_ < tn)]
                                         self.time_vector1 = self.time_vector1[:tn]
                                         self.norm_over_time = self.norm_over_time[:tn+t_+1]
-                                        # if calc_zeta_omega:
-                                        #     self.zeta_omega 
-                                        # if calc_zeta_epsilon:
-                                        #     self.zeta_epsilon
-                                        # if calc_zeta_eps_omegak:
-                                        #     self.zeta_eps_omegak
-                                
+                            pbar.close()
+                            
                             if cont_sim:
                                 print("Did not reach stopping criterion. Consider increasing T.")
                                 # print(n_avg, n_avg_min, tn, self.sc_thresh)
@@ -1806,7 +1807,7 @@ class laser_hydrogen_solver:
             
             sns.set_theme(style="dark") # nice plots
             
-            plt.plot(np.append(self.time_vector,self.time_vector1), self.norm_over_time[:-1], label="Norm")
+            plt.plot(np.append(self.time_vector,self.time_vector1)[:len(self.norm_over_time[:-1])], self.norm_over_time[:-1], label="Norm")
             plt.axvline(self.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
             plt.grid()
             plt.xlabel("Time (a.u.)")
@@ -2228,7 +2229,7 @@ class laser_hydrogen_solver:
                 max_vals[0] = np.max(np.abs(self.Ps[0][:,ln]))
                 
                 # adds all the timesteps we want
-                for j,i in enumerate(self.plot_idx1[1:]): 
+                for j,i in enumerate(self.plot_idx1[1:]):  # bug here when loading? or using sc
                     plt.plot(self.r, np.abs(self.Ps[i][:,ln]), label="t = {:3.0f}".format(tv[si[i]-1]))
                     max_vals[j+1] = np.max(np.abs(self.Ps[i][:,ln]))
                 
@@ -2535,11 +2536,13 @@ class laser_hydrogen_solver:
         if self.time_evolved:
             os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}", self.Ps)
+            np.save(f"{self.save_dir}/{savename}_save_idx",  self.save_idx)
+            np.save(f"{self.save_dir}/{savename}_save_idx_", self.save_idx_)
         else:
             print("Warning: calculate_time_evolution() needs to be run before save_found_states().")
 
 
-    def load_found_states(self, savename="found_states.npy"):
+    def load_found_states(self, savename="found_states"):
         """
         Load a found wave function from a file, and sets it into self.Ps.
         The loaded wave function needs to have been generated using the same grid.
@@ -2554,11 +2557,15 @@ class laser_hydrogen_solver:
         None.
 
         """
-        self.Ps = np.load(f"{self.save_dir}/{savename}")
+        self.Ps = np.load(f"{self.save_dir}/{savename}.npy")
         self.time_evolved = True
         
-        self.save_idx  = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) # which WFs were saved
-        self.save_idx_ = np.round(np.linspace(0, self.nt*self.T, int(self.n_saves*self.T))).astype(int) # which WFs were saved
+        try:
+            self.save_idx  = np.load(f"{self.save_dir}/{savename}_save_idx.npy")
+            self.save_idx_ = np.load(f"{self.save_dir}/{savename}_save_idx_.npy")
+        except FileNotFoundError: # for legacy code
+            self.save_idx  = np.round(np.linspace(0, self.nt, self.n_saves)).astype(int) # which WFs were saved
+            self.save_idx_ = np.round(np.linspace(0, self.nt*self.T, int(self.n_saves*self.T))).astype(int) # which WFs were saved
         
     
     def save_norm_over_time(self, savename="found_states"):
@@ -2944,34 +2951,38 @@ class laser_hydrogen_solver:
         """
         
         hyperparameters = {
-            "l_max":               self.l_max,
-            "n":                   self.n,
-            "r_max":               self.r_max,
-            "T":                   self.T,
-            "nt":                  self.nt,
-            "T_imag":              self.T_imag,
-            "nt_imag":             self.nt_imag,
-            "n_saves":             self.n_saves,
-            "n_saves_imag":        self.n_saves_imag,
-            "n_plots":             self.n_plots,
-            "fd_method":           self.fd_method,
-            "gs_fd_method":        self.gs_fd_method, 
-            "Ncycle":              self.Ncycle,
-            "E0":                  self.E0,
-            "w":                   self.w,
-            "cep":                 self.cep,
-            "save_dir":            self.save_dir,
-            "calc_dPdomega":       self.calc_dPdomega,
-            "calc_norm":           self.calc_norm,
-            "calc_dPdepsilon":     self.calc_dPdepsilon,
-            "spline_n":            self.spline_n,
-            "k_dim":               self.k_dim,
-            "beta":                1e-6,
-            "time_propagator":     self.time_propagator.__name__,
-            "Gamma_function":      self.Gamma_function.__name__,
-            "use_CAP":             self.use_CAP,
-            "gamma_0":             self.gamma_0,
-            "CAP_R_proportion":    self.CAP_R_proportion,
+            "l_max":                    self.l_max,
+            "n":                        self.n,
+            "r_max":                    self.r_max,
+            "T":                        self.T,
+            "nt":                       self.nt,
+            "T_imag":                   self.T_imag,
+            "nt_imag":                  self.nt_imag,
+            "n_saves":                  self.n_saves,
+            "n_saves_imag":             self.n_saves_imag,
+            "n_plots":                  self.n_plots,
+            "fd_method":                self.fd_method,
+            "gs_fd_method":             self.gs_fd_method, 
+            "Ncycle":                   self.Ncycle,
+            "E0":                       self.E0,
+            "w":                        self.w,
+            "cep":                      self.cep,
+            "save_dir":                 self.save_dir,
+            "calc_dPdomega":            self.calc_dPdomega,
+            "calc_norm":                self.calc_norm,
+            "calc_dPdepsilon":          self.calc_dPdepsilon,
+            "spline_n":                 self.spline_n,
+            "k_dim":                    self.k_dim,
+            "beta":                     1e-6,
+            "time_propagator":          self.time_propagator.__name__,
+            "Gamma_function":           self.Gamma_function.__name__,
+            "use_CAP":                  self.use_CAP,
+            "gamma_0":                  self.gamma_0,
+            "CAP_R_proportion":         self.CAP_R_proportion,
+            "use_stopping_criterion":   self.use_stopping_criterion,
+            "sc_compare_n":             self.sc_compare_n,
+            "sc_every_n":               self.sc_every_n,
+            "sc_thresh":                self.sc_thresh,
         }
         
         with open(f"{self.save_dir}/hyperparameters.txt", 'w') as f: 
@@ -3110,6 +3121,17 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         except:
             a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
         
+        # if "use_stopping_criterion" in hyp:
+        #     a.use_stopping_criterion     = hyp["use_stopping_criterion"]
+        #     a.sc_every_n                 = hyp["sc_every_n"]
+        #     a.sc_thresh                  = hyp["sc_thresh"]
+        #     a.sc_compare_n               = hyp["sc_compare_n"]
+        # else: # TODO: temporary
+        #     a.use_stopping_criterion     = True
+        #     # a.sc_every_n                 = 30
+        #     # a.sc_thresh                  = 1e-5
+        #     # a.sc_compare_n               = 15
+        
         classes.append(a)
         
     if labels is None:
@@ -3121,9 +3143,9 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         
         for i,a in enumerate(classes):
             a.load_norm_over_time()
-            plt.plot(np.append(a.time_vector,a.time_vector1), a.norm_over_time[:-1], styles[i], label="{:.1e}".format(labels[i]))
+            plt.plot(np.append(a.time_vector,a.time_vector1)[:len(a.norm_over_time[:-1])], a.norm_over_time[:-1], styles[i], label="{:.1e}".format(labels[i]))
             
-        plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End") 
+        plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="Pulse end") 
         plt.grid()
         plt.xlabel("Time (a.u.)")
         plt.ylabel("Norm")
@@ -3153,6 +3175,26 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             plt.savefig(f"{save_dir}/comp_final_norm.pdf", bbox_inches='tight')
         plt.show()
         
+        # plots the time when the stopping criterion was reached
+        # if a.use_stopping_criterion:
+        stopping_time = [np.append(a.time_vector,a.time_vector1)[len(a.norm_over_time[:-1])] for a in classes]
+        labels_s = ["%.1e" %l for l in labels]
+        plt.axhline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="Pulse end") 
+        plt.bar(labels_s, stopping_time) 
+        low = min(stopping_time)
+        high = max(stopping_time)
+        plt.ylim([max(0,(low-0.1*(high-low))), (high+0.1*(high-low))])
+        plt.grid()
+        plt.xticks(rotation=40, ha='right')
+        plt.xlabel(tested_variable)
+        plt.ylabel("Final time")
+        plt.title(r"Timepoint when the stopping criterion was reached for different "+str(tested_variable)+"."+extra_title)
+        plt.legend()
+        
+        if save_dir is not None:
+            plt.savefig(f"{save_dir}/comp_final_norm_sc_time.pdf", bbox_inches='tight')
+        plt.show()
+
         
     if plot_postproces[1]:
         print("Comparing dP/dΩ.")
@@ -3275,13 +3317,15 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             plt.savefig(f"{save_dir}/comp_epsilon_norm.pdf", bbox_inches='tight')
         plt.show() 
         
+    # making comparisons
+    labels_s = ["%.1e" %l for l in labels]
         
-    if plot_postproces[1] and plot_postproces[2]:
+    if plot_postproces[0] and plot_postproces[1]: # TODO: fix
+        
+        print("Comparing norm and dP/dΩ.")
         
         final_norms = [1-a.norm_over_time[-1] for a in classes]
         omega_norms = [a.dP_domega_norm for a in classes]
-        epsilon_norms = [a.dP_depsilon_norm for a in classes]
-        labels_s = ["%.1e" %l for l in labels]
         
         plt.bar(labels_s, np.abs(np.array(final_norms)-np.array(omega_norms)))
         plt.grid()
@@ -3297,6 +3341,13 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             plt.savefig(f"{save_dir}/comp_final_omega_norm.pdf", bbox_inches='tight')
         plt.show() 
         
+    if plot_postproces[0] and plot_postproces[2]:
+        
+        print("Comparing norm and dP/dε.")
+        
+        final_norms = [1-a.norm_over_time[-1] for a in classes]
+        epsilon_norms = [a.dP_depsilon_norm for a in classes]
+        
         plt.bar(labels_s, np.abs(np.array(final_norms)-np.array(epsilon_norms)))
         plt.grid()
         # low = min(epsilon_norms)
@@ -3310,6 +3361,13 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         if save_dir is not None:
             plt.savefig(f"{save_dir}/comp_final_epsilon_norm.pdf", bbox_inches='tight')
         plt.show() 
+        
+    if plot_postproces[1] and plot_postproces[2]:
+        
+        print("Comparing dP/dΩ and dP/dε.")
+        
+        omega_norms = [a.dP_domega_norm for a in classes]
+        epsilon_norms = [a.dP_depsilon_norm for a in classes]
         
         plt.bar(labels_s, np.abs(np.array(omega_norms)-np.array(epsilon_norms)))
         plt.grid()
@@ -3648,13 +3706,17 @@ def compare_var(savedir="compare_lmax", var="l_max", test_vals=[8,7,6,5,4], calc
     
     total_start_time = time.time()
     hyps = {"nt": 5000, # 8300, 10000, # 8000, #
-            "T": 2.5,
+            "T": 5,
             "n": 500,
             "r_max": 100,
             "gamma_0": 1.75e-4,
             "l_max": 7,
             "k_dim": 15,
             "CAP_R_proportion": .30,
+            "use_stopping_criterion": True,
+            "sc_every_n": 30, 
+            "sc_compare_n": 15, 
+            "sc_thresh": 1e-5,
             }
     
     print(f"Testing {var}:")
@@ -3669,6 +3731,8 @@ def compare_var(savedir="compare_lmax", var="l_max", test_vals=[8,7,6,5,4], calc
                                   T=hyps["T"], n=hyps["n"], r_max=hyps["r_max"], nt_imag=2_000, T_imag=20, use_CAP=True, gamma_0=hyps["gamma_0"], 
                                   CAP_R_proportion=hyps["CAP_R_proportion"], l_max=hyps["l_max"], calc_norm=calc_extra[0], calc_dPdomega=calc_extra[1], 
                                   calc_dPdepsilon=calc_extra[2], calc_dP2depsdomegak=calc_extra[3], calc_mask_method=calc_extra[4],
+                                  sc_every_n=hyps["sc_every_n"], sc_compare_n=hyps["sc_compare_n"], sc_thresh=hyps["sc_thresh"],
+                                  use_stopping_criterion=hyps["use_stopping_criterion"], 
                                   )
         a.set_time_propagator(a.Lanczos_fast, k_dim=hyps["k_dim"])
     
@@ -3871,10 +3935,10 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_sc2", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
+    a = laser_hydrogen_solver(save_dir="test_sc4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
                               T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.25, l_max=7, max_epsilon=3, mask_epsilon_n=300, theta_grid_size=400,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, calc_mask_method=False, spline_n=1_000,
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.3, l_max=7, max_epsilon=3, mask_epsilon_n=300, theta_grid_size=200,
+                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=False, spline_n=2_000,
                               use_stopping_criterion=True, sc_every_n=30, sc_compare_n=15, sc_thresh=1e-5, )
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
 
@@ -3907,7 +3971,7 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    # main()
     
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
@@ -3960,11 +4024,11 @@ if __name__ == "__main__":
     # gamma_0_vals = [.1/2**n for n in range(15, 20)]
     # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    # gamma_0_vals = [.1/2**n for n in range(1,17)]
-    # save_dirs = [f"compare_gamma_0_30/gamma_0_{l}" for l in gamma_0_vals] 
-    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # compare_var("compare_gamma_0_30", "gamma_0", gamma_0_vals, [True,True,True,False,True])
-    # load_programs_and_compare(plot_postproces=[True,True,True,False,True], labels=gamma_0_vals, save_dir="compare_gamma_0_30/comp_gamma_0_center", styles=styles, save_dirs=save_dirs)
+    gamma_0_vals = [.1/2**n for n in range(1,17)]
+    save_dirs = [f"compare_gamma_0_30_sc/gamma_0_{l}" for l in gamma_0_vals] 
+    styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # compare_var("compare_gamma_0_30_sc", "gamma_0", gamma_0_vals, [True,True,True,False,False])
+    load_programs_and_compare(plot_postproces=[True,True,True,False,False], labels=gamma_0_vals, save_dir="compare_gamma_0_30_sc/comp_gamma_0_sc", styles=styles, save_dirs=save_dirs)
     
     
     # gamma_0_vals = [.1/2**n for n in range(8,16)]
