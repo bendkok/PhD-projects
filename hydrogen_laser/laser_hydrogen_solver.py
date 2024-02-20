@@ -36,7 +36,7 @@ class laser_hydrogen_solver:
                  n_saves                = 100,                          # how many wave functions we save
                  n_saves_imag           = 50,                           # how many gs wave functions we save
                  n_plots                = 6,                            # number of plotted wave functions
-                 fd_method              = "3-point",                    # method of finite difference
+                 fd_method              = "5-point_asymmetric",         # method of finite difference
                  gs_fd_method           = "5-point_asymmetric",         # method of finite difference for GS
                  Ncycle                 = 10,                           # optical cycles of laser field
                  E0                     = .1,                           # maximum electric field strength
@@ -63,10 +63,12 @@ class laser_hydrogen_solver:
                  compare_norms          = True,                         # whether to compare the various norms which may be calculated
                  use_stopping_criterion = False,                        # whether to use a stopping criterion 
                  sc_every_n             = 30,                           # how often to check the stopping criterion
-                 sc_thresh              = 1e-5,                         # the stopping criterion threshold
-                 sc_compare_n           = 15,                           # at time step n, the stopping criterion checks if n - sc_compare_n < sc_thresh.
+                 tau_delay              = 0.943,                # determines distance between number that are checked # TODO: explain better
+                 sc_thresh              = 1e-4,                         # the stopping criterion threshold
+                 sc_compare_n           = 15,                           # at time step n, the stopping criterion checks if n - sc_compare_n < sc_thresh. (sc_compare_n will be overwritten if tau_delay is not None)
                                                                         # If so the simulation is stopped
-                
+                 use_finer_grid_for_eps_anal    = False, 
+                 eps_R_max                      = 200
                  ):
         """
         Class for calculating the effects of a non-quantized laser field on a hydrogen atom.
@@ -154,8 +156,11 @@ class laser_hydrogen_solver:
         self.compare_norms              = compare_norms
         self.use_stopping_criterion     = use_stopping_criterion
         self.sc_every_n                 = sc_every_n
+        self.tau_delay                  = tau_delay
         self.sc_thresh                  = sc_thresh
         self.sc_compare_n               = sc_compare_n
+        self.use_finer_grid_for_eps_anal= use_finer_grid_for_eps_anal
+        self.eps_R_max                  = eps_R_max
 
         # initialise other things
         # print(n, type(n), l_max, type(l_max))
@@ -221,6 +226,13 @@ class laser_hydrogen_solver:
             print("Needs calc_norm to be true to use the stopping criterion. Stopping program...")
             raise SystemExit(0)
         
+        if use_stopping_criterion:
+            if self.tau_delay is not None:
+                self.sc_compare_n = int(np.floor(self.tau_delay/self.dt))
+                # print("sc_compare_n: ", self.sc_compare_n)
+        
+        self.eigen_vals = None # so we can test whether eigen_vals have been calculated
+
 
     def make_time_vector(self):
         """
@@ -303,8 +315,68 @@ class laser_hydrogen_solver:
         else:
             print("Invalid time propagator method!")
 
+    
+    def FD_3_point(self, n, h):
+        # 3-point symmetric method
+        # both are O(h²)
 
-    def make_derivative_matrices(self, fd_method="3-point"):
+        # tri-diagonal matrices for the SE
+        # for D1 and D2 we use scipy.sparse because it is faster
+        D1 = sp.diags( [-np.ones(n-1), np.ones(n-1)], [-1, 1], format='coo') / (2*h)                   # first  order derivative
+        D2 = sp.diags( [ np.ones(n-1), -2*np.ones(n), np.ones(n-1)], [-1, 0, 1], format='coo') / (h*h) # second order derivative
+        
+        return D1, D2
+    
+    def FD_5_point_asymmetric(self, n, h):
+        # 5-point asymmetric method, with [-1,0,1,2,3]
+        # D1 is O(h⁴), D2 is O(h³)
+
+        # penta-diagonal matrices for the SE
+        # for D1 and D2 we use scipy.sparse because it is faster
+        ones = np.ones (n)
+        diag = np.zeros(n)
+        diag[0] = 1
+        a = ones[:-2]; b = -8*ones[:-1]; c = -10*diag; d = 8*ones[:-1] + 10*diag[:-1]; e = -ones[2:] - 5*diag[:-2]; f = diag[:-3]
+        D1 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*h)   # first  order derivative
+
+        a = - ones[:-2]; b = 16*ones[:-1]; c = -30*ones + 10*diag; d = 16*ones[:-1] - 10*diag[:-1]; e = -ones[2:] + 5*diag[:-2]; f = -diag[:-3]
+        D2 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*h*h) # second order derivative
+        
+        return D1, D2
+    
+    def FD_5_6_point_asymmetric(self, n, h):
+        # 5-point asymmetric method for D1 with [-1,0,1,2,3], 6-point asymmetric method for D2 with [-1,0,1,2,3,4]
+        # both are O(h⁴)
+
+        # penta-diagonal matrices for the SE
+        # for D1 and D2 we use scipy.sparse because it is faster
+        ones = np.ones (n)
+        diag = np.zeros(n)
+        diag[0] = 1
+        a = ones[:-2]; b = -8*ones[:-1]; c = -10*diag; d = 8*ones[:-1] + 10*diag[:-1]; e = -ones[2:] - 5*diag[:-2]; f = diag[:-3]
+        D1 = sp.diags([a, b, c, d, e, f], [-2,-1,0,1,2,3], format='coo') / (12*h)                   # first  order derivative
+
+        a = - ones[:-2]; b = 16*ones[:-1]; c = -30*ones + 15*diag; d = 16*ones[:-1] - 20*diag[:-1]; e = -ones[2:] + 15*diag[:-2]; f = -6*diag[:-3]
+        D2 = sp.diags([a, b, c, d, e, f, diag[:-4]], [-2,-1,0,1,2,3,4], format='coo') / (12*h*h)    # second order derivative
+        
+        return D1, D2
+    
+    def FD_5_point_symmetric(self, n, h):
+        # 5-point symmetric method, with antisymmetric BC
+        # both are O(h⁴)
+
+        # penta-diagonal matrices for the SE
+        # for D1 and D2 we use scipy.sparse because it is faster
+        ones = np.ones(n)
+        diag_D1 = np.zeros(n); diag_D1[0] = -1
+        diag_D2 = -30*ones; diag_D2[0] = -29
+        D1 = sp.diags( [ ones[2:], -8*ones[1:], diag_D1,  8*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*h)     # first  order derivative
+        D2 = sp.diags( [-ones[2:], 16*ones[1:], diag_D2, 16*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*h*h)   # second order derivative
+        
+        return D1, D2
+    
+
+    def make_derivative_matrices(self, fd_method="5-point_asymmetric"):
         """
         Generate self.D1 and self.D2, matrices used to represent the first and second derivative in the finite difference method.
         Uses self.fd_method to determine number of points and how to handle the boundary at r=0. At r=r_max the WF should approach 0,
@@ -316,6 +388,43 @@ class laser_hydrogen_solver:
 
         """
 
+        self.fd_method = fd_method
+        if fd_method == "3-point":
+            # 3-point symmetric method
+            self.D1, self.D2 = self.FD_3_point(self.n, self.h)
+
+        elif fd_method == "5-point_asymmetric":
+            # 5-point asymmetric method, with [-1,0,1,2,3]
+            self.D1, self.D2 = self.FD_5_point_asymmetric(self.n, self.h)
+
+        elif fd_method == "5_6-point_asymmetric": 
+            # 5-point asymmetric method for D1 with [-1,0,1,2,3], 6-point asymmetric method for D2 with [-1,0,1,2,3,4]
+            self.D1, self.D2 = self.FD_5_6_point_asymmetric(self.n, self.h)
+
+        elif fd_method == "5-point_symmetric":
+            # 5-point symmetric method, with antisymmetric BC
+            self.D1, self.D2 = self.FD_5_point_symmetric(self.n, self.h)
+            
+        else:
+            print(f"Invalid finite difference method (fd_method)! {self.fd_method} is not recognised.")
+            
+            
+    
+    def make_derivative_matrices_old(self, fd_method="3-point"):
+        """
+        DEPRECATED!
+        
+        Generate self.D1 and self.D2, matrices used to represent the first and second derivative in the finite difference method.
+        Uses self.fd_method to determine number of points and how to handle the boundary at r=0. At r=r_max the WF should approach 0,
+        so the boundary condition there isn't as important.
+
+        Returns
+        -------
+        None.
+
+        """
+
+        self.fd_method = fd_method
         if fd_method == "3-point":
             # 3-point symmetric method
             # both are O(h²)
@@ -368,7 +477,9 @@ class laser_hydrogen_solver:
             self.D2 = sp.diags( [-ones[2:], 16*ones[1:], diag_D2, 16*ones[1:], -ones[2:]], [-2,-1,0,1,2], format='coo') / (12*self.h*self.h)
             
         else:
-            print("Invalid finite difference method (fd_method)!")
+            print(f"Invalid finite difference method (fd_method)! {self.fd_method} is not recognised.")
+            
+            
 
 
     def add_CAP(self, use_CAP = True, Gamma_function = "polynomial_Gamma_CAP", gamma_0 = .01, CAP_R_proportion = .8, Gamma_power = 2, custom_Gamma_function=None):
@@ -695,14 +806,52 @@ class laser_hydrogen_solver:
         eigen_vecs : (self.l_max+1, self.n, self.n) numpy array
             All the found eigenvectors. eigen_vecs[L,:,n] corresponds to eigen_vals[L,n].
         """
-
-        eigen_vals = np.zeros((self.l_max+1, self.n))
-        eigen_vecs = np.zeros((self.l_max+1, self.n, self.n))
+                
+        print("\nFinds the eigenstates of the Hamiltonian:")
+        # check whether to use a finer grid for dP/dε analysis, or to use the same as the regular analysis
+        if self.use_finer_grid_for_eps_anal:
+            
+            eps_r = np.arange(self.h, self.eps_R_max, self.h)
+            eps_n = len(eps_r)
+            
+            if self.fd_method == "3-point":
+                # 3-point symmetric method
+                _, eps_D2 = self.FD_3_point(eps_n, self.h)
+    
+            elif self.fd_method == "5-point_asymmetric":
+                # 5-point asymmetric method, with [-1,0,1,2,3]
+                _, eps_D2 = self.FD_5_point_asymmetric(eps_n, self.h)
+    
+            elif self.fd_method == "5_6-point_asymmetric": 
+                # 5-point asymmetric method for D1 with [-1,0,1,2,3], 6-point asymmetric method for D2 with [-1,0,1,2,3,4]
+                _, eps_D2 = self.FD_5_6_point_asymmetric(eps_n, self.h)
+    
+            elif self.fd_method == "5-point_symmetric":
+                # 5-point symmetric method, with antisymmetric BC
+                _, eps_D2 = self.FD_5_point_symmetric(eps_n, self.h)
+                
+            else:
+                print(f"Invalid finite difference method (fd_method)! {self.fd_method} is not recognised.")
+            
+            
+            eps_V    = 1/eps_r      # from the Coulomb potential
+            eps_Vs   = 1/eps_r**2   # from the centrifugal term
+            eps_D2_2 = -.5*eps_D2   # the differentiated double derivative
+            
+        else:
+            eps_n    = self.n
+            eps_V    = self.V    # from the Coulomb potential
+            eps_Vs   = self.Vs   # from the centrifugal term
+            eps_D2_2 = self.D2_2 # the differentiated double derivative
+            
+            
+        eigen_vals = np.zeros((self.l_max+1, eps_n))
+        eigen_vecs = np.zeros((self.l_max+1, eps_n, eps_n))
         
         # goes through all the l-channels
-        for L in range(self.l_max+1):
+        for L in tqdm(range(self.l_max+1)):
             # the Hamiltonian for the current L
-            H_L = self.D2_2 + np.diag(L*(L+1)*.5*self.Vs) - np.diag(self.V)
+            H_L = eps_D2_2 + np.diag(L*(L+1)*.5*eps_Vs) - np.diag(eps_V)
             
             # Symbol explanation:    
             """
@@ -721,7 +870,7 @@ class laser_hydrogen_solver:
             
             # Here we make sure that the found eigenvectors are "positive" eigenvectors.
             # Since kλA = kλv, we need to make ensure that the found k is positive.
-            for n in range(self.n):
+            for n in range(eps_n):
                 if eigen_vecs[L,n,0] < 0:
                     eigen_vecs[L,n] *= -1
             
@@ -1375,9 +1524,10 @@ class laser_hydrogen_solver:
                         # goes through all the non-pulse timesteps
                         if self.use_stopping_criterion:
                             print("After laser pulse, with stopping criterion: ")
+                            
                             tn = 0
                             cont_sim = True
-                            # n_avg_min = 10
+                            # n_diff_min = 10
                             pbar = tqdm(total=len(self.time_vector1)) # progress bar
                             while tn < len(self.time_vector1) and cont_sim: # TODO: consider non-calc_norm implementation
                                 # for tn in tqdm(range(len(self.time_vector1))):
@@ -1400,11 +1550,12 @@ class laser_hydrogen_solver:
                                 tn += 1
                                 pbar.update(tn-pbar.n)
                                 if tn % self.sc_every_n == 0:
-                                    n_avg = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.norm_over_time[tn+t_])
-                                    # if n_avg < n_avg_min:
-                                    #     n_avg_min = n_avg
+                                    # n_diff = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.norm_over_time[tn+t_]) 
+                                    n_diff = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.dt) # TODO: also have dt, make absolute not relative
+                                    # if n_diff < n_diff_min:
+                                    #     n_diff_min = n_diff
                                         
-                                    if n_avg < self.sc_thresh:
+                                    if n_diff < self.sc_thresh:
                                         cont_sim = False
                                         print(f"Reached stopping criterion at t={self.time_vector1[tn]}. Updating arrays.")
                                         self.save_idx_ = self.save_idx_[np.where(self.save_idx_ < tn)]
@@ -1414,7 +1565,7 @@ class laser_hydrogen_solver:
                             
                             if cont_sim:
                                 print("Did not reach stopping criterion. Consider increasing T.")
-                                # print(n_avg, n_avg_min, tn, self.sc_thresh)
+                                # print(n_diff, n_diff_min, tn, self.sc_thresh)
                             
                         else:
                             # goes through all the non-pulse timesteps
@@ -1598,16 +1749,17 @@ class laser_hydrogen_solver:
         """
         
         # we need the eigenvalues of the Hamiltonian to interpolate 
-        eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian() 
-        eigen_vecs /= np.sqrt(self.h)
+        if self.eigen_vals is None: # check wherther they have been calculated
+            self.eigen_vals, self.eigen_vecs = self.find_eigenstates_Hamiltonian() 
+            self.eigen_vecs /= np.sqrt(self.h)
         
         print("\nCalculating dP/dε:")
         # finds the indexes where the energies are positive
-        pos_inds = [np.where(eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
+        pos_inds = [np.where(self.eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
         
         # the used grid spans from the largest of the minimum values of each l-channel,
         # and spans to self.max_epsilon
-        min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
+        min_ls = [min(self.eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
         self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
         self.dP_depsilon   = np.zeros_like(self.epsilon_grid) # the total energy distribution
         self.dP_depsilon_l = np.array([np.zeros_like(self.epsilon_grid)]*(self.l_max+1)) # to contribution to the total energy distribution from each l-channel
@@ -1617,7 +1769,7 @@ class laser_hydrogen_solver:
         for l in range(self.l_max+1):   # goes through all the l-channels
             # gets the positive eigenvalues and their indexes, which are used for the eigenvectors
             pos_ind = pos_inds[l] 
-            pos_eps = eigen_vals[l,pos_ind]
+            pos_eps = self.eigen_vals[l,pos_ind]
             
             # calculates the density of states for the current l-channel
             # ψ_εl is equal to D_l times the eigenvector
@@ -1629,8 +1781,9 @@ class laser_hydrogen_solver:
             F_l_eps = np.zeros(pos_eps.shape, dtype=complex) # the double intergral using the density of states and the eigenvectors
             
             # this is very vectorized now! Might be a better way to do it? Since we need to transpose inte_dr
-            inte_dr = np.sum( (np.conjugate(eigen_vecs[l,pos_ind[0]:,self.CAP_locs]) * self.Gamma_vector[:,None])[:,None,:] * self.zeta_epsilon[...,l,None], axis=0).T # first integral
-            F_l_eps = D_l_eps * np.sum( inte_dr * eigen_vecs[l,pos_ind], axis=1) # second integral, the density of states can be 
+            inte_dr = np.sum( (np.conjugate(self.eigen_vecs[l,pos_ind[0]:,self.CAP_locs]) * self.Gamma_vector[:,None])[:,None,:] * self.zeta_epsilon[...,l,None], axis=0).T # first integral
+            # F_l_eps = D_l_eps * np.sum( inte_dr * self.eigen_vecs[l,pos_ind], axis=1) # second integral, the density of states can be # TODO: what was I trying to say here?
+            F_l_eps = D_l_eps * np.sum( inte_dr * self.eigen_vecs[l,pos_ind,:len(inte_dr[0])], axis=1) # second integral, the density of states can be # TODO: what was I trying to say here?
             
             # gets the epsilon distribution for this l-channel
             # interpolates from the pseudo-continuum in the numeircal box, to the true continuum
@@ -1651,23 +1804,24 @@ class laser_hydrogen_solver:
         print()
         self.dP_depsilon_norm = np.trapz(self.dP_depsilon, self.epsilon_grid) 
         print(f"Norm of dP/dε = {self.dP_depsilon_norm}.", "\n")
-        [print(f"Norm of dP/dε_{l} = {np.trapz(self.dP_depsilon_l[l], self.epsilon_grid)}.") for l in range(self.l_max+1)]
+        # [print(f"Norm of dP/dε_{l} = {np.trapz(self.dP_depsilon_l[l], self.epsilon_grid)}.") for l in range(self.l_max+1)]
         
     
     def calculate_dP2depsdomegak(self):
         # TODO: add doc-string
         
-        eigen_vals, eigen_vecs = self.find_eigenstates_Hamiltonian()
-        # eigen_vals /= np.sqrt(self.h)
-        eigen_vecs /= np.sqrt(self.h)
+        # we need the eigenvalues of the Hamiltonian to interpolate 
+        if self.eigen_vals is None: # check wherther they have been calculated
+            self.eigen_vals, self.eigen_vecs = self.find_eigenstates_Hamiltonian() 
+            self.eigen_vecs /= np.sqrt(self.h)
         
         print("Calculating dP^2/dεdΩ_k:")
         
         # finds the indexes where the energies are positive
-        pos_inds = [np.where(eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
+        pos_inds = [np.where(self.eigen_vals[l]>0)[0] for l in range(self.l_max+1)] 
         
         # the used grid spans from the smalest to the largest of the positive values
-        min_ls = [min(eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
+        min_ls = [min(self.eigen_vals[l,pos_inds[l]]) for l in range(self.l_max+1)]
         self.epsilon_grid = np.linspace(np.max(min_ls), self.max_epsilon, self.spline_n)
         # self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.n))
         self.dP2_depsilon_domegak = np.zeros((self.spline_n, self.theta_grid_size))
@@ -1675,11 +1829,11 @@ class laser_hydrogen_solver:
         D_l_eps = []
         for l in range(self.l_max+1):
             pos_ind = pos_inds[l]
-            D_l_eps.append(np.zeros(eigen_vals[l,pos_ind].shape))
+            D_l_eps.append(np.zeros(self.eigen_vals[l,pos_ind].shape))
             # these are not regularly squared, but we only use the squared values
-            D_l_eps[l][1:-1] = np.sqrt(2/(eigen_vals[l,pos_ind][2:]-eigen_vals[l,pos_ind][:-2]))
-            D_l_eps[l][ 0]   = np.sqrt(1/(eigen_vals[l,pos_ind][ 1]-eigen_vals[l,pos_ind][ 0]))
-            D_l_eps[l][-1]   = np.sqrt(1/(eigen_vals[l,pos_ind][-1]-eigen_vals[l,pos_ind][-2]))
+            D_l_eps[l][1:-1] = np.sqrt(2/(self.eigen_vals[l,pos_ind][2:]-self.eigen_vals[l,pos_ind][:-2]))
+            D_l_eps[l][ 0]   = np.sqrt(1/(self.eigen_vals[l,pos_ind][ 1]-self.eigen_vals[l,pos_ind][ 0]))
+            D_l_eps[l][-1]   = np.sqrt(1/(self.eigen_vals[l,pos_ind][-1]-self.eigen_vals[l,pos_ind][-2]))
         
         # self.theta_grid = np.linspace(0, np.pi, self.theta_grid_size)
         
@@ -1688,7 +1842,7 @@ class laser_hydrogen_solver:
         sigma_l  = [np.angle(sc.special.gamma(l+1j+1j/np.sqrt(2*self.epsilon_grid))) for l in range(self.l_max+1)] 
         # sigma_l2 = [[1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])) for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
         prefix = [[(self.Y[l]*self.Y[l_])[None,:] * (1j**(l_-l) * np.exp(1j*(sigma_l[l]-sigma_l[l_])))[:,None] for l_ in range(self.l_max+1)] for l in range(self.l_max+1)]
-        eigen_vecs_conjugate = np.conjugate(eigen_vecs)
+        eigen_vecs_conjugate = np.conjugate(self.eigen_vecs)
 
         pbar = tqdm(total=(self.l_max+1)**2) # for the progress bar
         for l in range(self.l_max+1): # goes through all the l's twice. # TODO: Can this be vetorized? 
@@ -1696,12 +1850,12 @@ class laser_hydrogen_solver:
             for l_ in range(self.l_max+1):
                 
                 # TODO: this is so vectorized, I'm not enteierly sure what it does anymore...
-                # F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( np.sum( (eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector)[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
+                # F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( np.sum( (eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector)[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)[:,None,:] * self.eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
                 # eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector
                 inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)
-                F_l_eps = (D_l_eps[l][:,None] * D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
+                F_l_eps = (D_l_eps[l][:,None] * D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * self.eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
                 
-                splined = sc.interpolate.RectBivariateSpline(eigen_vals[l,pos_inds[l]], eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps)) 
+                splined = sc.interpolate.RectBivariateSpline(self.eigen_vals[l,pos_inds[l]], self.eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps)) 
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
                 splined = np.real(np.diag(splined)) # we only need the diagonal of the interpolated matrix
                 
@@ -3023,6 +3177,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
     except:
         a.set_time_propagator(getattr(a, hyp["time_propagator"]), k_dim=hyp["k"])
     
+    # a.calc_dPdepsilon = a.calc_dPdomega = a.calc_mask_method = a.calc_norm = True
     # loads run data
     a.load_ground_states()
     a.A = a.single_laser_pulse
@@ -3050,6 +3205,20 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
     # plt.legend()
     # plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
     # plt.show()
+    
+    n = 15
+    # n_avg = np.abs(( self.norm_over_time[tn+t_] - self.norm_over_time[tn+t_-self.sc_compare_n] ) / self.norm_over_time[tn+t_])
+    plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.norm_over_time[n:-1]), label="Norm ")
+    plt.plot(np.append(a.time_vector,a.time_vector1)[n:], np.abs((a.norm_over_time[n:-1]-a.norm_over_time[0:-n-1])/a.dt), label="dt")
+    plt.axvline(a.Tpulse, linestyle="--", color='k', linewidth=1, label="End of pulse") 
+    plt.axhline(1e-4, linestyle="--", color='k', linewidth=1)
+    plt.grid()
+    plt.xlabel("Time (a.u.)")
+    plt.ylabel("Norm")
+    plt.yscale("log")
+    plt.legend()
+    plt.title(r"Norm diff of $\Psi$ as a function of time."+f" n={n}.")
+    plt.show()
     
     # n = 11
     # avgResult = np.average(np.abs((a.norm_over_time[1:-1]-a.norm_over_time[0:-2])/a.norm_over_time[1:-1]).reshape(-1, n), axis=1) 
@@ -3131,6 +3300,8 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         #     # a.sc_every_n                 = 30
         #     # a.sc_thresh                  = 1e-5
         #     # a.sc_compare_n               = 15
+        
+        
         
         classes.append(a)
         
@@ -3935,12 +4106,16 @@ def main():
     #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
     #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
     # a.set_time_propagator(a.Lanczos, k_dim=15)
-    a = laser_hydrogen_solver(save_dir="test_sc4", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(5000), 
-                              T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.3, l_max=7, max_epsilon=3, mask_epsilon_n=300, theta_grid_size=200,
-                              calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=False, calc_mask_method=False, spline_n=2_000,
-                              use_stopping_criterion=True, sc_every_n=30, sc_compare_n=15, sc_thresh=1e-5, )
+    calc_extra = [True, True, True, False, False] # [calc_norm, calc_dPdomega, calc_dPdepsilon, calc_dP2depsdomegak, calc_mask_method]
+    a = laser_hydrogen_solver(save_dir="test_epsgrid1", fd_method="5-point_asym☻metric", gs_fd_method="5-point_asymmetric", 
+                              nt = int(5000), T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, theta_grid_size=200, 
+                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.3, l_max=7, max_epsilon=3, spline_n=2_000, mask_epsilon_n=300,
+                              calc_norm=calc_extra[0], calc_dPdomega=calc_extra[1], calc_dPdepsilon=calc_extra[2], calc_dP2depsdomegak=calc_extra[3], 
+                              calc_mask_method=calc_extra[4], use_finer_grid_for_eps_anal=True, eps_R_max=100*1,
+                              use_stopping_criterion=True, sc_every_n=30, sc_compare_n=15, sc_thresh=1e-4, tau_delay=0.943)
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
+
+    # TODO: implement tau_delay, such that sc_compare_n = floor(tau_delay/dt)
 
     a.calculate_ground_state_imag_time()
     # a.plot_gs_res(do_save=True)
@@ -3949,7 +4124,8 @@ def main():
     a.A = a.single_laser_pulse    
     a.calculate_time_evolution()
 
-    a.plot_res(do_save=True, plot_norm=True, plot_dP_domega=True, plot_dP_depsilon=True, plot_dP2_depsilon_domegak=True, plot_mask_results=True)
+    a.plot_res(do_save=True, plot_norm=calc_extra[0], plot_dP_domega=calc_extra[1], plot_dP_depsilon=calc_extra[2], 
+               plot_dP2_depsilon_domegak=calc_extra[3], plot_mask_results=calc_extra[4])
     
     a.save_zetas()
     a.save_found_states()
@@ -3971,7 +4147,7 @@ def main():
     
 
 if __name__ == "__main__":
-    # main()
+    main()
     
     # for l in range(2,9):
     #     load_run_program_and_plot(f"compare_lmax/lmax_{l}", animate=False, plot_postproces=[True,True,True,False], save_plots=True)
@@ -4024,12 +4200,13 @@ if __name__ == "__main__":
     # gamma_0_vals = [.1/2**n for n in range(15, 20)]
     # compare_var("compare_gamma_0", "gamma_0", gamma_0_vals)
     
-    gamma_0_vals = [.1/2**n for n in range(1,17)]
-    save_dirs = [f"compare_gamma_0_30_sc/gamma_0_{l}" for l in gamma_0_vals] 
-    styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
-    # compare_var("compare_gamma_0_30_sc", "gamma_0", gamma_0_vals, [True,True,True,False,False])
-    load_programs_and_compare(plot_postproces=[True,True,True,False,False], labels=gamma_0_vals, save_dir="compare_gamma_0_30_sc/comp_gamma_0_sc", styles=styles, save_dirs=save_dirs)
+    # gamma_0_vals = [.1/2**n for n in range(1,17)]
+    # save_dirs = [f"compare_gamma_0_30_sc/gamma_0_{l}" for l in gamma_0_vals] 
+    # styles    = ["-","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--","--"]
+    # # compare_var("compare_gamma_0_30_sc", "gamma_0", gamma_0_vals, [True,True,True,False,False])
+    # load_programs_and_compare(plot_postproces=[True,True,True,False,False], labels=gamma_0_vals, save_dir="compare_gamma_0_30_sc/comp_gamma_0_sc", styles=styles, save_dirs=save_dirs)
     
+    # load_run_program_and_plot(save_dir="compare_gamma_0_25/gamma_0_0.00078125", save_plots=True, do_regular_plot=True, plot_postproces=[True,True,True,True,True])
     
     # gamma_0_vals = [.1/2**n for n in range(8,16)]
     # save_dirs = [f"compare_gamma_0/gamma_0_{l}" for l in gamma_0_vals] 
