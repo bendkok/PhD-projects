@@ -16,6 +16,7 @@ import re
 
 from laser_hydrogen_solver import laser_hydrogen_solver
 
+
 def key_sort_files(value):
     # from: https://stackoverflow.com/a/59175736/15147410
     """Extract numbers from string and return a tuple of the numeric values"""
@@ -55,7 +56,7 @@ class Case_Examples:
         """
         
         # a = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", E0=1., nt=7_100, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
-        a = laser_hydrogen_solver(save_dir=save_dir) #, fd_method="3-point", E0=.1, nt=50_000, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
+        a = laser_hydrogen_solver(save_dir=save_dir) # , fd_method="3-point", E0=.1, nt=50_000, T=50, r_max=200, Ncycle=10, n=1000, nt_imag=10_000, T_imag=18)
         # a.__init__(nt=2**13, n_saves=2)
         # a.nt = 144; a.n_saves=10
         # 115 144
@@ -103,7 +104,7 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", nt=50_000, T_imag=21) #, n=2000, nt=100_000, T=50, r_max=100)
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_asymmetric", nt=50_000, T_imag=21) # , n=2000, nt=100_000, T=50, r_max=100)
         # a.n_fd_points = 5
         # a.make_derivative_matrices()
         
@@ -125,7 +126,7 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5_6-point_asymmetric", nt=100_000, T_imag=17) #T_imag=20, T=6, nt=30_000) #n=3000, nt=100_000, T=50, r_max=500, 
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5_6-point_asymmetric", nt=100_000, T_imag=17) # T_imag=20, T=6, nt=30_000) #n=3000, nt=100_000, T=50, r_max=500, 
         # a.n_fd_points = 5
         # a.make_derivative_matrices()
         
@@ -147,7 +148,7 @@ class Case_Examples:
             DESCRIPTION. Whether to save the plots. The default is False.
         """
         
-        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_symmetric", nt=200_000) #, n=3500, nt=200_000, T=100, r_max=100, nt_imag=50_000, T_imag=16)
+        a = laser_hydrogen_solver(save_dir=save_dir, fd_method="5-point_symmetric", nt=200_000) # , n=3500, nt=200_000, T=100, r_max=100, nt_imag=50_000, T_imag=16)
         # a.n_fd_points = 5
         # a.make_derivative_matrices()
         
@@ -235,8 +236,8 @@ class Case_Examples:
         A function which tests the convergence as nt increases for RK4 or Lanczos. 
         """
         
-        os.makedirs(save_dir, exist_ok=True) #make sure the save directory exists
-        os.makedirs(f"{save_dir}/{method}", exist_ok=True) #make sure the save directory exists
+        os.makedirs(save_dir, exist_ok=True) # make sure the save directory exists
+        os.makedirs(f"{save_dir}/{method}", exist_ok=True) # make sure the save directory exists
         
         n = 50 if method == "Lanczos" else int(7_100)
         lhs = laser_hydrogen_solver(save_dir=save_dir, fd_method="3-point", nt=n, E0=.1, T=10, r_max=100, Ncycle=10, n=1000, nt_imag=10_000, T_imag=20)
@@ -244,7 +245,7 @@ class Case_Examples:
         if method == "Lanczos":
             lhs.set_time_propagator(lhs.Lanczos, k=k)
         
-        #first we get a good ground state we can use for all the tests
+        # first we get a good ground state we can use for all the tests
         lhs.calculate_ground_state_imag_time()
         lhs.plot_gs_res(do_save=False)
         lhs.A = lhs.single_laser_pulse
@@ -301,9 +302,9 @@ class Case_Examples:
             Ns[nt+1] = np.sqrt(lhs.inner_product(psi_new,psi_new))       # np.abs(lhs.inner_product(psi_new,psi_new))
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new)**2,0,0), np.insert(np.array([lhs.r,lhs.r,lhs.r]).T,0,0)) 
             # Ns[nt+1] = si.simpson( np.insert( np.abs(psi_new.flatten())**2,0,0), np.insert(np.array([lhs.r]*3).T,0,0)) 
-            norm_diff [nt] = np.mean((psi_old - psi_new)**2) #* lhs.h
+            norm_diff [nt] = np.mean((psi_old - psi_new)**2) # * lhs.h
             psi_diff = psi_new-psi_old
-            norm_diff0[nt] = lhs.inner_product(psi_diff, psi_diff) #lhs.inner_product(psi_old, psi_new)
+            norm_diff0[nt] = lhs.inner_product(psi_diff, psi_diff) # lhs.inner_product(psi_old, psi_new)
             norm_diff1[nt] = np.sqrt(lhs.inner_product(psi_diff, psi_diff)) 
             norm_diff2[nt] = np.mean(np.abs(psi_old - psi_new))
             
@@ -317,13 +318,13 @@ class Case_Examples:
             print("Current norm diff: {:.4E}, {:.4E}, {:1.4f}, {:1.4f}.".format(norm_diff[nt], np.abs(norm_diff[nt]), norm_diff0[nt], norm_diff1[nt]))
             print(f"Total time: {runtime[nt+1]} s."+'\n')
         
-        np.save(f"{save_dir}/{method}/nt_vector" , np.insert(nt_vector, 0, n))
-        np.save(f"{save_dir}/{method}/norm_diff" , np.array(norm_diff))
+        np.save(f"{save_dir}/{method}/nt_vector",  np.insert(nt_vector, 0, n))
+        np.save(f"{save_dir}/{method}/norm_diff",  np.array(norm_diff))
         np.save(f"{save_dir}/{method}/norm_diff0", np.array(norm_diff0))
         np.save(f"{save_dir}/{method}/norm_diff1", np.array(norm_diff1))
         np.save(f"{save_dir}/{method}/norm_diff2", np.array(norm_diff2))
-        np.save(f"{save_dir}/{method}/Ns"        , np.array(Ns))
-        np.save(f"{save_dir}/{method}/runtime"   , np.array(runtime))
+        np.save(f"{save_dir}/{method}/Ns",         np.array(Ns))
+        np.save(f"{save_dir}/{method}/runtime",    np.array(runtime))
         
     
     def plot_convergence(self, save_dir="convergence_test_results", method="RK4"):
@@ -459,7 +460,7 @@ class Case_Examples:
         plt.show()
         
         # loc = np.where(Ns == np.min(Ns))[0][0]
-        loc = -1 #np.where(Ns == np.max(Ns))[0][0]
+        loc = -1 # np.where(Ns == np.max(Ns))[0][0]
         # print(loc, time_steps[loc])
         # print(Ns)
                 
