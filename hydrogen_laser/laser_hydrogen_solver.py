@@ -1411,15 +1411,15 @@ class laser_hydrogen_solver:
                         self.norm_over_time[tn+t_+1] = np.real(self.inner_product(self.P, self.P))
                     
                     def calc_zeta_omega():
-                        # approximates ζ_l,l'(r;t=t) = ∫_0^∞ f_l(r,t)f_l'*(r,t)dt at timestep tn, for calculating dP/dΩ
+                        # approximates ζ_l,l'(r;t=t) = ∫_0^∞ f_l(r,t)f_l'*(r,t)dt at timestep tn. For calculating dP/dΩ
                         self.zeta_omega   += self.P[self.CAP_locs,:,None]*np.conjugate(self.P)[self.CAP_locs,None] # from: https://stackoverflow.com/a/44729200/15147410
                     
                     def calc_zeta_epsilon():
-                        # approximates ζ_l(r,r';t=t) = ∫_0^∞ f_l(r,t)f_l*(r',t)dt at timestep tn, for calculating dP/dε
+                        # approximates ζ_l(r,r';t=t) = ∫_0^∞ f_l(r,t)f_l*(r',t)dt at timestep tn. For calculating dP/dε
                         self.zeta_epsilon += self.P[self.CAP_locs,None]*np.conjugate(self.P)[None,:]
                     
                     def calc_zeta_eps_omegak():
-                        # approximates ζ_l,l'(r,r';t) = ∫_0^∞ f_l(r,t)f_l'*(r',t)dt at timestep tn, for calculating dP^2/dεdΩ_k 
+                        # approximates ζ_l,l'(r,r';t) = ∫_0^∞ f_l(r,t)f_l'*(r',t)dt at timestep tn. For calculating dP^2/dεdΩ_k 
                         # equivalent to: 
                         # for r in range(len(self.CAP_locs)):
                         #     for r_ in range(len(self.r)):
@@ -1430,19 +1430,19 @@ class laser_hydrogen_solver:
                         
                     def calc_b_mask_dp(): # for the mask method during pulse
                         # TODO: add comments
-                        phi_k = self.phi_k_tn[tn,:,None] + self.k_cos_theta * np.trapz(self.A(np.arange(0,self.time_vector[tn],self.dt)), dx=self.dt) 
-                        r_inte_l = self.r[None,None,self.CAP_locs] * self.spherical_jn_lkr * (self.Gamma_vector[None,:] * self.P[self.CAP_locs].T)[:,None,:]
-                        r_inte_l = np.trapz(r_inte_l, self.r[None,self.CAP_locs]) 
-                        l_sum = np.sum(1j**(-np.arange(self.l_max+1))[:,None,None] * np.array(self.Y)[:,None,:] * r_inte_l[:,:,None], axis=0)
+                        phi_k = self.phi_k_tn[tn,:,None] + self.k_cos_theta * np.trapz(self.A(np.arange(0,self.time_vector[tn],self.dt)), dx=self.dt) # the Volkov phase
+                        r_integral = self.r[None,None,self.CAP_locs] * self.spherical_jn_lkr * (self.Gamma_vector[None,:] * self.P[self.CAP_locs].T)[:,None,:]
+                        r_integral = np.trapz(r_integral, self.r[None,self.CAP_locs]) 
+                        l_sum = np.sum(1j**(-np.arange(self.l_max+1))[:,None,None] * np.array(self.Y)[:,None,:] * r_integral[:,:,None], axis=0)
                         self.b_mask += np.exp(1j*phi_k) * l_sum
                         
                         
                     def calc_b_mask_ap(): # for the mask method after pulse                       
                         # TODO: add comments
-                        phi_k = self.phi_k_tn[tn,:,None] 
-                        r_inte_l = self.r[None,None,self.CAP_locs] * self.spherical_jn_lkr * (self.Gamma_vector[None,:] * self.P[self.CAP_locs].T)[:,None,:]
-                        r_inte_l = np.trapz(r_inte_l, self.r[None,self.CAP_locs]) 
-                        l_sum = np.sum(1j**(-np.arange(self.l_max+1))[:,None,None] * np.array(self.Y)[:,None,:] * r_inte_l[:,:,None], axis=0)
+                        phi_k = self.phi_k_tn[tn,:,None] # the Volkov phase
+                        r_integral = self.r[None,None,self.CAP_locs] * self.spherical_jn_lkr * (self.Gamma_vector[None,:] * self.P[self.CAP_locs].T)[:,None,:]
+                        r_integral = np.trapz(r_integral, self.r[None,self.CAP_locs]) 
+                        l_sum = np.sum(1j**(-np.arange(self.l_max+1))[:,None,None] * np.array(self.Y)[:,None,:] * r_integral[:,:,None], axis=0)
                         self.b_mask += np.exp(1j*phi_k) * l_sum
                     
                     
@@ -1616,6 +1616,7 @@ class laser_hydrogen_solver:
                     if self.calc_mask_method:
                         # finds dP^2/dεdΩ_k 
                         self.b_mask *= self.dt * np.sqrt(2/np.pi)
+                        # self.b_mask *= self.dt * np.sqrt(2/np.pi) * self.r # TODO: fix dimensions
                         self.calculate_mask_method()
                     
                     # we can compare the different norms if several have been calculated
@@ -1677,7 +1678,7 @@ class laser_hydrogen_solver:
             self.time_evolved = True
     
     
-    def print_compare_norms(self):
+    def print_compare_norms(self, do_save=True):
         """
         Prints the absolute difference between all the calculated norms. 
 
@@ -1693,12 +1694,25 @@ class laser_hydrogen_solver:
         vals  = ['1-self.norm_over_time[-1]', 'self.dP_domega_norm', 'self.dP_depsilon_norm', 'self.dP2_depsilon_domegak_normed', 'self.dP2_depsilon_domegak_mask_normed']
         names = ['|Ψ|^2', 'dP/dΩ', 'dP/dε', 'dP^2/dεdΩ_k', 'mask']
         
+        # print([1-self.norm_over_time[-1], self.dP_domega_norm, self.dP_depsilon_norm, self.dP2_depsilon_domegak_normed])
+        
+        norms = ""
+        
         # we use eval() since some of the values may not be calculated. Bit clunky, but it works
         for c in range(len(calcs)-1): # for all the values which could have been calculated
             for cc in range(c+1,len(calcs)): # for all the values which could have been calculated, but without repeating
                 if calcs[c] and calcs[cc]: # if both were calculated
                     # eval() here is used to turn the string into an expression, which is calculated
-                    print( f"Norm diff {names[c]} and {names[cc]}: {np.abs(eval(vals[c]+'-'+vals[cc]))}." )
+                    norm = f"Norm diff {names[c]} and {names[cc]}: {np.abs(eval(vals[c]+'-'+vals[cc]))}."
+                    print(norm)
+                    norms += norm+'\n'
+                    # print( f"{eval('['+vals[c]+','+vals[cc]+']')}." + '\n')
+    
+        if do_save: # saves the comparisons to file
+            os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
+            # np.savetxt(f"{self.save_dir}/comparison.txt", norms)
+            with open(f"{self.save_dir}/comparison.txt", "w", encoding="utf-8") as text_file:
+                text_file.write(norms)
     
     
     def calculate_dPdomega(self):
@@ -1853,7 +1867,8 @@ class laser_hydrogen_solver:
                 # F_l_eps = np.sqrt(D_l_eps[l][:,None]) * np.sqrt(D_l_eps[l_][None,:]) * np.sum( np.sum( (eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector)[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)[:,None,:] * self.eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
                 # eigen_vecs_conjugate_gamma = eigen_vecs_conjugate[l][pos_inds[l][:,None],self.CAP_locs[None,:]] * self.Gamma_vector
                 inte_dr = np.sum( eigen_vecs_conjugate_gamma[:,:,None] * self.zeta_eps_omegak[:,:,l,l_][None], axis=1)
-                F_l_eps = (D_l_eps[l][:,None] * D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * self.eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
+                # F_l_eps = (D_l_eps[l][:,None] * D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * self.eigen_vecs[l_][pos_inds[l_][:]][None], axis=2)
+                F_l_eps = (D_l_eps[l][:,None] * D_l_eps[l_][None,:]) * np.sum( inte_dr[:,None,:] * (self.eigen_vecs[l_][pos_inds[l_]])[:,:len(inte_dr[0])][None], axis=2)
                 
                 splined = sc.interpolate.RectBivariateSpline(self.eigen_vals[l,pos_inds[l]], self.eigen_vals[l_,pos_inds[l_]], np.real(F_l_eps)) 
                 splined = splined(self.epsilon_grid, self.epsilon_grid)
@@ -1916,10 +1931,10 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_norm  = np.trapz(self.dP2_depsilon_domegak, x=self.epsilon_grid, axis=0) 
         self.dP2_depsilon_domegak_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
         print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm*2*np.pi*np.sin(self.theta_grid), x=self.theta_grid) }.")
-        print(f"Norm of dP^2/dεdΩ_k = {np.trapz(self.dP2_depsilon_domegak_norm0, x=self.epsilon_grid) }.")
+        print(f"Norm of dP^2/dΩ_kdε = {np.trapz(self.dP2_depsilon_domegak_norm0, x=self.epsilon_grid) }.")
         print()
         
-        self.dP2_depsilon_domegak_normed = np.trapz(self.dP2_depsilon_domegak_norm*np.sin(self.theta_grid), x=self.theta_grid) 
+        self.dP2_depsilon_domegak_normed = np.trapz(self.dP2_depsilon_domegak_norm*2*np.pi*np.sin(self.theta_grid), x=self.theta_grid) 
         self.dP2_depsilon_domegak_calculated = True
         
         
@@ -1929,10 +1944,10 @@ class laser_hydrogen_solver:
         self.dP2_depsilon_domegak_mask = self.k_grid[:,None] * np.abs(self.b_mask)**2
         
         print()
-        self.dP2_depsilon_domegak_mask_norm  = np.trapz(self.dP2_depsilon_domegak_mask, x=self.epsilon_mask_grid, axis=0) 
+        self.dP2_depsilon_domegak_mask_norm  = np.trapz(self.dP2_depsilon_domegak_mask, x=self.epsilon_mask_grid, axis=0)  # TODO: update to k vector
         self.dP2_depsilon_domegak_mask_norm0 = np.trapz(2*np.pi*self.dP2_depsilon_domegak_mask*np.sin(self.theta_grid)[None], x=self.theta_grid, axis=1) 
         print(f"Norm of dP^2/dεdΩ_k mask = {np.trapz(self.dP2_depsilon_domegak_mask_norm*2*np.pi*np.sin(self.theta_grid), x=self.theta_grid) }.")
-        print(f"Norm of dP^2/dεdΩ_k mask = {np.trapz(self.dP2_depsilon_domegak_mask_norm0, x=self.epsilon_mask_grid) }.")
+        print(f"Norm of dP^2/dΩ_kdε mask = {np.trapz(self.dP2_depsilon_domegak_mask_norm0, x=self.epsilon_mask_grid) }.")
         print()
         
         self.dP2_depsilon_domegak_mask_normed = np.trapz(self.dP2_depsilon_domegak_mask_norm*np.sin(self.theta_grid), x=self.theta_grid) 
@@ -3137,8 +3152,10 @@ class laser_hydrogen_solver:
             "sc_compare_n":             self.sc_compare_n,
             "sc_every_n":               self.sc_every_n,
             "sc_thresh":                self.sc_thresh,
+            "eps_R_max":                self.eps_R_max,
         }
         
+        os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
         with open(f"{self.save_dir}/hyperparameters.txt", 'w') as f: 
             for key, value in hyperparameters.items(): 
                 f.write('%s:%s\n' % (key, value))
@@ -4100,22 +4117,16 @@ def main():
     
     total_start_time = time.time()
 
-    # a = laser_hydrogen_solver(save_dir="test_CAP", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", nt = int(2000), 
-    #                           T=2, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, # T=0.9549296585513721
-    #                           use_CAP=True, gamma_0=1e-3, CAP_R_proportion=.5, l_max=3, max_epsilon=2,
-    #                           calc_norm=True, calc_dPdomega=True, calc_dPdepsilon=True, calc_dP2depsdomegak=True, spline_n=1_000,
-    #                           use_stopping_criterion=True, sc_every_n=10, sc_compare_n=2, sc_thresh=1e-5, )
-    # a.set_time_propagator(a.Lanczos, k_dim=15)
-    calc_extra = [True, True, True, False, False] # [calc_norm, calc_dPdomega, calc_dPdepsilon, calc_dP2depsdomegak, calc_mask_method]
-    a = laser_hydrogen_solver(save_dir="test_epsgrid1", fd_method="5-point_asym☻metric", gs_fd_method="5-point_asymmetric", 
-                              nt = int(5000), T=1, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, theta_grid_size=200, 
-                              use_CAP=True, gamma_0=1e-4, CAP_R_proportion=.3, l_max=7, max_epsilon=3, spline_n=2_000, mask_epsilon_n=300,
+    calc_extra = [True, True, True, True, True] # [calc_norm, calc_dPdomega, calc_dPdepsilon, calc_dP2depsdomegak, calc_mask_method]
+    a = laser_hydrogen_solver(save_dir="run_for_comp", fd_method="5-point_asymmetric", gs_fd_method="5-point_asymmetric", 
+                              nt = int(5000), T=2.5, n=500, r_max=100, E0=.1, Ncycle=10, w=.2, cep=0, nt_imag=2_000, T_imag=20, theta_grid_size=200, 
+                              use_CAP=True, gamma_0=0.00078125, CAP_R_proportion=.25, l_max=7, max_epsilon=3, spline_n=1_000, mask_epsilon_n=250, mask_max_epsilon=3,
                               calc_norm=calc_extra[0], calc_dPdomega=calc_extra[1], calc_dPdepsilon=calc_extra[2], calc_dP2depsdomegak=calc_extra[3], 
-                              calc_mask_method=calc_extra[4], use_finer_grid_for_eps_anal=True, eps_R_max=100*1,
+                              calc_mask_method=calc_extra[4], use_finer_grid_for_eps_anal=True, eps_R_max=250,
                               use_stopping_criterion=True, sc_every_n=30, sc_compare_n=15, sc_thresh=1e-4, tau_delay=0.943)
     a.set_time_propagator(a.Lanczos_fast, k_dim=15)
-
-    # TODO: implement tau_delay, such that sc_compare_n = floor(tau_delay/dt)
+    
+    a.save_hyperparameters()
 
     a.calculate_ground_state_imag_time()
     # a.plot_gs_res(do_save=True)
