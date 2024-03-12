@@ -29,7 +29,7 @@ class laser_hydrogen_solver:
                  n                      = 2000,                         # number of physical grid points
                  r_max                  = 200,                          # how far away we simulate the wave function
                  T                      = 2,                            # how many times the simulation should repeat after the laser pulse
-                 nt                     = None,                         # number of time steps
+                 nt                     = None,                         # number of time steps for the laser pulse
                  dt                     = 0.05,                         # the timestep
                  T_imag                 = 17,                           # total imaginary time for generating the ground state
                  nt_imag                = 5000,                         # number of imaginary time steps for T_imag
@@ -2957,7 +2957,7 @@ class laser_hydrogen_solver:
         if self.dP2_depsilon_domegak_mask_calculated:
             os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
             np.save(f"{self.save_dir}/{savename}_dP2_depsilon_domegak_mask", self.dP2_depsilon_domegak_mask)
-            np.savetxt(f"{self.save_dir}/{savename}_dP2_depsilon_domegak.csv", self.dP2_depsilon_domegak_mask, delimiter=',')
+            np.savetxt(f"{self.save_dir}/{savename}_dP2_depsilon_domegak_mask.csv", self.dP2_depsilon_domegak_mask, delimiter=',')
             
             np.save(f"{self.save_dir}/{savename}_epsilon_mask_grid", self.epsilon_mask_grid)
             np.savetxt(f"{self.save_dir}/{savename}_epsilon_mask_grid.csv", self.epsilon_mask_grid, delimiter=',')
@@ -3273,7 +3273,7 @@ def load_run_program_and_plot(save_dir="dP_domega_S31", do_regular_plot=True, an
         
 def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True,True,True,True,True], tested_variable="gamma_0", labels=None, animate=False, save_animation=False, save_dir=None, styles=None, extra_title=""):
     """
-    Loads a program which has been run, and makes plots of the results.
+    Loads several programs which has been run, and makes plots comparing the results.
 
     Parameters
     ----------
