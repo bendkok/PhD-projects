@@ -36,10 +36,10 @@ def plot_comp(case_a, case_b, test_norms, vars0, found_vars1, do_save=False, sav
     
     if test_norms[1]:
         plt.axes(projection = 'polar', rlabel_position=-22.5)
-        plt.plot(np.pi/2-np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP_domega, label=str(vars0))
-        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP_domega, '--', label=str(found_vars1))
-        plt.plot(np.pi/2+np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP_domega)
-        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP_domega, '--')
+        line, = plt.plot(np.pi/2-np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP_domega, label=str(vars0))
+        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP_domega, '--', label=str(found_vars1), color=line.get_color())
+        line, = plt.plot(np.pi/2+np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP_domega)
+        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP_domega, '--', color=line.get_color())
         # plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$dP/d\Omega$")
@@ -87,10 +87,10 @@ def plot_comp(case_a, case_b, test_norms, vars0, found_vars1, do_save=False, sav
         
     if test_norms[3]:
         plt.axes(projection = 'polar', rlabel_position=-22.5)
-        plt.plot(np.pi/2-np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP2_depsilon_domegak_norm, label=str(vars0))
-        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP2_depsilon_domegak_norm, '--', label=str(found_vars1))
-        plt.plot(np.pi/2+np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP2_depsilon_domegak_norm)
-        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP2_depsilon_domegak_norm, '--')
+        line, = plt.plot(np.pi/2-np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP2_depsilon_domegak_norm, label=str(vars0))
+        plt.plot(np.pi/2-np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP2_depsilon_domegak_norm, '--', label=str(found_vars1), color=line.get_color())
+        line, = plt.plot(np.pi/2+np.linspace(0, np.pi, case_a.theta_grid_size), case_a.dP2_depsilon_domegak_norm)
+        plt.plot(np.pi/2+np.linspace(0, np.pi, case_b.theta_grid_size), case_b.dP2_depsilon_domegak_norm, '--', color=line.get_color())
         # plt.grid()
         plt.xlabel("φ")
         plt.ylabel(r"$\partial^2 P/\partial \varepsilon \partial \Omega_k$")

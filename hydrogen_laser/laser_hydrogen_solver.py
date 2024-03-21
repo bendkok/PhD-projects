@@ -2027,8 +2027,8 @@ class laser_hydrogen_solver:
             sns.set_theme(style="dark") # nice plots
             
             plt.axes(projection = 'polar', rlabel_position=-22.5)
-            plt.plot(np.pi/2-self.theta_grid, self.dP_domega, label="dP_domega")
-            plt.plot(np.pi/2+self.theta_grid, self.dP_domega, label="dP_domega")
+            line, = plt.plot(np.pi/2-self.theta_grid, self.dP_domega, label="dP_domega")
+            plt.plot(np.pi/2+self.theta_grid, self.dP_domega, label="dP_domega", color=line.get_color())
             plt.title(r"$dP/d\Omega$ with polar projection."+extra_title)
             if do_save:
                 os.makedirs(self.save_dir, exist_ok=True) # make sure the save directory exists
@@ -2146,8 +2146,8 @@ class laser_hydrogen_solver:
             X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
             plt.axes(projection = 'polar', rlabel_position=-22.5)
-            plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
-            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
+            line, = plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega")
+            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_norm, label="dP_domega", color=line.get_color())
             # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
             plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with polar plot projection."+extra_title)
             if do_save:
@@ -2250,8 +2250,8 @@ class laser_hydrogen_solver:
             X,Y   = np.meshgrid(self.epsilon_mask_grid, self.theta_grid)
             
             plt.axes(projection = 'polar', rlabel_position=-22.5)
-            plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_mask_norm, label="dP_domega")
-            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_mask_norm, label="dP_domega")
+            line, = plt.plot(np.pi/2-self.theta_grid, self.dP2_depsilon_domegak_mask_norm, label="dP_domega")
+            plt.plot(np.pi/2+self.theta_grid, self.dP2_depsilon_domegak_mask_norm, label="dP_domega", color=line.get_color())
             # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
             plt.title(r"$\int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ for the mask method with polar plot projection."+extra_title)
             if do_save:
@@ -3394,8 +3394,8 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
         plt.axes(projection = 'polar', rlabel_position=-22.5)
         for i,a in enumerate(classes):
             a.load_dP_domega()
-            plt.plot(np.pi/2-a.theta_grid, a.dP_domega, styles[i], label=("{:"+lab_formating+"}").format(labels[i]))
-            plt.plot(np.pi/2+a.theta_grid, a.dP_domega, styles[i]) # , label="dP_domega")
+            line, = plt.plot(np.pi/2-a.theta_grid, a.dP_domega, styles[i], label=("{:"+lab_formating+"}").format(labels[i]))
+            plt.plot(np.pi/2+a.theta_grid, a.dP_domega, styles[i], color=line.get_color()) # , label="dP_domega")
         plt.title(r"Comparison of $dP/d\Omega$ with polar projection."+extra_title)
         plt.legend(loc='upper left')
         if save_dir is not None:
@@ -3586,8 +3586,8 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             a.theta_grid = np.linspace(0,np.pi,a.theta_grid_size)
             # X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
-            plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label=("{:"+lab_formating+"}").format(labels[i]))
-            plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i]) # , label="dP_domega")
+            line, = plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], label=("{:"+lab_formating+"}").format(labels[i]))
+            plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_norm, styles[i], color=line.get_color()) # , label="dP_domega")
         # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
         plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ with polar plot projection."+extra_title)
         plt.legend(loc='upper left')
@@ -3721,8 +3721,8 @@ def load_programs_and_compare(save_dirs=["dP_domega_S31"], plot_postproces=[True
             a.theta_grid = np.linspace(0,np.pi,a.theta_grid_size)
             # X,Y   = np.meshgrid(self.epsilon_grid, self.theta_grid)
             
-            plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i], label=("{:"+lab_formating+"}").format(labels[i]))
-            plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i]) # , label="dP_domega")
+            line, = plt.plot(np.pi/2-a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i], label=("{:"+lab_formating+"}").format(labels[i]))
+            plt.plot(np.pi/2+a.theta_grid, a.dP2_depsilon_domegak_mask_norm, styles[i], color=line.get_color()) # , label="dP_domega")
         # plt.title(r"$dP/d\Omega_k$ with polar projection."+extra_title)
         plt.title(r"$Comparison of \int (\partial^2 P/\partial \varepsilon \partial \Omega_k) d\varepsilon$ for the mask method with polar plot projection."+extra_title)
         plt.legend(loc='upper left')
